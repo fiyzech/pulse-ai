@@ -175,7 +175,7 @@ const LandingPage: React.FC = () => {
       <div className="absolute bottom-0 left-0 w-full h-[40vh] md:h-[45vh] pointer-events-none z-0">
         <DotWave />
         {/* Градієнт, щоб хвиля плавно розчинялася зверху */}
-        <div className="absolute top-0 left-0 w-full h-20 bg-linear-to-b from-[#000008] to-transparent" />
+        <div className="absolute top-2 left-0 w-full h-20 bg-linear-to-b from-[#000008] to-transparent" />
       </div>
 
     </div>
