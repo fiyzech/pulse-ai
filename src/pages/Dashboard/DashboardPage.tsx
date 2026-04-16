@@ -8,7 +8,7 @@ export default function DashboardPage() {
       
       {/* СЕКЦІЯ 1: Популярне + Telegram Promo */}
       <div className="mb-8">
-        <h2 className="text-[22px] font-semibold mb-5 text-white/95">
+        <h2 className="text-[20px] font-semibold mb-5 text-white/95">
           Популярне сьогодні
         </h2>
         
