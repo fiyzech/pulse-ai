@@ -1,53 +1,50 @@
-import { Link, useLocation } from "react-router-dom";
-import userIcon from "../../assets/icons/user.svg";
-import alertsIcon from "../../assets/icons/alerts-icon.svg"; // Якщо дзвіночок в іншому файлі, підстав його сюди
+import { useLocation } from "react-router-dom";
+import notificationsIcon from "../../assets/icons/notifications-icon.svg"; 
+import logOutIcon from "../../assets/icons/log-out-icon.svg"; 
 
 export default function Topbar() {
   const location = useLocation();
 
   const getPageTitle = () => {
     const path = location.pathname;
-    if (path.includes("dashboard")) return "Dashboard";
-    if (path.includes("assets") || path.includes("watchlist")) return "Watchlist";
-    if (path.includes("markets")) return "Markets";
-    if (path.includes("alerts")) return "Alerts";
-    if (path.includes("settings")) return "Settings";
-    if (path.includes("profile")) return "Profile";
-    return "Dashboard";
+    if (path.includes("dashboard")) return "Головна";
+    if (path.includes("assets") || path.includes("watchlist")) return "Обране";
+    if (path.includes("markets")) return "Ринки";
+    if (path.includes("alerts")) return "Алерти";
+    if (path.includes("settings")) return "Налаштування";
+    if (path.includes("profile")) return "Профіль";
+    if (path.includes("support")) return "Підтримка";
+    return "Головна"; // Дефолтне значення
   };
 
   return (
     <header className="flex h-[80px] items-center justify-between border-b border-white/5 px-10 bg-[#05050A]/80 backdrop-blur-md sticky top-0 z-20">
       <h1 className="text-[20px] font-semibold text-white/90">{getPageTitle()}</h1>
 
-      <div className="flex items-center gap-6">
-        {/* Пошук - вузька пігулка */}
-        <div className="flex h-10 w-[240px] items-center gap-2.5 rounded-full border border-white/10 bg-[#0A0A0F] px-4">
-          <span className="text-[14px] text-white/40">⌕</span>
+      <div className="flex items-center gap-4">
+        {/* Пошук */}
+        <div className="flex h-10 w-[240px] items-center gap-2.5 rounded-full border border-white/10 bg-transparent px-4">
+          {/* Іконка лупи (вбудована SVG) */}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
           <input 
             type="text" 
-            placeholder="Search" 
+            placeholder="Пошук" 
             className="bg-transparent border-none outline-none text-[13px] text-white/90 w-full placeholder:text-white/30"
           />
         </div>
         
-        {/* Іконка Alerts (Дзвіночок) */}
-        <Link to="/alerts" className="text-white/50 hover:text-white transition-colors">
-          {alertsIcon.length > 5 ? (
-            <img src={alertsIcon} alt="Alerts" className="h-5 w-5" />
-          ) : (
-            <span className="text-xl">🔔</span> // Фолбек, якщо іконки дзвіночка ще нема
-          )}
-        </Link>
+        {/* Іконка Сповіщень (Дзвіночок) */}
+        <button className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-transparent hover:bg-white/5 transition-colors">
+          <img src={notificationsIcon} alt="Сповіщення" className="h-5 w-5 opacity-70" />
+        </button>
 
-        {/* Іконка Профілю - квадратна з заокругленнями */}
-        <Link to="/profile" className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
-          {userIcon.length > 5 ? (
-            <img src={userIcon} alt="Profile" className="h-4 w-4 opacity-80" />
-          ) : (
-            <span className="text-sm">👤</span>
-          )}
-        </Link>
+        {/* Іконка Виходу */}
+        <button className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-transparent hover:bg-white/5 transition-colors">
+          <img src={logOutIcon} alt="Вихід" className="h-5 w-5 opacity-70" />
+        </button>
       </div>
     </header>
   );
