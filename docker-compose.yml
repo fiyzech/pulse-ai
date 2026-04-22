@@ -24,7 +24,21 @@ services:
       - db
     volumes:
       - ./backend:/app  # <-- Ось це робить Live Sync твого коду з Docker
-
+  frontend:
+      build: ./frontend
+      container_name: CryptoPulse_frontend
+      restart: always
+      ports:
+        - "5173:5173" # Стандартний порт, на якому крутиться React через Vite
+      depends_on:
+        - api         # Фронтенд запуститься тільки після того, як підніметься твоє API
+      volumes:
+        - ./frontend:/app
+        # 🚨 ВАЖЛИВИЙ ТРЮК: Ізолюємо папку node_modules, щоб Докер не бився з вашим компом
+        - /app/node_modules
+      environment:
+        # Ця змінна змушує Докер краще слідкувати за змінами файлів (щоб Hot Reload працював безвідмовно)
+        - WATCHPACK_POLLING=true
 # Це має бути притиснуто до самого лівого краю (без пробілів)
 volumes:
   pgdata:
