@@ -11,8 +11,8 @@ class User_Model(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
 
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
-
+    
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+
 
     
