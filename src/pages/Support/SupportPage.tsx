@@ -1,69 +1,137 @@
+import React, { useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+
 export default function SupportPage() {
+  const [openFaq, setOpenFaq] = useState(1);
+
+  const faqs = [
+    { id: 0, question: 'Як працює функція "Обране" і скільки активів я можу туди додати?' },
+    { 
+      id: 1, 
+      question: 'Які криптовалюти підтримуються?', 
+      answer: (
+        <>
+          <span className="text-[#8348C1]">CryptoPulse</span> підтримує тисячі криптовалют — від Bitcoin і Ethereum до нових альткоїнів. Ви можете відстежувати будь-які активи, які вас цікавлять, в одному зручному інтерфейсі.
+        </>
+      )
+    },
+    { id: 2, question: 'Звідки CryptoPulse бере дані про ціни та новини?' },
+    { id: 3, question: 'Як налаштувати платформу так, щоб не перевіряти графіки кожні 5 хвилин?' },
+    { id: 4, question: 'Чи можна шукати новини тільки по монетах, які мене цікавлять?' },
+    { id: 5, question: 'Як працює відстеження новин на платформі?' },
+  ];
+
   return (
-    <section className="px-10 py-8 max-w-[1200px] mx-auto w-full">
-      
-      {/* Hero секція підтримки */}
-      <div className="text-center mb-16 mt-8">
-        <h2 className="text-[40px] font-semibold text-white mb-4">
-          Чим ми можемо допомогти?
-        </h2>
-        <p className="text-[16px] text-white/50 mb-8 max-w-lg mx-auto">
-          Знайдіть відповіді на поширені запитання або зв'яжіться з нашою командою підтримки.
-        </p>
+    <section className="text-white p-6 w-full mx-auto bg-transparent font-['Montserrat',sans-serif]">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
         
-        <div className="max-w-2xl mx-auto flex h-14 items-center gap-3 rounded-2xl border border-white/10 bg-[#0A0A0F] px-6 shadow-lg shadow-black/20 focus-within:border-violet-500/50 transition-colors">
-          <span className="text-xl text-white/40">⌕</span>
-          <input 
-            type="text" 
-            placeholder="Опишіть вашу проблему..." 
-            className="bg-transparent border-none outline-none text-[15px] text-white/90 w-full placeholder:text-white/30"
-          />
-        </div>
-      </div>
-
-      {/* Картки категорій */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-        {[
-          { title: "Налаштування сповіщень", icon: "🔔", desc: "Як створити та керувати алертами в Telegram." },
-          { title: "Акаунт та Білінг", icon: "👤", desc: "Управління підпискою, зміна пароля та оплата." },
-          { title: "PulseAI Асистент", icon: "✦", desc: "Як використовувати ШІ для аналізу крипторинку." }
-        ].map((item, i) => (
-          <div key={i} className="rounded-[24px] border border-white/5 bg-[#0A0A0F] p-8 hover:bg-white/[0.02] transition-colors cursor-pointer group">
-            <div className="h-12 w-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform">
-              {item.icon}
-            </div>
-            <h3 className="text-[18px] font-semibold text-white/90 mb-3">{item.title}</h3>
-            <p className="text-[14px] leading-relaxed text-white/50">{item.desc}</p>
+        {/* ЛІВА СЕКЦІЯ: Поширені запитання */}
+        <div className="bg-[#0B0B0C] rounded-[28px] p-8 shadow-2xl border border-white/5">
+          <h2 className="text-[24px] font-medium mb-8 text-white leading-none">Поширені запитання</h2>
+          <div className="space-y-4">
+            {faqs.map((faq) => {
+              const isActive = openFaq === faq.id;
+              
+              return (
+                <div 
+                  key={faq.id}
+                  onClick={() => setOpenFaq(isActive ? null : faq.id)}
+                  className="transition-all duration-500 rounded-[22px] overflow-hidden cursor-pointer"
+                  style={isActive ? {
+                    // Менш насичений фіолетовий градієнт: чорний -> приглушений фіолетовий
+                    background: 'linear-gradient(180deg, #050506 0%, #301B52 100%)',
+                    // Лише переливаючий контур зліва направо, без білої смужки зверху
+                    border: '1px solid',
+                    borderImageSource: 'linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.2) 100%)',
+                    borderImageSlice: 1,
+                  } : {
+                    background: 'transparent',
+                    border: '1px solid rgba(255, 255, 255, 0.05)'
+                  }}
+                >
+                  <div className="flex justify-between items-center p-5">
+                    <span className="text-[16px] font-medium text-white">
+                      {faq.question}
+                    </span>
+                    {isActive ? (
+                      <ChevronUp className="w-5 h-5 text-white" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-white/40" />
+                    )}
+                  </div>
+                  {isActive && faq.answer && (
+                    <div className="px-5 pb-6 text-[14px] font-normal text-[#A3A4B0] leading-relaxed">
+                      {faq.answer}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        ))}
-      </div>
+        </div>
 
-      {/* Зв'язок з підтримкою */}
-      <div className="rounded-[32px] border border-white/5 bg-[linear-gradient(180deg,rgba(10,10,15,0.8)_0%,rgba(5,5,10,0.9)_100%)] p-10 flex flex-col md:flex-row gap-12 items-center">
-        <div className="flex-1">
-          <h2 className="text-[28px] font-semibold text-white mb-4">
-            Не знайшли відповіді?
-          </h2>
-          <p className="text-[15px] text-white/50 leading-relaxed mb-8">
-            Наша команда на зв'язку 24/7. Напишіть нам напряму через Telegram або надішліть email, і ми допоможемо вирішити ваше питання в найкоротші терміни.
+        {/* ПРАВА СЕКЦІЯ: Форма */}
+        <div className="bg-[#0B0B0C] rounded-[28px] p-8 shadow-2xl border border-white/5 flex flex-col h-full">
+          <h2 className="text-[24px] font-medium mb-6 text-white leading-none">Зв'язатися з підтримкою</h2>
+          
+          <p className="text-[16px] font-normal text-[#A3A4B0] leading-relaxed mb-10">
+            Ми тут, щоб допомогти вам. Якщо у вас виникли питання щодо платформи, алертів або відстеження ринку — наша команда швидко знайде рішення.
           </p>
-          <div className="flex gap-4">
-            <button className="px-6 py-3.5 rounded-xl bg-[#7E50ED] text-[14px] font-semibold text-white hover:bg-[#6A3CD9] transition-colors shadow-[0_0_20px_rgba(126,80,237,0.3)]">
-              Написати в Telegram
-            </button>
-            <button className="px-6 py-3.5 rounded-xl border border-white/10 bg-white/5 text-[14px] font-medium text-white/80 hover:bg-white/10 transition-colors">
-              support@cryptopulse.io
+
+          <div className="space-y-6">
+            <h3 className="text-[16px] font-medium text-white">Заповніть форму для звернення</h3>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[12px] font-normal text-[#A3A4B0] ml-1">Ім'я</label>
+                <input 
+                  type="text" 
+                  placeholder="Введіть Ваше імʼя" 
+                  className="w-full bg-white/5 border border-white/5 rounded-full py-3 px-6 text-[16px] font-normal text-white focus:outline-none focus:border-white/20 placeholder:text-[#9E9E9E]"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[12px] font-normal text-[#A3A4B0] ml-1">Прізвище</label>
+                <input 
+                  type="text" 
+                  placeholder="Введіть Ваше прізвище" 
+                  className="w-full bg-white/5 border border-white/5 rounded-full py-3 px-6 text-[16px] font-normal text-white focus:outline-none focus:border-white/20 placeholder:text-[#9E9E9E]"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[12px] font-normal text-[#A3A4B0] ml-1">Тема</label>
+              <div className="relative">
+                <select className="w-full bg-white/5 border border-white/5 rounded-full py-3 px-6 text-[16px] font-normal text-[#9E9E9E] appearance-none focus:outline-none focus:border-white/20">
+                  <option>Введіть тему звернення</option>
+                  <option>Технічна підтримка</option>
+                  <option>Співпраця</option>
+                </select>
+                <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20 pointer-events-none" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[12px] font-normal text-[#A3A4B0] ml-1">Опишіть проблему</label>
+              <textarea 
+                placeholder="Повідомлення..." 
+                rows="4"
+                className="w-full bg-white/5 border border-white/5 rounded-[22px] py-4 px-6 text-[16px] font-normal text-white focus:outline-none focus:border-white/20 placeholder:text-[#9E9E9E] resize-none"
+              ></textarea>
+            </div>
+
+            <button 
+              className="w-full mt-4 py-4 rounded-full text-[16px] font-medium text-white transition-all shadow-lg active:scale-[0.98]"
+              style={{
+                background: 'linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%)'
+              }}
+            >
+              Надіслати
             </button>
           </div>
         </div>
-
-        {/* Декоративний елемент (Ілюстрація) */}
-        <div className="hidden md:flex w-[300px] h-[250px] rounded-2xl bg-gradient-to-tr from-[#1A0B2E] to-[#0A0514] border border-white/5 items-center justify-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(126,80,237,0.15)_0,transparent_70%)]"></div>
-          <div className="text-[80px] opacity-20">💬</div>
-        </div>
       </div>
-
     </section>
   );
 }
