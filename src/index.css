@@ -1,10 +1,5 @@
 @import "tailwindcss";
 
-/* Підключення шрифтів */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
-
-/* В Tailwind v4 всі кастомні змінні додаються через @theme */
 @theme {
   /* Кастомні кольори з Фігми */
   --color-background: #000008;
@@ -12,15 +7,13 @@
   --color-secondary: #5c49aa;
   --color-borderDark: #2c1969;
 
-  /* Шрифти */
-  --font-montserrat: 'Montserrat', sans-serif;
-  --font-inter: 'Inter', sans-serif;
+  /* 🔥 ГОЛОВНИЙ ФІКС: Робимо Montserrat дефолтним шрифтом всього сайту */
+  --font-sans: 'Montserrat', sans-serif;
 
   /* Анімації */
   --animate-fade-in: fade-in 1s ease forwards;
   --animate-fade-up: fade-up 1s ease forwards;
 
-  /* Ключові кадри (keyframes) для анімацій */
   @keyframes fade-in {
     0% { opacity: 0; transform: translateY(-10px); }
     100% { opacity: 1; transform: none; }
@@ -33,9 +26,7 @@
 
 @layer base {
   body {
-    /* Тепер bg-background підтягується автоматично з @theme */
     @apply bg-background text-white antialiased;
-    font-family: 'Montserrat', sans-serif; 
   }
 
   /* Скидання стандартних стилів для інтерактивних елементів */
@@ -48,7 +39,6 @@
 }
 
 @layer components {
-  /* Спеціальний клас з Фігми */
   .all-\[unset\] {
     all: unset;
   }
