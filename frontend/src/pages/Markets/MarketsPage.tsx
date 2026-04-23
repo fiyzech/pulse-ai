@@ -1,95 +1,120 @@
 import { useState } from "react";
 
-// Мокові дані для ринку
+const topCardsData = {
+  popular: [
+    { symbol: "BTC", price: "$68,420", change: "+2.4%", isPositive: true, iconBg: "bg-[#F7931A]" },
+    { symbol: "ETH", price: "$3,260", change: "-1.2%", isPositive: false, iconBg: "bg-[#627EEA]" },
+    { symbol: "SOL", price: "$188", change: "+6.2%", isPositive: true, iconBg: "bg-[#14F195]" },
+  ],
+  futures: [
+    { symbol: "BTC", price: "$68,420", change: "+2.4%", isPositive: true, iconBg: "bg-[#F7931A]" },
+    { symbol: "ETH", price: "$3,260", change: "-1.2%", isPositive: false, iconBg: "bg-[#627EEA]" },
+    { symbol: "SOL", price: "$188", change: "+6.2%", isPositive: true, iconBg: "bg-[#14F195]" },
+  ],
+  new: [
+    { symbol: "BTC", price: "$68,420", change: "+2.4%", isPositive: true, iconBg: "bg-[#F7931A]" },
+    { symbol: "ETH", price: "$3,260", change: "-1.2%", isPositive: false, iconBg: "bg-[#627EEA]" },
+    { symbol: "SOL", price: "$188", change: "+6.2%", isPositive: true, iconBg: "bg-[#14F195]" },
+  ]
+};
+
 const mockMarkets = [
-  { id: 1, name: "Bitcoin", symbol: "BTC", price: "€64,230.50", change: "+2.45%", isPositive: true, cap: "€1.2T", vol: "€32B", icon: "₿" },
-  { id: 2, name: "Ethereum", symbol: "ETH", price: "€3,450.20", change: "+1.12%", isPositive: true, cap: "€410B", vol: "€15B", icon: "⧫" },
-  { id: 3, name: "Solana", symbol: "SOL", price: "€145.80", change: "-4.20%", isPositive: false, cap: "€65B", vol: "€4B", icon: "◎" },
-  { id: 4, name: "Binance Coin", symbol: "BNB", price: "€580.00", change: "+0.50%", isPositive: true, cap: "€89B", vol: "€1.2B", icon: "BNB" },
-  { id: 5, name: "Cardano", symbol: "ADA", price: "€0.45", change: "-1.80%", isPositive: false, cap: "€16B", vol: "€400M", icon: "₳" },
-  { id: 6, name: "Ripple", symbol: "XRP", price: "€0.58", change: "+0.10%", isPositive: true, cap: "€31B", vol: "€900M", icon: "✕" },
+  { id: 1, symbol: "BTC", price: "$68,420", change: "+2.4%", isPositive: true, cap: "$1.35T", vol: "$32.51B", color: "bg-[#F7931A]" },
+  { id: 2, symbol: "ETH", price: "$3,260", change: "-1.2%", isPositive: false, cap: "$395.80B", vol: "$20.97B", color: "bg-[#627EEA]" },
+  { id: 3, symbol: "SOL", price: "$188", change: "+6.2%", isPositive: true, cap: "$81.78B", vol: "$4.12B", color: "bg-[#14F195]" },
+  { id: 4, symbol: "XRP", price: "$0.63", change: "+1.8%", isPositive: true, cap: "$36.20B", vol: "$1.98B", color: "bg-[#23292F]" },
+  { id: 5, symbol: "DOGE", price: "$0.18", change: "-0.9%", isPositive: false, cap: "$25.66B", vol: "$1.42B", color: "bg-[#C2A633]" },
+  { id: 6, symbol: "ADA", price: "$0.71", change: "+3.1%", isPositive: true, cap: "$25.10B", vol: "$880M", color: "bg-[#0033AD]" },
 ];
 
 export default function MarketsPage() {
-  const [activeTab, setActiveTab] = useState("All");
-
   return (
-    <section className="px-10 py-8 max-w-[1600px] mx-auto w-full">
-      <div className="flex items-center justify-between mb-8">
-        <h2 className="text-[28px] font-semibold text-white/95">
-          Ринок криптовалют
-        </h2>
-        
-        {/* Фільтри */}
-        <div className="flex bg-[#0A0A0F] rounded-xl border border-white/5 p-1">
-          {["All", "Gainers", "Losers", "Favorites"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-5 py-2 rounded-lg text-[14px] font-medium transition-all ${
-                activeTab === tab 
-                  ? "bg-white/10 text-white shadow-sm" 
-                  : "text-white/40 hover:text-white/80"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+    <section className="px-10 py-6 w-full text-white font-['Montserrat'] bg-[#020203]">
+      
+      <p className="text-[#A3A4B0] text-[15px] mb-8 max-w-2xl leading-relaxed">
+        Аналізуйте ринкові показники в реальному часі, зміни цін та додавайте активи до обраних для зручного контролю
+      </p>
+
+      {/* Верхні картки */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <MarketStatsCard title="Популярні токени" items={topCardsData.popular} />
+        <MarketStatsCard title="Найкращі ф’ючерси" items={topCardsData.futures} />
+        <MarketStatsCard title="Найновіші" items={topCardsData.new} />
       </div>
 
-      {/* Таблиця ринку */}
-      <div className="rounded-[24px] border border-white/5 bg-[#0A0A0F] overflow-hidden">
-        {/* Заголовок таблиці */}
-        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-4 px-8 py-5 border-b border-white/5 text-[13px] font-medium text-white/40 uppercase tracking-wider">
-          <div>Актив</div>
-          <div className="text-right">Ціна</div>
-          <div className="text-right">24h Зміна</div>
-          <div className="text-right">Капіталізація</div>
-          <div className="text-right">Об'єм (24h)</div>
-          <div className="w-10"></div>
+      {/* Основна таблиця */}
+      <div className="relative p-[1px] rounded-[24px] bg-gradient-to-r from-transparent via-white/10 to-white/25">
+        <div className="bg-[#08080c] rounded-[23px] overflow-hidden">
+          
+          {/* Header таблиці: Налаштовано перенос "Ринкова капіталізація" */}
+          <div className="grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr_1fr] gap-4 px-8 py-5 border-b border-white/5 text-[14px] text-[#A3A4B0] bg-gradient-to-r from-[#1A0C2A] via-[#10081A] to-[#08080c] items-center">
+            <div>Монета</div>
+            <div>Ціна</div>
+            <div>24h</div>
+            <div className="max-w-[120px] leading-tight">Ринкова капіталізація</div>
+            <div>Обсяг</div>
+            <div className="text-left ml-[-30px]">Дії</div>
+          </div>
+
+          <div className="divide-y divide-white/5">
+            {mockMarkets.map((coin) => (
+              <div key={coin.id} className="grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr_1fr] gap-4 px-8 py-6 items-center hover:bg-white/[0.02] transition-colors group">
+                <div className="flex items-center gap-3">
+                  <div className={`h-8 w-8 rounded-full ${coin.color} flex items-center justify-center text-[12px] font-bold text-white`}>
+                    {coin.symbol === "BTC" ? "₿" : coin.symbol === "ETH" ? "♦" : coin.symbol[0]}
+                  </div>
+                  <span className="font-semibold text-[15px]">{coin.symbol}</span>
+                </div>
+
+                <div className="text-[15px] font-medium text-white/90">{coin.price}</div>
+
+                <div className={`text-[15px] font-medium ${coin.isPositive ? 'text-[#36D399]' : 'text-[#F87272]'}`}>
+                  {coin.change}
+                </div>
+
+                <div className="text-[15px] text-[#A3A4B0]">{coin.cap}</div>
+                <div className="text-[15px] text-[#A3A4B0]">{coin.vol}</div>
+
+                <div className="flex justify-start ml-[-30px]">
+                  <button className="relative p-[1px] rounded-full bg-gradient-to-r from-[#4C2475] via-[#7A40B5] to-[#B57AFF] transition-all hover:brightness-125 active:scale-95">
+                    <div className="px-6 py-2 rounded-full bg-[#08080c] flex items-center justify-center">
+                      <span className="text-[13px] text-white/90 font-medium">Переглянути</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
+      </div>
+    </section>
+  );
+}
 
-        {/* Список активів */}
-        <div className="divide-y divide-white/5">
-          {mockMarkets.map((coin) => (
-            <div key={coin.id} className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-4 px-8 py-5 items-center hover:bg-white/[0.02] transition-colors group cursor-pointer">
-              
-              {/* Назва та іконка */}
-              <div className="flex items-center gap-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 border border-white/10 text-white font-bold">
-                  {coin.icon}
+function MarketStatsCard({ title, items }) {
+  return (
+    <div className="relative p-[1px] rounded-[24px] bg-gradient-to-r from-transparent via-white/10 to-white/25 h-full">
+      <div className="bg-[#08080c] rounded-[23px] p-6 h-full">
+        <h3 className="text-[16px] font-medium mb-5 text-white/90">{title}</h3>
+        <div className="space-y-4">
+          {items.map((item, idx) => (
+            <div key={idx} className="flex items-center gap-3 justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`h-7 w-7 rounded-full ${item.iconBg} flex items-center justify-center text-[12px] font-bold text-white shadow-sm`}>
+                  {item.symbol === "BTC" ? "₿" : item.symbol === "ETH" ? "♦" : "●"}
                 </div>
-                <div>
-                  <div className="text-[15px] font-medium text-white/95">{coin.name}</div>
-                  <div className="text-[13px] text-white/40">{coin.symbol}</div>
-                </div>
+                <span className="text-[14px] font-medium">{item.symbol}</span>
               </div>
-
-              {/* Ціна */}
-              <div className="text-right text-[15px] font-medium text-white/90">
-                {coin.price}
-              </div>
-
-              {/* Зміна */}
-              <div className={`text-right text-[14px] font-medium ${coin.isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {coin.change}
-              </div>
-
-              {/* Капа та Об'єм */}
-              <div className="text-right text-[14px] text-white/60">{coin.cap}</div>
-              <div className="text-right text-[14px] text-white/60">{coin.vol}</div>
-
-              {/* Кнопка дій */}
-              <div className="text-right w-10 flex justify-end">
-                <button className="h-8 w-8 rounded-lg border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all opacity-0 group-hover:opacity-100">
-                  +
-                </button>
+              <div className="flex gap-4 items-center">
+                <span className="text-[14px] text-[#A3A4B0]">{item.price}</span>
+                <span className={`text-[13px] w-12 text-right ${item.isPositive ? 'text-[#36D399]' : 'text-[#F87272]'}`}>
+                  {item.change}
+                </span>
               </div>
             </div>
           ))}
         </div>
       </div>
-    </section>
+    </div>
   );
 }
