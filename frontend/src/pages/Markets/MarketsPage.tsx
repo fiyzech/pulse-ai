@@ -1,6 +1,17 @@
-import { useState } from "react";
+interface MarketItem {
+  symbol: string;
+  price: string;
+  change: string;
+  isPositive: boolean;
+  iconBg: string;
+}
 
-const topCardsData = {
+interface MarketStatsCardProps {
+  title: string;
+  items: MarketItem[];
+}
+
+const topCardsData: Record<string, MarketItem[]> = {
   popular: [
     { symbol: "BTC", price: "$68,420", change: "+2.4%", isPositive: true, iconBg: "bg-[#F7931A]" },
     { symbol: "ETH", price: "$3,260", change: "-1.2%", isPositive: false, iconBg: "bg-[#627EEA]" },
@@ -18,7 +29,18 @@ const topCardsData = {
   ]
 };
 
-const mockMarkets = [
+interface MarketData {
+  id: number;
+  symbol: string;
+  price: string;
+  change: string;
+  isPositive: boolean;
+  cap: string;
+  vol: string;
+  color: string;
+}
+
+const mockMarkets: MarketData[] = [
   { id: 1, symbol: "BTC", price: "$68,420", change: "+2.4%", isPositive: true, cap: "$1.35T", vol: "$32.51B", color: "bg-[#F7931A]" },
   { id: 2, symbol: "ETH", price: "$3,260", change: "-1.2%", isPositive: false, cap: "$395.80B", vol: "$20.97B", color: "bg-[#627EEA]" },
   { id: 3, symbol: "SOL", price: "$188", change: "+6.2%", isPositive: true, cap: "$81.78B", vol: "$4.12B", color: "bg-[#14F195]" },
@@ -91,7 +113,7 @@ export default function MarketsPage() {
   );
 }
 
-function MarketStatsCard({ title, items }) {
+function MarketStatsCard({ title, items }: MarketStatsCardProps) {
   return (
     <div className="relative p-[1px] rounded-[24px] bg-gradient-to-r from-transparent via-white/10 to-white/25 h-full">
       <div className="bg-[#08080c] rounded-[23px] p-6 h-full">
