@@ -76,7 +76,7 @@ export default function FavoritesContent() {
           <div 
             key={idx} 
             // Висота 108, радіус 28, і градієнт бордера точно з Фігми
-            className="h-[108px] w-full rounded-[28px] bg-gradient-to-br from-[#522F8B] to-[#838383] p-[1px]"
+            className="h-[108px] w-full rounded-[28px] bg-gradient-to-br from-[#522F8B] to-[#FFFFFFE5] p-[1px]"
           >
             <div className="flex h-full w-full flex-col items-center justify-center rounded-[28px] bg-[#050508]">
               <p className="mb-1.5 text-[12px] font-medium text-white/50">{stat.title}</p>
@@ -96,22 +96,22 @@ export default function FavoritesContent() {
         
         {/* ЛІВА КОЛОНКА: Займає рівно 3 колонки (75% мінус частина відступу 24px) */}
         <div className="flex w-full flex-col lg:w-[calc(75%-6px)]">
-          <h2 className="mb-[20px] text-[20px] font-semibold leading-none text-white/95">
+          <h2 className="mb-[24px] text-[20px] font-semibold leading-none text-white/95">
             Вибрані активи
           </h2>
           
-          <div className="w-full rounded-[28px] bg-gradient-to-br from-[#522F8B] to-[#838383] p-[1px]">
+          <div className="w-full rounded-[28px] bg-gradient-to-br from-[#522F8B] to-[#FFFFFFE5] p-[1px]">
             {/* Змінили p-6 на pb-6, щоб фон шапки міг торкатися країв */}
             <div className="w-full overflow-hidden rounded-[28px] bg-[#050506] pb-6">
               
               <table className="w-full whitespace-nowrap text-left border-collapse">
                 <thead className="bg-gradient-to-r from-[#210131]/80 to-transparent">
-                  <tr className="border-b border-[#838383]/20 text-[13px] font-medium text-[#838383]">
+                  <tr className="border-b border-[#FFFFFFE5]/20 text-[13px] font-medium text-[#FFFFFFE5]">
                     {/* Додали pl-6 */}
                     <th className="py-5 pl-6 w-[18%]">Монета</th>
                     <th className="py-5 w-[15%]">Ціна</th>
-                    <th className="py-5 w-[15%]">24h</th>
-                    <th className="py-5 w-[22%]">Ринкова капіталізація</th>
+                    <th className="py-5 w-[15%]">24год</th>
+                    <th className="py-5 w-[22%]">Ринкова<br />капіталізація</th>
                     <th className="py-5 w-[18%]">Обсяг</th>
                     {/* Додали pr-6 */}
                     <th className="py-5 pr-6 w-[12%] text-left">Дії</th>
@@ -139,8 +139,8 @@ export default function FavoritesContent() {
                           {asset.change}
                         </td>
                         {/* Сірий текст для капіталізації та обсягу */}
-                        <td className="py-[14px] text-[#838383]">{asset.marketCap}</td>
-                        <td className="py-[14px] text-[#838383]">{asset.volume}</td>
+                        <td className="py-[14px] text-[#FFFFFFE5]">{asset.marketCap}</td>
+                        <td className="py-[14px] text-[#FFFFFFE5]">{asset.volume}</td>
                         
                       
                           {/* Кнопка: прибрав фіолетовий бордер, зробив білий/10, як на макеті */}
@@ -148,7 +148,7 @@ export default function FavoritesContent() {
                           {/* Обгортка для градієнтного бордера */}
                           <div className="inline-flex h-[36px] items-center justify-center rounded-[28px] bg-gradient-to-r from-[#2C1959] via-[#6348C1] to-[#C388FF] p-[1px] transition-all hover:scale-105">
                             {/* Сама кнопка */}
-                            <button className="flex h-full w-full items-center justify-center rounded-[28px] bg-[#050506] px-[14px] text-[12px] font-medium text-[#838383] transition-colors hover:text-white">
+                            <button className="flex h-full w-full items-center justify-center rounded-[28px] bg-[#050506] px-[14px] text-[12px] font-medium text-[#FFFFFFE5] transition-colors hover:text-white">
                               Переглянути
                             </button>
                           </div>
@@ -160,7 +160,7 @@ export default function FavoritesContent() {
                         <tr>
                           <td colSpan={6} className="p-0">
                             {/* Додали w-[calc(100%-48px)] і mx-auto, щоб лінія мала по 24px відступу з боків */}
-                            <div className="mx-auto h-[1px] w-[calc(100%-48px)] bg-gradient-to-r from-[#522F8B] to-[#838383]/10"></div>
+                            <div className="mx-auto h-[1px] w-[calc(100%-48px)] bg-gradient-to-r from-[#522F8B] to-[#FFFFFFE5]/10"></div>
                           </td>
                         </tr>
                       )}
@@ -176,12 +176,12 @@ export default function FavoritesContent() {
 
         {/* ПРАВА КОЛОНКА: Займає рівно 1 колонку (25% мінус частина відступу 24px) */}
         <div className="flex w-full flex-col lg:w-[calc(25%-18px)]">
-          <h2 className="mb-[20px] text-[20px] font-semibold leading-none text-white/95">
+          <h2 className="mb-[24px] text-[20px] font-semibold leading-none text-white/95">
             Рекомендовано 
           </h2>
           
           {/* Забрали h-[453px], щоб блок підлаштовувався під контент */}
-          <div className="w-full rounded-[28px] bg-gradient-to-br from-[#522E8B] to-[#838383] p-[1px]">
+          <div className="w-full rounded-[28px] bg-gradient-to-br from-[#522E8B] to-[#FFFFFFE5] p-[1px]">
             {/* Змінили p-6 на py-2, а бокові відступи перенесли в самі елементи */}
             <div className="w-full rounded-[28px] bg-[#050506] py-2">
               <div className="flex flex-col">
@@ -200,7 +200,7 @@ export default function FavoritesContent() {
                       {/* Кнопка "Додати" тепер у стилі кнопки "Переглянути" */}
                       <div className="inline-flex h-[36px] items-center justify-center rounded-[28px] bg-gradient-to-r from-[#2C1959] via-[#6348C1] to-[#C388FF] p-[1px] transition-all hover:scale-105">
                         {/* Сама кнопка */}
-                        <button className="flex h-full w-full items-center justify-center rounded-[28px] bg-[#050506] px-[14px] text-[12px] font-medium text-[#838383] transition-colors hover:text-white">
+                        <button className="flex h-full w-full items-center justify-center rounded-[28px] bg-[#050506] px-[14px] text-[12px] font-medium text-[#FFFFFFE5] transition-colors hover:text-white">
                           Додати
                         </button>
                       </div>
@@ -208,7 +208,7 @@ export default function FavoritesContent() {
 
                     {/* Та сама лінія-градієнт, що й зліва */}
                     {index !== recommendedAssets.length - 1 && (
-                      <div className="mx-auto h-[1px] w-[calc(100%-48px)] bg-gradient-to-r from-[#522F8B] to-[#838383]/10"></div>
+                      <div className="mx-auto h-[1px] w-[calc(100%-48px)] bg-gradient-to-r from-[#522F8B] to-[#FFFFFFE5]/10"></div>
                     )}
                   </React.Fragment>
                 ))}
