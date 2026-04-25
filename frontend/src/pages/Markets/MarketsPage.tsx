@@ -4,6 +4,7 @@ interface MarketItem {
   change: string;
   isPositive: boolean;
   iconBg: string;
+  imgUrl?: string;
 }
 
 interface MarketStatsCardProps {
@@ -13,19 +14,19 @@ interface MarketStatsCardProps {
 
 const topCardsData: Record<string, MarketItem[]> = {
   popular: [
-    { symbol: "BTC", price: "$68,420", change: "+2.4%", isPositive: true, iconBg: "bg-[#F7931A]" },
-    { symbol: "ETH", price: "$3,260", change: "-1.2%", isPositive: false, iconBg: "bg-[#627EEA]" },
-    { symbol: "SOL", price: "$188", change: "+6.2%", isPositive: true, iconBg: "bg-[#14F195]" },
+    { symbol: "BTC", price: "$68,420", change: "+2.4%", isPositive: true, iconBg: "bg-[#F7931A]", imgUrl: "https://cryptologos.cc/logos/bitcoin-btc-logo.png" },
+    { symbol: "ETH", price: "$3,260", change: "-1.2%", isPositive: false, iconBg: "bg-[#627EEA]", imgUrl: "https://cryptologos.cc/logos/ethereum-eth-logo.png" },
+    { symbol: "SOL", price: "$188", change: "+6.2%", isPositive: true, iconBg: "bg-[#14F195]", imgUrl: "https://cryptologos.cc/logos/solana-sol-logo.png" },
   ],
   futures: [
-    { symbol: "BTC", price: "$68,420", change: "+2.4%", isPositive: true, iconBg: "bg-[#F7931A]" },
-    { symbol: "ETH", price: "$3,260", change: "-1.2%", isPositive: false, iconBg: "bg-[#627EEA]" },
-    { symbol: "SOL", price: "$188", change: "+6.2%", isPositive: true, iconBg: "bg-[#14F195]" },
+    { symbol: "BNB", price: "$592.10", change: "+1.1%", isPositive: true, iconBg: "bg-[#F3BA2F]", imgUrl: "https://cryptologos.cc/logos/bnb-bnb-logo.png" },
+    { symbol: "ARB", price: "$1.45", change: "-3.4%", isPositive: false, iconBg: "bg-[#28A0F0]", imgUrl: "https://cryptologos.cc/logos/arbitrum-arb-logo.png" },
+    { symbol: "AVAX", price: "$45.20", change: "+4.2%", isPositive: true, iconBg: "bg-[#E84142]", imgUrl: "https://cryptologos.cc/logos/avalanche-avax-logo.png" },
   ],
   new: [
-    { symbol: "BTC", price: "$68,420", change: "+2.4%", isPositive: true, iconBg: "bg-[#F7931A]" },
-    { symbol: "ETH", price: "$3,260", change: "-1.2%", isPositive: false, iconBg: "bg-[#627EEA]" },
-    { symbol: "SOL", price: "$188", change: "+6.2%", isPositive: true, iconBg: "bg-[#14F195]" },
+    { symbol: "SUI", price: "$1.62", change: "+12.4%", isPositive: true, iconBg: "bg-[#4CA2FF]", imgUrl: "https://cryptologos.cc/logos/sui-sui-logo.png" },
+    { symbol: "PEPE", price: "$0.000008", change: "+5.1%", isPositive: true, iconBg: "bg-[#00AC4F]", imgUrl: "https://cryptologos.cc/logos/pepe-pepe-logo.png" },
+    { symbol: "TIA", price: "$12.80", change: "-2.1%", isPositive: false, iconBg: "bg-[#7D3AF2]", imgUrl: "https://cryptologos.cc/logos/celestia-tia-logo.png" },
   ]
 };
 
@@ -51,44 +52,53 @@ const mockMarkets: MarketData[] = [
 
 export default function MarketsPage() {
   return (
-    <section className="px-10 py-6 w-full text-white font-['Montserrat'] bg-[#020203]">
+    <section className="w-full text-white font-['Montserrat'] bg-[#020203] min-h-screen pb-10">
       
-      <p className="text-[#A3A4B0] text-[15px] mb-8 max-w-2xl leading-relaxed">
-        Аналізуйте ринкові показники в реальному часі, зміни цін та додавайте активи до обраних для зручного контролю
-      </p>
+      {/* Опис: regular 16px #FFFFFF */}
+      <div 
+        style={{ width: '546px', height: '47px' }}
+        className="mt-6 mb-6 ml-10 flex items-center"
+      >
+        <p className="text-[#FFFFFF] text-[16px] leading-snug font-normal">
+          Аналізуйте ринкові показники в реальному часі, зміни цін та додавайте активи до обраних для зручного контролю
+        </p>
+      </div>
 
-      {/* Верхні картки */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+      <div className="flex gap-6 mb-6 px-10">
         <MarketStatsCard title="Популярні токени" items={topCardsData.popular} />
         <MarketStatsCard title="Найкращі ф’ючерси" items={topCardsData.futures} />
         <MarketStatsCard title="Найновіші" items={topCardsData.new} />
       </div>
 
-      {/* Основна таблиця */}
-      <div className="relative p-[1px] rounded-[24px] bg-gradient-to-r from-transparent via-white/10 to-white/25">
-        <div className="bg-[#08080c] rounded-[23px] overflow-hidden">
+      <div 
+        style={{ width: '1116px', height: '512px' }}
+        className="ml-10 mt-6 mb-6 relative p-[1px] rounded-[24px] bg-gradient-to-r from-transparent via-white/10 to-white/25"
+      >
+        <div className="bg-[#08080c] rounded-[23px] overflow-hidden h-full flex flex-col">
           
-          {/* Header таблиці: Налаштовано перенос "Ринкова капіталізація" */}
-          <div className="grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr_1fr] gap-4 px-8 py-5 border-b border-white/5 text-[14px] text-[#A3A4B0] bg-gradient-to-r from-[#1A0C2A] via-[#10081A] to-[#08080c] items-center">
+          <div 
+            style={{ width: '1116px', minHeight: '57px' }}
+            className="grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr_1fr] gap-4 px-8 border-b border-white/5 text-[14px] text-[#A3A4B0] font-semibold bg-gradient-to-r from-[#1A0C2A] via-[#10081A] to-[#08080c] items-center"
+          >
             <div>Монета</div>
             <div>Ціна</div>
-            <div>24h</div>
+            <div>24год</div>
             <div className="max-w-[120px] leading-tight">Ринкова капіталізація</div>
             <div>Обсяг</div>
             <div className="text-left ml-[-30px]">Дії</div>
           </div>
 
-          <div className="divide-y divide-white/5">
+          <div className="divide-y divide-white/5 overflow-y-auto flex-1">
             {mockMarkets.map((coin) => (
-              <div key={coin.id} className="grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr_1fr] gap-4 px-8 py-6 items-center hover:bg-white/[0.02] transition-colors group">
+              <div key={coin.id} className="grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr_1fr] gap-4 px-8 py-5 items-center hover:bg-white/[0.02] transition-colors group">
                 <div className="flex items-center gap-3">
-                  <div className={`h-8 w-8 rounded-full ${coin.color} flex items-center justify-center text-[12px] font-bold text-white`}>
-                    {coin.symbol === "BTC" ? "₿" : coin.symbol === "ETH" ? "♦" : coin.symbol[0]}
+                  <div className={`h-8 w-8 rounded-full ${coin.color} flex items-center justify-center text-[12px] font-bold text-white overflow-hidden`}>
+                     {coin.symbol === "BTC" ? "₿" : coin.symbol === "ETH" ? "♦" : coin.symbol[0]}
                   </div>
                   <span className="font-semibold text-[15px]">{coin.symbol}</span>
                 </div>
 
-                <div className="text-[15px] font-medium text-white/90">{coin.price}</div>
+                <div className="text-[15px] font-medium text-[#A3A4B0]">{coin.price}</div>
 
                 <div className={`text-[15px] font-medium ${coin.isPositive ? 'text-[#36D399]' : 'text-[#F87272]'}`}>
                   {coin.change}
@@ -100,7 +110,8 @@ export default function MarketsPage() {
                 <div className="flex justify-start ml-[-30px]">
                   <button className="relative p-[1px] rounded-full bg-gradient-to-r from-[#4C2475] via-[#7A40B5] to-[#B57AFF] transition-all hover:brightness-125 active:scale-95">
                     <div className="px-6 py-2 rounded-full bg-[#08080c] flex items-center justify-center">
-                      <span className="text-[13px] text-white/90 font-medium">Переглянути</span>
+                      {/* Кнопка: regular 14px #A3A4B0 */}
+                      <span className="text-[14px] text-[#A3A4B0] font-normal">Переглянути</span>
                     </div>
                   </button>
                 </div>
@@ -115,17 +126,24 @@ export default function MarketsPage() {
 
 function MarketStatsCard({ title, items }: MarketStatsCardProps) {
   return (
-    <div className="relative p-[1px] rounded-[24px] bg-gradient-to-r from-transparent via-white/10 to-white/25 h-full">
+    <div 
+      style={{ width: '356px', height: '199px' }} 
+      className="relative p-[1px] rounded-[24px] bg-gradient-to-r from-transparent via-white/10 to-white/25"
+    >
       <div className="bg-[#08080c] rounded-[23px] p-6 h-full">
-        <h3 className="text-[16px] font-medium mb-5 text-white/90">{title}</h3>
+        <h3 className="text-[16px] font-medium mb-5 text-[#FFFFFF]">{title}</h3>
         <div className="space-y-4">
           {items.map((item, idx) => (
             <div key={idx} className="flex items-center gap-3 justify-between">
               <div className="flex items-center gap-3">
-                <div className={`h-7 w-7 rounded-full ${item.iconBg} flex items-center justify-center text-[12px] font-bold text-white shadow-sm`}>
-                  {item.symbol === "BTC" ? "₿" : item.symbol === "ETH" ? "♦" : "●"}
+                <div className={`h-7 w-7 rounded-full ${item.iconBg} flex items-center justify-center overflow-hidden`}>
+                  {item.imgUrl ? (
+                    <img src={item.imgUrl} alt={item.symbol} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-[12px] font-bold text-white">{item.symbol[0]}</span>
+                  )}
                 </div>
-                <span className="text-[14px] font-medium">{item.symbol}</span>
+                <span className="text-[14px] font-semibold">{item.symbol}</span>
               </div>
               <div className="flex gap-4 items-center">
                 <span className="text-[14px] text-[#A3A4B0]">{item.price}</span>
