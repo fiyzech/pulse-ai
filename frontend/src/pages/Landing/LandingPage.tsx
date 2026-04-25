@@ -146,38 +146,41 @@ const DotWave: React.FC = () => {
   return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />;
 };
 
-// --- FAQ КОМПОНЕНТ ---
+// --- FAQ КОМПОНЕНТ --- 
 const FaqItem: React.FC<{ question: string; answer?: string }> = ({ question, answer }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
     <div 
-      className={`mb-3 rounded-[16px] border border-[#2C1969] transition-all duration-300 overflow-hidden ${
-        isOpen ? 'bg-[linear-gradient(180deg,rgba(131,72,193,0.1)_0%,rgba(5,5,10,1)_100%)] shadow-[0_10px_30px_rgba(0,0,0,0.2)]' : 'bg-[#05050A]'
+      className={`mb-4 rounded-[16px] border border-[#2C1969] transition-all duration-300 overflow-hidden relative group transform-gpu ${
+        isOpen 
+          ? 'bg-[linear-gradient(180deg,#FFFFFF_-200%,#000008_38%,#000008_72%,#FFFFFF_200%)]' // Туман зверху та знизу як на фото
+          : 'bg-[#000008] hover:bg-[#05050A]'
       }`}
     >
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex justify-between items-center px-5 py-4 text-left transition-colors group"
+        className={`w-full flex justify-between items-center text-left transition-all duration-300 relative z-10 px-8 py-5 ${isOpen ? 'pb-4' : 'pb-5'}`}
       >
-        <span className="font-montserrat font-medium text-[16px] text-white group-hover:text-[#A78BFA]">
+        <span className="font-montserrat font-medium text-[18px] text-white">
           {question}
         </span>
         <svg 
-          width="18" height="18" viewBox="0 0 24 24" fill="none" 
-          className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
+          width="20" height="20" viewBox="0 0 24 24" fill="none" 
+          className={`transition-transform duration-300 group-hover:scale-110 ${isOpen ? 'rotate-180' : ''}`}
         >
           <path d="M6 9L12 15L18 9" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </button>
 
+      {/* Плавне відкриття */}
       <div 
-        className={`overflow-hidden transition-all duration-300 ease-in-out ${
-          isOpen ? 'max-h-[300px] opacity-100' : 'max-h-0 opacity-0'
+        className={`overflow-hidden transition-all duration-300 ease-in-out relative z-10 ${
+          isOpen ? 'max-h-[500px] opacity-100 pb-10' : 'max-h-0 opacity-0 pb-0'
         }`}
       >
-        <div className="px-5 pb-4 font-montserrat font-light text-[14px] leading-[22px] text-white/60 border-t border-white/5 pt-3">
-          {answer || 'Детальна відповідь на це запитання знаходиться в процесі наповнення.'}
+        <div className="px-8 font-montserrat font-light text-[14px] leading-[22px] text-white/70 pt-1">
+          {answer}
         </div>
       </div>
     </div>
@@ -743,52 +746,97 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* 9. FAQ */}
-      <section id="faq" className="py-32 px-6 lg:px-[80px] relative z-20 bg-[#000008] transform-gpu">
-        <div className="max-w-[1440px] mx-auto flex flex-col lg:flex-row gap-12 lg:gap-20">
+      <section id="faq" className="py-24 px-6 lg:px-[80px] relative z-20 bg-[#000008] transform-gpu">
+        <div className="max-w-[1440px] mx-auto flex flex-col lg:flex-row gap-12 lg:gap-50">
           
-          {/* Ліва частина: Заголовок */}
-          <div className="flex flex-col items-start lg:w-1/3">
-            <div className="inline-flex p-[1px] rounded-[16px] bg-gradient-to-r from-[#FFFFFF] via-[#8348C1] via-[48%] to-[#2C1969] mb-8">
-              <div className="flex items-center gap-[8px] px-[12px] py-[6px] bg-[#05050A] rounded-[15px]">
-                <div className="w-[6px] h-[6px] rounded-full bg-white"></div>
-                <span className="font-montserrat text-[13px] uppercase font-semibold tracking-wider text-[#8348C1]">
+          {/* Ліва частина: Заголовок та Бадж */}
+          <div className="flex flex-col items-start lg:w-1/3 shrink-0">
+            {/* Бадж FAQ з градієнтом рамки та туманом всередині */}
+            <div className="inline-flex rounded-[20px] p-[1px] bg-gradient-to-r from-[#FFFFFF] via-[#8348C1] to-[#2C1969] mb-8 relative overflow-hidden group">
+              {/* Внутрішнє світіння (туман) для бейджа */}
+              <div className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(180deg,rgba(131,72,193,0.15)_0%,rgba(5,5,10,1)_100%)] pointer-events-none"></div>
+              
+              <div className="relative flex items-center gap-[10px] px-[12px] py-[8px] rounded-[19px] bg-[linear-gradient(180deg,#FFFFFF_-140%,#000008_33%,#000008_67%,#FFFFFF_240%)]">
+                <div className="w-[6px] h-[6px] rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]"></div>
+                <span className="font-montserrat text-[13px] uppercase font-semibold tracking-wider text-[#8348C1]  ">
                   FAQ
                 </span>
               </div>
             </div>
 
-            <h2 className="font-montserrat font-medium text-[32px] leading-[66px] tracking-[0.04em] text-white">
+            <h2 className="font-montserrat font-medium text-[32px] leading-[1.2] text-white">
               Поширені запитання
             </h2>
           </div>
 
-          {/* Права частина: Список питань */}
-          <div className="lg:flex-1 max-w-[624px]">
+          {/* Права частина: Акордеон */}
+          <div className="lg:flex-1 max-w-[624px] w-full">
             <FaqItem
               question="Що таке CryptoPulse?"
               answer="CryptoPulse — це зручний сервіс для автоматичного відстеження цін на криптовалюти зі зручними сповіщеннями прямо у ваш Telegram. Ви самі задаєте умови, а ми слідкуємо за ринком 24/7."
             />
             <FaqItem 
               question="Які криптовалюти підтримуються?" 
-              answer="CryptoPulse підтримує тисячі криптовалют — від Bitcoin і Ethereum до нових альткоїнів. Ви можете відстежувати будь-які активи, які вас цікавлять, в одному зручному інтерфейсі."
+              answer="Ми підтримуємо всі основні криптовалюти — від Bitcoin і Ethereum до нових альткоїнів. Ви можете відстежувати будь-які активи в одному зручному інтерфейсі."
             />
-            <FaqItem question="Чи можу я користуватися CryptoPulse з мобільного пристрою?" />
-            <FaqItem question="Як я можу звернутися до служби підтримки?" />
+            <FaqItem 
+              question="Що таке PulseAI та чим він корисний?"
+              answer='PulseAI — це ваш персональний розумний асистент на платформі. Він аналізує ринкові тренди, надає коротку аналітику по активах та допомагає приймати обґрунтовані торгові рішення, значно заощаджуючи ваш час на самостійний аналіз графіків.'
+            />
+            <FaqItem question="Як я можу звернутися до служби підтримки?" 
+              answer="Ви можете звернутися до нас безпосередньо через розділ «Підтримка» в особистому кабінеті, заповнивши зручну форму зворотного зв'язку. Наша команда оперативно розгляне ваше звернення та допоможе з налаштуванням платформи чи алертів."
+            />
           </div>
         </div>
       </section>
 
 
+     {/* 10. ФУТЕР */}
+      <footer className="relative w-full h-auto md:h-[253px] px-6 lg:px-[80px] bg-[#000008] z-20 flex flex-col justify-center py-12 md:py-0">
+        
+        {/* Градієнтна лінія зверху */}
+        <div className="absolute top-0 left-0 w-full h-[1px] bg-[linear-gradient(90deg,#000000_0%,#8348C1_48%,#2C1969_100%)]"></div>
 
-      {/* 10. ФУТЕР */}
-      <footer className="py-8 px-6 md:px-10 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-[13px] font-medium text-white/40 z-20 bg-[#000008]">
-        <div className="flex items-center gap-2">
-          <img src="/logo-crypro-pulse.svg" alt="CryptoPulse" className="w-5 h-5 opacity-40 grayscale" />
-          <span>© 2024 CryptoPulse. Всі права захищено.</span>
-        </div>
-        <div className="flex gap-8">
-          <a href="#" className="hover:text-white transition-colors">Умови використання</a>
-          <a href="#" className="hover:text-white transition-colors">Політика конфіденційності</a>
+        <div className="max-w-[1440px] w-full mx-auto flex flex-col md:flex-row justify-between items-start gap-12 md:gap-0">
+          
+          {/* Ліва частина: Лого та опис */}
+          <div className="max-w-[380px]">
+            <div className="flex items-center gap-3 mb-5 cursor-pointer" onClick={() => window.scrollTo(0, 0)}>
+              <img src="/logo-crypro-pulse.svg" alt="CryptoPulse" className="w-7 h-7 object-contain" />
+              <div className="text-[18px] font-montserrat tracking-wide">
+                <span className="font-light text-white">Crypto</span>
+                <span className="font-medium bg-gradient-to-r from-[#ceafef] to-[#9a64d4] bg-clip-text text-transparent">Pulse</span>
+              </div>
+            </div>
+            
+            <p className="font-montserrat font-extralight text-[13px] leading-[22px] text-white">
+              Відстежуйте ринок, автоматизуйте сповіщення та реагуйте швидше. CryptoPulse робить відстеження крипти простим і ефективним.
+            </p>
+          </div>
+
+          {/* Права частина: Навігація та Соцмережі (Зсунуто лівіше) */}
+          <div className="flex gap-16 lg:gap-[100px] md:pr-[15%] lg:pr-[30px]">
+            
+            {/* Колонка: Навігація */}
+            <div className="flex flex-col gap-[12px]">
+              <h4 className="font-montserrat font-semibold text-[13px] leading-[20px] text-white mb-2">Навігація</h4>
+              <a href="#why-cryptopulse" className="font-montserrat font-normal text-[13px] leading-[16px] text-[#8B8B8B] hover:text-white transition-colors">Чому CryptoPulse</a>
+              <a href="#how-it-works" className="font-montserrat font-normal text-[13px] leading-[16px] text-[#8B8B8B] hover:text-white transition-colors">Як це працює</a>
+              <a href="#benefits" className="font-montserrat font-normal text-[13px] leading-[16px] text-[#8B8B8B] hover:text-white transition-colors">Переваги</a>
+              <a href="#pricing" className="font-montserrat font-normal text-[13px] leading-[16px] text-[#8B8B8B] hover:text-white transition-colors">Тарифи</a>
+              <a href="#faq" className="font-montserrat font-normal text-[13px] leading-[16px] text-[#8B8B8B] hover:text-white transition-colors">FAQ</a>
+            </div>
+
+            {/* Колонка: Соцмережі */}
+            <div className="flex flex-col gap-[12px]">
+              <h4 className="font-montserrat font-semibold text-[13px] leading-[20px] text-white mb-2">Соцмережі</h4>
+              <a href="#" className="font-montserrat font-normal text-[13px] leading-[16px] text-[#8B8B8B] hover:text-white transition-colors">Twitter (X)</a>
+              <a href="#" className="font-montserrat font-normal text-[13px] leading-[16px] text-[#8B8B8B] hover:text-white transition-colors">Telegram</a>
+              <a href="#" className="font-montserrat font-normal text-[13px] leading-[16px] text-[#8B8B8B] hover:text-white transition-colors">LinkedIn</a>
+              <a href="#" className="font-montserrat font-normal text-[13px] leading-[16px] text-[#8B8B8B] hover:text-white transition-colors">GitHub</a>
+            </div>
+            
+          </div>
         </div>
       </footer>
     </div>
