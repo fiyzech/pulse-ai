@@ -82,6 +82,7 @@ export default function MarketsPage() {
         <MarketStatsCard title="Найновіші" items={topCardsData.new} />
       </div>
 
+      {/* Нижня картка: ширина 1116px, висота адаптивна (h-fit) з відступом pb-6 (24px) */}
       <div 
         style={{ width: '1116px' }}
         className="ml-10 relative rounded-[24px] overflow-hidden vibrant-gradient-border h-fit"
