@@ -45,16 +45,17 @@ export default function MarketsPage() {
   const globalStyles = `
     .vibrant-gradient-border {
       position: relative;
-      border: 1px solid transparent; /* Тонша обводка (1px) */
+      border: 1px solid transparent;
       background-clip: padding-box;
     }
     .vibrant-gradient-border::before {
       content: '';
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
-      padding: 1px; /* Тонша обводка (1px) */
+      padding: 1px;
       border-radius: inherit; 
-      background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.4) 50%, rgba(255, 255, 255, 0.25) 100%);
+      /* Тільки білий градієнт: від прозорого зліва до помітного справа */
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.25) 100%);
       -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
       mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
       -webkit-mask-composite: xor;
@@ -66,7 +67,7 @@ export default function MarketsPage() {
   `;
 
   return (
-    <section className="w-full text-white font-['Montserrat'] bg-[#020203] min-h-screen pb-10">
+    <section className="w-full text-white font-['Montserrat'] bg-[#000000] min-h-screen pb-10">
       <style>{globalStyles}</style>
       
       <div style={{ width: '546px', height: '47px' }} className="mt-6 mb-10 ml-10 flex items-center">
@@ -86,10 +87,11 @@ export default function MarketsPage() {
         style={{ width: '1116px' }}
         className="ml-10 relative rounded-[24px] overflow-hidden vibrant-gradient-border h-fit"
       >
-        <div className="bg-[#08080c] rounded-[23px] overflow-hidden flex flex-col no-scrollbar">
+        <div className="bg-[#000000] rounded-[23px] overflow-hidden flex flex-col no-scrollbar">
+          
           <div 
             style={{ minHeight: '57px' }}
-            className="grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr_1fr] gap-4 px-8 border-b border-white/5 text-[14px] text-[#A3A4B0] font-semibold bg-gradient-to-r from-[#1A0C2A] via-[#10081A] to-[#08080c] items-center"
+            className="grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr_1fr] gap-4 px-8 border-b border-white/5 text-[14px] text-[#A3A4B0] font-semibold bg-[#000000] items-center"
           >
             <div>Монета</div>
             <div>Ціна</div>
@@ -99,7 +101,7 @@ export default function MarketsPage() {
             <div className="text-left mr-[-40px]">Дії</div>
           </div>
 
-          <div className="flex-1 no-scrollbar pt-2 pb-6"> {/* pb-6 = 24px від останньої валюти */}
+          <div className="flex-1 no-scrollbar pt-2 pb-6">
             {mockMarkets.map((coin) => (
               <div key={coin.id} className="grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr_1fr] gap-4 px-8 items-center h-[52px] group">
                 <div className="flex items-center gap-3">
@@ -118,7 +120,7 @@ export default function MarketsPage() {
                   <button className="relative p-[1px] rounded-full transition-all hover:brightness-110 active:scale-95"
                     style={{ background: 'linear-gradient(90deg, #4C2475 0%, #7A40B5 50%, #B57AFF 100%)' }}
                   >
-                    <div className="px-6 py-2 rounded-full bg-[#08080c] flex items-center justify-center">
+                    <div className="px-6 py-2 rounded-full bg-[#000000] flex items-center justify-center">
                       <span className="text-[14px] text-[#A3A4B0] font-normal">Переглянути</span>
                     </div>
                   </button>
@@ -138,7 +140,7 @@ function MarketStatsCard({ title, items }: MarketStatsCardProps) {
       style={{ width: '356px', height: '199px' }} 
       className="relative rounded-[24px] vibrant-gradient-border overflow-hidden"
     >
-      <div className="bg-[#08080c] rounded-[23px] p-6 h-full flex flex-col no-scrollbar">
+      <div className="bg-[#000000] rounded-[23px] p-6 h-full flex flex-col no-scrollbar">
         <h3 className="text-[16px] font-medium mb-[20px] text-[#FFFFFF]">{title}</h3>
         <div className="flex flex-col gap-[12px] pb-[24px]">
           {items.map((item, idx) => (
