@@ -64,7 +64,7 @@ export default function SupportPage() {
       padding: 1px; 
       border-radius: inherit; 
       /* Яскравіша обводка (0.4 замість 0.15) */
-      background: linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.4) 100%);
+      background: linear-gradient(90deg, #522e8b60 0%, rgba(255, 255, 255, 0.19) 100%);
       -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
       mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
       -webkit-mask-composite: xor;
@@ -114,7 +114,7 @@ export default function SupportPage() {
                     </svg>
                   </div>
                   {isActive && (
-                    <div className="px-6 pb-6 text-[13px] font-normal text-[#6D6D6D] leading-[1.6] relative z-10">
+                    <div className="px-6 pb-6 text-[13px] font-normal text-[#A5A5A5] leading-[1.6] relative z-10">
                       {formatAnswer(faq.answer)}
                     </div>
                   )}
