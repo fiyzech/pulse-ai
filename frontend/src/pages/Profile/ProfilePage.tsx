@@ -54,7 +54,7 @@ export default function ProfilePage() {
                       background: `linear-gradient(#0A0A0A, #0A0A0A) padding-box, linear-gradient(135deg, #FFFFFF 0%, #8348C1 48%, #2C1969 100%) border-box`,
                     }}>Pro</span>
                   </div>
-                  <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.25)' }}>@alexM</span>
+                  <span style={{ fontSize: '14px', color: '#A3A4B0' }}>@alexM</span>
                 </div>
               </div>
               <button style={{ ...editBtnStyle, position: 'absolute', top: '24px', right: '24px' }}>
@@ -81,7 +81,7 @@ export default function ProfilePage() {
                   { label: 'Регіон', value: 'Україна', extraSpace: true },
                 ].map(({ label, value, extraSpace }) => (
                   <div key={label} style={{ paddingLeft: extraSpace ? '86px' : '0' }}>
-                    <p style={{ fontSize: '14px', lineHeight: '18px', fontWeight: 400, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.2)', marginBottom: '5px' }}>{label}</p>
+                    <p style={{ fontSize: '14px', lineHeight: '18px', fontWeight: 400, letterSpacing: '0.1em', color: '#A3A4B0', marginBottom: '5px' }}>{label}</p>
                     <p style={{ fontSize: '14px', lineHeight: '18px', fontWeight: 400, color: 'rgba(255,255,255,0.85)' }}>{value}</p>
                   </div>
                 ))}
@@ -105,7 +105,7 @@ export default function ProfilePage() {
                   { label: 'Останній вхід', value: 'Україна, Львів' },
                 ].map(({ label, value, mono }) => (
                   <div key={label}>
-                    <p style={{ fontSize: '14px', lineHeight: '18px', fontWeight: 400, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.2)', marginBottom: '5px' }}>{label}</p>
+                    <p style={{ fontSize: '14px', lineHeight: '18px', fontWeight: 400, letterSpacing: '0.1em', color: '#A3A4B0', marginBottom: '5px' }}>{label}</p>
                     <p style={{ fontSize: '14px', lineHeight: '18px', fontWeight: 400, color: 'rgba(255,255,255,0.85)', letterSpacing: mono ? '0.15em' : 'normal' }}>{value}</p>
                   </div>
                 ))}
