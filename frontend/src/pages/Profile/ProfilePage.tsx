@@ -1,5 +1,4 @@
 import React from 'react';
-
 import userAvatar from '../../assets/images/user_avatar.png';
 
 const cardClass =
@@ -106,8 +105,8 @@ export default function ProfilePage() {
                   { label: 'Останній вхід', value: 'Україна, Львів' },
                 ].map(({ label, value, mono }) => (
                   <div key={label}>
-                    <p style={{ fontSize: '14px', lineHeight: '18px', fontWeight: 600, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.2)', marginBottom: '5px' }}>{label}</p>
-                    <p style={{ fontSize: '14px', lineHeight: '18px', fontWeight: 500, color: 'rgba(255,255,255,0.85)', letterSpacing: mono ? '0.15em' : 'normal' }}>{value}</p>
+                    <p style={{ fontSize: '14px', lineHeight: '18px', fontWeight: 400, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.2)', marginBottom: '5px' }}>{label}</p>
+                    <p style={{ fontSize: '14px', lineHeight: '18px', fontWeight: 400, color: 'rgba(255,255,255,0.85)', letterSpacing: mono ? '0.15em' : 'normal' }}>{value}</p>
                   </div>
                 ))}
               </div>
