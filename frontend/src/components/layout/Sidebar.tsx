@@ -55,7 +55,7 @@ export default function Sidebar() {
                 `group flex w-full items-center gap-3 rounded-[28px] px-4 py-3 text-left text-[15px] font-montserrat font-regular transition-all duration-300 border border-transparent ${
                   isActive
                     ? "text-white shadow-[0_4px_20px_rgba(96,67,164,0.25)]" 
-                    : "text-white/40 hover:bg-white/[0.04] hover:text-white/90" 
+                    : "text-[#808080]/40 hover:bg-white/[0.04] hover:text-white/90" 
                 }`
               }
             >
@@ -86,10 +86,10 @@ export default function Sidebar() {
               to={item.path}
               style={({ isActive }) => isActive ? activeLinkStyle : {}}
               className={({ isActive }) =>
-                `group flex w-full items-center gap-3 rounded-[14px] px-4 py-3 text-left text-[15px] font-medium transition-all duration-300 border border-transparent ${
+                `group flex w-full items-center gap-3 rounded-[28px] px-4 py-3 text-left text-[15px] font-medium transition-all duration-300 border border-transparent ${
                   isActive
                     ? "text-white shadow-[0_4px_20px_rgba(96,67,164,0.25)]"
-                    : "text-white/40 hover:bg-white/[0.04] hover:text-white/90"
+                    : "text-[#808080]/40 hover:bg-white/[0.04] hover:text-white/90"
                 }`
               }
             >

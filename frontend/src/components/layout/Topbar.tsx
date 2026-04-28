@@ -19,7 +19,7 @@ export default function Topbar() {
 
   return (
     <header className="flex h-[80px] items-center justify-between border-b border-white/5 px-10 bg-[#05050A]/80 backdrop-blur-md sticky top-0 z-20">
-      <h1 className="text-[20px] font-semibold text-white/90">{getPageTitle()}</h1>
+      <h1 className="text-[28px] font-montserrat font-semibold text-white/90">{getPageTitle()}</h1>
 
       <div className="flex items-center gap-4">
         {/* Пошук */}
