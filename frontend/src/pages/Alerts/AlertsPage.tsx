@@ -4,7 +4,7 @@ import alarm from "../../assets/icons/alarm.svg";
 
 export default function AlertsPage() {
   return (
-    <div className="w-full max-w-[1200px] mx-auto px-[40px] pt-[24px] pb-8 text-white">
+   <div className="w-full  px-[40px] pt-[24px] pb-8 text-white">
       
       {/* TOP */}
       <div className="flex justify-between items-start mb-6">
