@@ -64,14 +64,30 @@ export default function AlertsPage() {
          <div className="rounded-2xl bg-[#050506] overflow-hidden">
 
            {/* HEADER */}
-           <div className="grid grid-cols-[1.4fr_1.2fr_1fr_1.1fr_1fr_0.6fr] px-6 py-4 text-[#A3A4B0] text-[14px] tracking-wide border-b border-white/10 bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)]">
+           <div className="flex items-center px-[24px] py-4 text-[#A3A4B0] text-[14px] font-normal border-b border-white/10 bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)]">
+             <div className="w-[55px]">
+               <span>Валюта</span>
+            </div>
 
-            <span>Валюта</span>
-            <span>Умова</span>
-            <span>Поточна ціна</span>
-            <span>Статус</span>
-            <span>Telegram</span>
-            <span>Дії</span>
+             <div className="ml-[151px] w-[46px]">
+               <span>Умова</span>
+             </div>
+
+             <div className="ml-[132px] w-[97px]">
+               <span>Поточна ціна</span>
+             </div>
+
+             <div className="ml-[80px] w-[130px]">
+               <span>Статус</span>
+             </div>
+
+             <div className="ml-[94px] w-[140px]">
+               <span>Telegram</span>
+             </div>
+
+             <div className="ml-[100px]">
+               <span>Дії</span>
+             </div>
            </div>
 
          {/* ROW 1 */}
@@ -86,14 +102,14 @@ export default function AlertsPage() {
           </div>
 
            {/* Умова */}
-           <div className="ml-[88px] w-[150px]">
+           <div className="ml-[88px] w-[120px]">
              <p className="text-[14px] font-normal text-white">
                Вище $80,000
              </p>
            </div>
 
            {/* Ціна */}
-           <div className="ml-[66px] w-[120px]">
+           <div className="ml-[71px] w-[120px]">
              <p className="text-[14px] font-normal text-white">
                $76,889
              </p>
@@ -147,21 +163,21 @@ export default function AlertsPage() {
           </div>
 
            {/* Умова */}
-           <div className="ml-[88px] w-[150px]">
+           <div className="ml-[87px] w-[111px]">
              <p className="text-[14px] font-normal text-white">
                Нижче $3,200
              </p>
            </div>
 
            {/* Ціна */}
-           <div className="ml-[66px] w-[120px]">
+           <div className="ml-[82px] w-[120px]">
              <p className="text-[14px] font-normal text-white">
                $3,260
              </p>
            </div>
 
            {/* Статус */}
-           <div className="ml-[80px] w-[130px]">
+           <div className="ml-[88px] w-[130px]">
              <span className="inline-flex items-center gap-2  rounded-full px-4 py-[6px] text-[12px]  bg-[#25DE28]/10 text-[#25DE28] font-medium">
                <span className="h-2 w-2 rounded-full bg-[#25DE28]"/>
                Активний
@@ -203,21 +219,21 @@ export default function AlertsPage() {
            <div className="w-[128px] flex items-center gap-3">
              <div className="w-8 h-8 rounded-full bg-purple-500" />
              <p className="text-[14px] font-medium text-white">
-               ETH/USDT
+               SOL/USDT
              </p>
           </div>
 
            {/* Умова */}
-           <div className="ml-[88px] w-[150px]">
+           <div className="ml-[87px] w-[102px]">
              <p className="text-[14px] font-normal text-white">
-               Нижче $3,200
+               Вище $85,00
              </p>
            </div>
 
            {/* Ціна */}
-           <div className="ml-[66px] w-[120px]">
+           <div className="ml-[89px] w-[120px]">
              <p className="text-[14px] font-normal text-white">
-               $3,260
+               $83,80
              </p>
            </div>
 
