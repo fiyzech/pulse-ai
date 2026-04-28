@@ -1,5 +1,6 @@
 import editIcon from "../../assets/icons/pencil-edit.svg";
 import trashIcon from "../../assets/icons/trash.svg";
+import alarm from "../../assets/icons/alarm.svg";
 
 export default function AlertsPage() {
   return (
@@ -7,145 +8,270 @@ export default function AlertsPage() {
       
       {/* TOP */}
       <div className="flex justify-between items-start mb-6">
-        <p className="text-white max-w-[520px] leading-relaxed">
+        <p className=" text-white text-[16px] leading-[20px] max-w-[546px] font-normal">
           Створюйте алерти на сайті та отримуйте сповіщення в Telegram,
           коли задана умова буде виконана
         </p>
 
-        <button className="px-6 py-2 rounded-full bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)]">
+        <button className="min-w-[165px] h-[44px] px-6 rounded-full flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium">
           Створити алерт
         </button>
       </div>
 
       {/* CARDS */}
-      <div className="p-[1px] rounded-2xl bg-[linear-gradient(90deg,#522E8B,#B3B3B3)]">
-       <div className="rounded-2xl bg-[#050506] p-5 text-center">
-         <p className="text-gray-400">Активні алерти</p>
-         <h2 className="text-2xl font-medium mt-2">3</h2>
+      <div className="grid grid-cols-4 gap-4 mb-6 w-full">
+
+        {/* CARD 1 */}
+        <div className="p-[1px] rounded-2xl bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
+          <div className="relative h-full rounded-2xl bg-[#050506] p-5 text-center shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] overflow-hidden">
+            <p className="text-white text-[14px]">Активні алерти</p>
+
+            <div className="flex items-center justify-center gap-2 mt-2">
+              <h2 className="text-2xl font-semibold">3</h2>
+              <img src={alarm} className="w-5 h-5" />
+            </div>
+          </div>
         </div>
 
-        <div className="rounded-2xl border border-[#6043A4]/30 bg-[#050506] p-5 text-center">
-          <p className="text-gray-400">Спрацювали сьогодні</p>
-          <h2 className="text-2xl font-medium mt-2">1</h2>
-        </div>
+        {/* CARD 2 */}
+        <div className="p-[1px] rounded-2xl bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
+          <div className="relative h-full rounded-2xl bg-[#050506] p-5 text-center shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] overflow-hidden">
+           <p className="text-white text-[14px] font-normal">Спрацювали сьогодні</p>
+           <h2 className="text-2xl font-semibold mt-2">1</h2>
+         </div>
+       </div>
 
-        <div className="rounded-2xl border border-[#6043A4]/30 bg-[#050506] p-5 text-center">
-          <p className="text-gray-400">Telegram підключено</p>
-          <h2 className="text-2xl font-medium mt-2">Так</h2>
-        </div>
+        {/* CARD 3 */}
+        <div className="p-[1px] rounded-2xl bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
+         <div className="relative h-full rounded-2xl bg-[#050506] p-5 text-center shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] overflow-hidden">
+           <p className="text-white text-[14px] font-normal">Telegram підключено</p>
+           <h2 className="text-2xl font-semibold mt-2">Так</h2>
+         </div>
+       </div>
 
-        <div className="rounded-2xl border border-[#6043A4]/30 bg-[#050506] p-5 text-center">
-          <p className="text-gray-400">Останнє сповіщення</p>
-          <h2 className="text-2xl font-medium mt-2">1 година тому</h2>
+        {/* CARD 4 */}
+        <div className="p-[1px] rounded-2xl bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
+          <div className="relative h-full rounded-2xl bg-[#050506] p-5 text-center shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] overflow-hidden">
+            <p className="text-white text-[14px] font-normal">Останнє сповіщення</p>
+            <h2 className="text-2xl font-semibold mt-2">1 година тому</h2>
+          </div>
         </div>
       </div>
 
       {/* TABLE */}
-      <div className="rounded-2xl border border-purple-500/20 bg-[#050506] overflow-hidden">
-        
-        {/* HEADER */}
-        <div className="grid grid-cols-6 px-6 py-4 text-gray-400 border-b border-white/10 bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)]">
-          <span>Валюта</span>
-          <span>Умова</span>
-          <span>Поточна ціна</span>
-          <span>Статус</span>
-          <span>Telegram</span>
-          <span className="text-right">Дії</span>
-        </div>
+      <div className="p-[1px] rounded-2xl bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_0_30px_rgba(131,72,193,0.04)]">
 
-        {/* ROW */}
-        <div className="grid grid-cols-6 items-center px-6 py-4 border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-full bg-orange-500 flex items-center justify-center text-sm">
-              ₿
+         <div className="rounded-2xl bg-[#050506] overflow-hidden">
+
+           {/* HEADER */}
+           <div className="flex items-center px-[24px] py-4 text-[#A3A4B0] text-[14px] font-normal border-b border-white/10 bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)]">
+             <div className="w-[55px]">
+               <span>Валюта</span>
             </div>
-            BTC/USDT
+
+             <div className="ml-[151px] w-[46px]">
+               <span>Умова</span>
+             </div>
+
+             <div className="ml-[132px] w-[97px]">
+               <span>Поточна ціна</span>
+             </div>
+
+             <div className="ml-[80px] w-[130px]">
+               <span>Статус</span>
+             </div>
+
+             <div className="ml-[94px] w-[140px]">
+               <span>Telegram</span>
+             </div>
+
+             <div className="ml-[100px]">
+               <span>Дії</span>
+             </div>
+           </div>
+
+         {/* ROW 1 */}
+         <div className="flex items-center px-[24px] py-4">
+
+           {/* Валюта */}
+           <div className="w-[128px] flex items-center gap-3">
+             <div className="w-8 h-8 rounded-full bg-orange-500" />
+             <p className="text-[14px] font-medium text-white">
+               BTC/USDT
+             </p>
           </div>
 
-          <span>Вище $70,000</span>
-          <span>$68,420</span>
+           {/* Умова */}
+           <div className="ml-[88px] w-[120px]">
+             <p className="text-[14px] font-normal text-white">
+               Вище $80,000
+             </p>
+           </div>
 
-         <div className="inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-[13px] font-medium bg-[#25DE28]/15 text-[#25DE28]">
-           <span className="h-2 w-2 rounded-full bg-[#25DE28]"></span>
-           Активний
+           {/* Ціна */}
+           <div className="ml-[71px] w-[120px]">
+             <p className="text-[14px] font-normal text-white">
+               $76,889
+             </p>
+           </div>
+
+           {/* Статус */}
+           <div className="ml-[80px] w-[130px]">
+             <span className="inline-flex items-center gap-2  rounded-full px-4 py-[6px] text-[12px]  bg-[#25DE28]/10 text-[#25DE28] font-medium">
+               <span className="h-2 w-2 rounded-full bg-[#25DE28]"/>
+               Активний
+             </span>
+           </div>
+
+           {/* Telegram */}
+           <div className="ml-[94px] w-[140px]">
+             <p className="text-[14px] font-normal text-white">
+               Підключено
+             </p>
+           </div>
+
+           {/* Дії */}
+           <div className="ml-[100px] flex gap-[16px]">
+             <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
+               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center">
+                 <img src={editIcon} className="h-4 w-4" />
+               </button>
+             </div>
+    
+             <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
+               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center">
+                 <img src={trashIcon} className="h-4 w-4" />
+               </button>
+             </div>
+           </div>
          </div>
 
-          <span>Підключено</span>
-
-          <div className="flex justify-end gap-2">
-            <button className="h-8 w-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center">
-              <img src={editIcon} className="h-4 w-4" />
-            </button>
-
-            <button className="h-8 w-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center">
-              <img src={trashIcon} className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* ROW */}
-        <div className="grid grid-cols-6 items-center px-6 py-4 border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-full bg-purple-500 flex items-center justify-center text-sm">
-              ◆
-            </div>
-            ETH/USDT
-          </div>
-
-          <span>Нижче $3,200</span>
-          <span>$3,260</span>
-
-         <div className="inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-[13px] font-medium bg-[#25DE28]/15 text-[#25DE28]">
-           <span className="h-2 w-2 rounded-full bg-[#25DE28]"></span>
-           Активний
+         <div className="px-[24px]">
+           <div className="h-[1px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]" />
          </div>
 
-          <span>Підключено</span>
 
-          <div className="flex justify-end gap-2">
-            <button className="h-8 w-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center">
-              <img src={editIcon} className="h-4 w-4" />
-            </button>
+         {/* ROW 2 */}
+         <div className="flex items-center px-[24px] py-4">
 
-            <button className="h-8 w-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center">
-              <img src={trashIcon} className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* ROW */}
-        <div className="grid grid-cols-6 items-center px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-full bg-purple-500 flex items-center justify-center text-sm">
-              ◆
-            </div>
-            ETH/USDT
+           {/* Валюта */}
+           <div className="w-[128px] flex items-center gap-3">
+             <div className="w-8 h-8 rounded-full bg-purple-500" />
+             <p className="text-[14px] font-medium text-white">
+               ETH/USDT
+             </p>
           </div>
 
-          <span>Нижче $3,200</span>
-          <span>$3,260</span>
+           {/* Умова */}
+           <div className="ml-[87px] w-[111px]">
+             <p className="text-[14px] font-normal text-white">
+               Нижче $3,200
+             </p>
+           </div>
 
-          <div className="inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-[13px] font-medium bg-[#25DE28]/15 text-[#25DE28]">
-           <span className="h-2 w-2 rounded-full bg-[#25DE28]"></span>
-           Активний
+           {/* Ціна */}
+           <div className="ml-[82px] w-[120px]">
+             <p className="text-[14px] font-normal text-white">
+               $3,260
+             </p>
+           </div>
+
+           {/* Статус */}
+           <div className="ml-[88px] w-[130px]">
+             <span className="inline-flex items-center gap-2  rounded-full px-4 py-[6px] text-[12px]  bg-[#25DE28]/10 text-[#25DE28] font-medium">
+               <span className="h-2 w-2 rounded-full bg-[#25DE28]"/>
+               Активний
+             </span>
+           </div>
+
+           {/* Telegram */}
+           <div className="ml-[94px] w-[140px]">
+             <p className="text-[14px] font-normal text-white">
+               Підключено
+             </p>
+           </div>
+
+           {/* Дії */}
+           <div className="ml-[100px] flex gap-[16px]">
+             <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
+               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center">
+                 <img src={editIcon} className="h-4 w-4" />
+               </button>
+             </div>
+    
+             <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
+               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center">
+                 <img src={trashIcon} className="h-4 w-4" />
+               </button>
+             </div>
+           </div>
          </div>
 
-          <span>Підключено</span>
+         <div className="px-[24px]">
+           <div className="h-[1px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]" />
+         </div>
 
-          <div className="flex justify-end gap-2">
-            <button className="h-8 w-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center">
-              <img src={editIcon} className="h-4 w-4" />
-            </button>
 
-            <button className="h-8 w-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center">
-              <img src={trashIcon} className="h-4 w-4" />
-            </button>
+         {/* ROW 3 */}
+         <div className="flex items-center px-[24px] py-4">
+
+           {/* Валюта */}
+           <div className="w-[128px] flex items-center gap-3">
+             <div className="w-8 h-8 rounded-full bg-purple-500" />
+             <p className="text-[14px] font-medium text-white">
+               SOL/USDT
+             </p>
           </div>
+
+           {/* Умова */}
+           <div className="ml-[87px] w-[102px]">
+             <p className="text-[14px] font-normal text-white">
+               Вище $85,00
+             </p>
+           </div>
+
+           {/* Ціна */}
+           <div className="ml-[89px] w-[120px]">
+             <p className="text-[14px] font-normal text-white">
+               $83,80
+             </p>
+           </div>
+
+           {/* Статус */}
+           <div className="ml-[80px] w-[130px]">
+             <span className="inline-flex items-center gap-2  rounded-full px-4 py-[6px] text-[12px]  bg-[#25DE28]/10 text-[#25DE28] font-medium">
+               <span className="h-2 w-2 rounded-full bg-[#25DE28]"/>
+               Активний
+             </span>
+           </div>
+
+           {/* Telegram */}
+           <div className="ml-[94px] w-[140px]">
+             <p className="text-[14px] font-normal text-white">
+               Підключено
+             </p>
+           </div>
+
+           {/* Дії */}
+           <div className="ml-[100px] flex gap-[16px]">
+             <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
+               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center">
+                 <img src={editIcon} className="h-4 w-4" />
+               </button>
+             </div>
+    
+             <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
+               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center">
+                 <img src={trashIcon} className="h-4 w-4" />
+               </button>
+             </div>
+           </div>
+         </div>
         </div>
-      </div>
+     </div>
 
       {/* FOOTER */}
-      <p className="text-center text-gray-500 mt-4">
+      <p className="text-center text-[#A3A4B0] text-[14px] font-normal leading-[18px] mt-6">
         Сповіщення про спрацювання алертів надсилаються в Telegram
       </p>
     </div>
