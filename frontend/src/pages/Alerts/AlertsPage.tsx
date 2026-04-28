@@ -4,7 +4,7 @@ import alarm from "../../assets/icons/alarm.svg";
 
 export default function AlertsPage() {
   return (
-    <div className="w-full max-w-[1200px] mx-auto px-6 pt-6 pb-8 text-white">
+    <div className="w-full max-w-[1200px] mx-auto px-[40px] pt-[24px] pb-8 text-white">
       
       {/* TOP */}
       <div className="flex justify-between items-start mb-6">
@@ -19,7 +19,7 @@ export default function AlertsPage() {
       </div>
 
       {/* CARDS */}
-      <div className="grid grid-cols-4 gap-4 mb-6 w-full">
+      <div className="grid grid-cols-4 gap-4 mb-[24px] w-full">
 
         {/* CARD 1 */}
         <div className="p-[1px] rounded-2xl bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
@@ -69,23 +69,23 @@ export default function AlertsPage() {
                <span>Валюта</span>
             </div>
 
-             <div className="ml-[151px] w-[46px]">
+             <div className="ml-[161px] w-[46px]">
                <span>Умова</span>
              </div>
 
-             <div className="ml-[132px] w-[97px]">
+             <div className="ml-[154px] w-[97px]">
                <span>Поточна ціна</span>
              </div>
 
-             <div className="ml-[80px] w-[130px]">
+             <div className="ml-[85px] w-[47px]">
                <span>Статус</span>
              </div>
 
-             <div className="ml-[94px] w-[140px]">
+             <div className="ml-[173px] w-[66px]">
                <span>Telegram</span>
              </div>
 
-             <div className="ml-[100px]">
+             <div className="ml-[132px]">
                <span>Дії</span>
              </div>
            </div>
@@ -102,21 +102,21 @@ export default function AlertsPage() {
           </div>
 
            {/* Умова */}
-           <div className="ml-[88px] w-[120px]">
+           <div className="ml-[102px] w-[123px]">
              <p className="text-[14px] font-normal text-white">
                Вище $80,000
              </p>
            </div>
 
            {/* Ціна */}
-           <div className="ml-[71px] w-[120px]">
+           <div className="ml-[64px] w-[56px]">
              <p className="text-[14px] font-normal text-white">
                $76,889
              </p>
            </div>
 
            {/* Статус */}
-           <div className="ml-[80px] w-[130px]">
+           <div className="ml-[122px] w-[103px]">
              <span className="inline-flex items-center gap-2  rounded-full px-4 py-[6px] text-[12px]  bg-[#25DE28]/10 text-[#25DE28] font-medium">
                <span className="h-2 w-2 rounded-full bg-[#25DE28]"/>
                Активний
@@ -124,14 +124,14 @@ export default function AlertsPage() {
            </div>
 
            {/* Telegram */}
-           <div className="ml-[94px] w-[140px]">
+           <div className="ml-[120px] w-[89px]">
              <p className="text-[14px] font-normal text-white">
                Підключено
              </p>
            </div>
 
            {/* Дії */}
-           <div className="ml-[100px] flex gap-[16px]">
+           <div className="ml-[107px] flex gap-[16px]">
              <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
                <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center">
                  <img src={editIcon} className="h-4 w-4" />
@@ -163,21 +163,21 @@ export default function AlertsPage() {
           </div>
 
            {/* Умова */}
-           <div className="ml-[87px] w-[111px]">
+           <div className="ml-[102px] w-[111px]">
              <p className="text-[14px] font-normal text-white">
                Нижче $3,200
              </p>
            </div>
 
            {/* Ціна */}
-           <div className="ml-[82px] w-[120px]">
+           <div className="ml-[76px] w-[46px]">
              <p className="text-[14px] font-normal text-white">
                $3,260
              </p>
            </div>
 
            {/* Статус */}
-           <div className="ml-[88px] w-[130px]">
+           <div className="ml-[133px] w-[103px]">
              <span className="inline-flex items-center gap-2  rounded-full px-4 py-[6px] text-[12px]  bg-[#25DE28]/10 text-[#25DE28] font-medium">
                <span className="h-2 w-2 rounded-full bg-[#25DE28]"/>
                Активний
@@ -185,14 +185,14 @@ export default function AlertsPage() {
            </div>
 
            {/* Telegram */}
-           <div className="ml-[94px] w-[140px]">
+           <div className="ml-[120px] w-[89px]">
              <p className="text-[14px] font-normal text-white">
                Підключено
              </p>
            </div>
 
            {/* Дії */}
-           <div className="ml-[100px] flex gap-[16px]">
+           <div className="ml-[107px] flex gap-[16px]">
              <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
                <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center">
                  <img src={editIcon} className="h-4 w-4" />
@@ -224,21 +224,21 @@ export default function AlertsPage() {
           </div>
 
            {/* Умова */}
-           <div className="ml-[87px] w-[102px]">
+           <div className="ml-[102px] w-[102px]">
              <p className="text-[14px] font-normal text-white">
                Вище $85,00
              </p>
            </div>
 
            {/* Ціна */}
-           <div className="ml-[89px] w-[120px]">
+           <div className="ml-[85px] w-[47px]">
              <p className="text-[14px] font-normal text-white">
                $83,80
              </p>
            </div>
 
            {/* Статус */}
-           <div className="ml-[80px] w-[130px]">
+           <div className="ml-[133px] w-[103px]">
              <span className="inline-flex items-center gap-2  rounded-full px-4 py-[6px] text-[12px]  bg-[#25DE28]/10 text-[#25DE28] font-medium">
                <span className="h-2 w-2 rounded-full bg-[#25DE28]"/>
                Активний
@@ -246,14 +246,14 @@ export default function AlertsPage() {
            </div>
 
            {/* Telegram */}
-           <div className="ml-[94px] w-[140px]">
+           <div className="ml-[120px] w-[89px]">
              <p className="text-[14px] font-normal text-white">
                Підключено
              </p>
            </div>
 
            {/* Дії */}
-           <div className="ml-[100px] flex gap-[16px]">
+           <div className="ml-[107px] flex gap-[16px]">
              <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
                <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center">
                  <img src={editIcon} className="h-4 w-4" />
@@ -271,7 +271,7 @@ export default function AlertsPage() {
      </div>
 
       {/* FOOTER */}
-      <p className="text-center text-[#A3A4B0] text-[14px] font-normal leading-[18px] mt-6">
+      <p className="text-center text-[#A3A4B0] text-[14px] font-normal leading-[18px] mt-[24px]">
         Сповіщення про спрацювання алертів надсилаються в Telegram
       </p>
     </div>
