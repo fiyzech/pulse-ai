@@ -31,7 +31,7 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-[244px] min-w-[244px] shrink-0 border-r border-white/5 bg-[#08080C] px-4 py-6 flex flex-col sticky top-0 h-screen z-30 font-montserrat antialiased">
+    <aside className="w-[244px] min-w-[244px] shrink-0 border-r border-white/5 bg-[#010004] px-4 py-6 flex flex-col sticky top-0 h-screen z-30 font-montserrat antialiased">
       <div>
         {/* Логотип */}
         <div className="mb-10 flex items-center gap-2 px-6 cursor-pointer" onClick={() => window.scrollTo(0, 0)}>
