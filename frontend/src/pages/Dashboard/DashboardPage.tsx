@@ -38,13 +38,12 @@ export default function DashboardPage() {
     <section className="w-full max-w-[1600px] mx-auto px-10 pt-7 pb-8">
       {/* СЕКЦІЯ 1 */}
       <div className="mb-6 relative">
-        <div className="relative w-full xl:w-[831px] mb-[24px]">
+        <div className={`relative w-full xl:w-[831px] mb-[24px] transition-all ${isOpen ? "z-50" : "z-0"}`}>
           <h2 className="font-montserrat text-[24px] leading-[28px] font-semibold text-white/95">
             Найпопулярніше сьогодні
           </h2>
 
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 z-50">
-            {/* Кнопка вибору годин з новою обводкою */}
+          <div className="absolute right-0 top-1/2 -translate-y-1/2">
             <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_4px_20px_rgba(131,72,193,0.15)]">
               <button
                 onClick={() => setIsOpen(!isOpen)}
@@ -57,7 +56,7 @@ export default function DashboardPage() {
               </button>
             </div>
             {isOpen && (
-              <div className="absolute right-0 top-[53px] z-[999] w-[86px] p-[1px] rounded-[16px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
+              <div className="absolute right-0 top-[53px] w-[86px] p-[1px] rounded-[16px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
                 <div className="bg-[#050506] rounded-[16px] p-1">
                   {timeOptions.map((option) => (
                     <button key={option} type="button" onClick={() => { setSelected(option); setIsOpen(false); }} className="w-full rounded-lg px-2 py-1.5 text-center text-[12px] text-white/80 transition hover:bg-white/10 hover:text-white">
@@ -70,11 +69,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[261px_261px_261px_261px]">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[261px_261px_261px_261px] relative z-0">
           {coins.map((coin) => (
-            <div key={coin.symbol} className="h-[305px] w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
+            <div key={coin.symbol} className="h-[305px] w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.4),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-1">
               <div className="relative h-full w-full cursor-pointer rounded-[28px] bg-[#050506] transition-all overflow-hidden">
-                <button onClick={() => navigate(coin.path)} className="absolute right-6 top-6 h-[40px] w-[40px] transition-all duration-300 hover:scale-110 group z-20">
+                <button onClick={() => navigate(coin.path)} className="absolute right-6 top-6 h-[40px] w-[40px] transition-all duration-300 hover:scale-110 group">
                   <div className="absolute inset-0 rounded-full bg-[#7c3aed]/40 blur-md opacity-0 group-hover:opacity-100 transition-all" />
                   <img src="/buttom.svg" alt="open" className="relative z-10 h-[40px] w-[40px]" />
                 </button>
@@ -103,8 +102,8 @@ export default function DashboardPage() {
             </div>
           ))}
 
-          {/* Telegram Promo */}
-          <div className="w-full self-start translate-y-[-63px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
+          {/* АНІМАЦІЯ ДЛЯ TELEGRAM ПРОМО */}
+          <div className="w-full self-start translate-y-[-63px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.4),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-[67px]">
             <div className="relative flex h-full min-h-[368px] w-full flex-col overflow-hidden rounded-[28px] bg-[#050506] p-[24px]" style={{ backgroundImage: "url('/bgTelegramDashboard.png')", backgroundSize: "200%", backgroundPosition: "center" }}>
               <div>
                 <div className="mb-[40px] flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo(0, 0)}>
@@ -129,8 +128,10 @@ export default function DashboardPage() {
       {/* СЕКЦІЯ 2 */}
       <div className="-mt-[63px] mb-[24px]">
         <h2 className="w-[255px] h-[28px] mb-6 font-montserrat text-[24px] leading-[28px] font-semibold text-white/95">Варто відстежувати</h2>
-        <div className="w-full max-w-[1116px] h-[362px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
+        {/* АНІМАЦІЯ ВЕЛИКОГО БЛОКУ */}
+        <div className="w-full max-w-[1116px] h-[354px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_100px_rgba(131,72,193,0.3),0_8px_25px_rgba(0,0,0,0.4)]">
           <div className="relative flex h-full w-full items-start justify-center rounded-[28px] bg-[#050506]">
+            
             <div className="absolute left-[24px] top-[24px] flex flex-col">
               <p className="h-[16px] text-[12px] leading-[16px] font-light text-white whitespace-nowrap">Останнє оновлення ~ 2 хвилини тому</p>
               <div className="h-[12px]" />
@@ -148,13 +149,12 @@ export default function DashboardPage() {
               <p className="h-[44px] text-[40px] leading-[44px] font-medium text-white">98.432,32$</p>
             </div>
 
-            <div className="absolute right-[24px] top-[29px] h-[156px] w-[554px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
+            <div className={`absolute right-[24px] top-[24px] h-[164px] w-[554px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all ${isPeriodOpen ? "z-50" : "z-0"}`}>
               <div className="relative h-full w-full rounded-[28px] bg-[#050506]">
                 <div className="absolute left-[24px] top-[24px]"><p className="font-montserrat text-[16px] text-white">Оберіть період</p></div>
                 <div className="absolute left-[24px] top-[50px]"><p className="font-montserrat text-[12px] text-white">Дані оновлюються відповідно до вибраного інтервалу</p></div>
                 
-                {/* Друга кнопка з новою обводкою */}
-                <div className="absolute right-[24px] top-[24px]">
+                <div className="absolute right-[24px] top-[24px] z-20">
                   <div className="relative p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
                     <button onClick={() => setIsPeriodOpen(!isPeriodOpen)} className="flex h-[36px] w-[86px] items-center justify-center gap-2 rounded-[28px] bg-[#050506] text-white transition-all hover:bg-white/5">
                       <span className="text-[12px] font-medium">{periodSelected}</span>
@@ -186,17 +186,25 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="absolute bottom-[34px] left-[24px] right-[30px] flex gap-[18px]">
+            <div className="absolute bottom-[24px] left-[24px] right-[24px] flex gap-[18px] z-0">
               {[
                 { title: "Зміна", value: "+2.45%", showPeriod: true },
                 { title: "Діапазон", value: "$95K – $99K", showPeriod: true },
                 { title: "Останній рух (1 хв тому)", value: "+0.8%", showPeriod: false },
                 { title: "Максимум", value: "$99K", showPeriod: true },
               ].map((card, index) => (
-                <div key={index} className="h-[118px] w-[253px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
+                <div key={index} className="h-[118px] w-[253px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_60px_rgba(131,72,193,0.4),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-1">
                   <div className="relative h-full w-full rounded-[28px] bg-[#050506]">
                     <p className="absolute left-[24px] top-[24px] font-montserrat text-[13px] leading-[16px] font-medium text-white">{card.title}</p>
-                    {card.showPeriod && <div className="absolute right-[24px] top-[18px] flex h-[31px] w-[63px] items-center justify-center rounded-[28px] border border-[#7c3aed]/40 bg-black"><span className="font-montserrat text-[12px] leading-[15px] font-medium text-white">{periodSelected}</span></div>}
+                    
+                    {card.showPeriod && (
+                      <div className="absolute right-[24px] top-[18px] h-[31px] w-[63px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
+                        <div className="flex h-full w-full items-center justify-center rounded-[28px] bg-[#050506]">
+                          <span className="font-montserrat text-[12px] leading-[15px] font-medium text-white">{periodSelected}</span>
+                        </div>
+                      </div>
+                    )}
+
                     <p className="absolute left-[24px] top-[52px] h-[38px] font-montserrat text-[32px] leading-[38px] font-medium text-white">{card.value}</p>
                   </div>
                 </div>
@@ -209,7 +217,8 @@ export default function DashboardPage() {
       {/* СЕКЦІЯ 3 */}
       <div className="mt-[24px]">
         <h2 className="mb-6 h-[28px] w-[205px] font-montserrat text-[24px] font-semibold leading-[28px] text-white/95">Останні новини</h2>
-        <div className="w-full max-w-[1116px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
+        {/* АНІМАЦІЯ ВЕЛИКОГО БЛОКУ НОВИН */}
+        <div className="w-full max-w-[1116px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_100px_rgba(131,72,193,0.3),0_8px_25px_rgba(0,0,0,0.4)]">
           <div className="relative h-[439px] w-full overflow-hidden rounded-[28px] bg-[#050506] px-[24px] pt-[24px]">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-[80px] gap-y-[24px]">
               {[
@@ -220,7 +229,7 @@ export default function DashboardPage() {
                 { time: "1 годину тому · The Block", title: "Індекс страху та жадібності крипторинку на максимумі з липня — огляд ринку" },
                 { time: "3 години тому · The Block", title: "Circle запускає USDC Bridge для нативних кросчейн – переказів стейблкоїнів" },
               ].map((news, index) => (
-                <div key={index} className="flex flex-col gap-[8px] min-h-[82px]">
+                <div key={index} className="flex flex-col gap-[8px] min-h-[82px] cursor-pointer p-3 -mx-3 -my-2 rounded-[16px] transition-all duration-300 hover:bg-white/5">
                   <div className="flex items-center gap-[8px] h-[24px]">
                     <img src="/Bitcoin.svg" alt="Bitcoin" className="h-[24px] w-[24px]" />
                     <span className="font-montserrat text-[12px] text-white leading-none">{news.time}</span>
@@ -229,7 +238,8 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-            <div className="absolute bottom-[24px] left-1/2 -translate-x-1/2">
+            
+            <div className="absolute top-[373px] left-1/2 -translate-x-1/2">
               <button className="group relative flex h-[44px] w-[243px] items-center justify-center rounded-[28px] text-[14px] font-medium leading-[20px] text-white transition-transform hover:scale-105">
                 <svg className="absolute inset-0 h-full w-full pointer-events-none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="241" height="42" rx="21" fill="none" stroke="url(#final-rect-grad)" strokeWidth="1.5" /><defs><linearGradient id="final-rect-grad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#2C1969" /><stop offset="50%" stopColor="#8348C1" /><stop offset="100%" stopColor="#C38BFF" /></linearGradient></defs></svg>
                 <span className="relative z-10">Перейти до головних новин</span>
