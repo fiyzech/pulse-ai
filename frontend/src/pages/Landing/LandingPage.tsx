@@ -190,11 +190,18 @@ const FaqItem: React.FC<{ question: string; answer?: string }> = ({ question, an
 };
 
 
-// --- КОМПОНЕНТ КАРТКИ "ЯК ЦЕ ПРАЦЮЄ" ---
+// --- ОНОВЛЕНИЙ КОМПОНЕНТ КАРТКИ "ЯК ЦЕ ПРАЦЮЄ" ---
 const StepCard: React.FC<{ number: string; title: string; description: string; imgSrc: string }> = ({ number, title, description, imgSrc }) => {
+  
+  const imageScaleClass = (number === '1' || number === '2') 
+    ? 'scale-[1.25] group-hover:scale-[1.30]' 
+    : 'scale-100 group-hover:scale-[1.05]';
+
   return (
-    <div className="relative flex flex-col px-8 py-10 rounded-[16px] border border-[#2C1969] bg-[#05050A] mt-10 md:mt-0 transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_15px_40px_rgba(131,72,193,0.2)] group transform-gpu">
-      <div className="absolute -top-[30px] -left-[15px] lg:-left-[30px] w-[60px] h-[60px] rounded-full p-[1px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] via-[52%] to-[#FFFFFF] shadow-[0_0_15px_rgba(131,72,193,0.3)] z-10 transition-transform duration-500 group-hover:scale-110">
+    <div className="relative w-full max-w-[375px] mx-auto h-auto lg:h-[471px] rounded-[16px] p-[1px] bg-gradient-to-br from-[#522E8B]/60 to-[#B3B3B3]/60 mt-10 md:mt-0 transition-all duration-500 hover:-translate-y-2 hover:scale-[1.03] hover:z-20 hover:shadow-[0_15px_40px_rgba(131,72,193,0.3)] group transform-gpu flex flex-col shrink-0">
+      
+      {/* Badge (Кружечок з цифрою) */}
+      <div className="absolute -top-[30px] -left-[15px] lg:-left-[20px] w-[60px] h-[60px] rounded-full p-[1px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] via-[52%] to-[#FFFFFF] shadow-[0_0_15px_rgba(131,72,193,0.3)] z-30 transition-transform duration-500 group-hover:scale-110">
         <div className="w-full h-full rounded-full bg-[#000000] flex items-center justify-center">
             <span className="font-montserrat font-medium text-[24px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] via-[52%] to-[#FFFFFF] bg-clip-text text-transparent">
                 {number}
@@ -202,22 +209,32 @@ const StepCard: React.FC<{ number: string; title: string; description: string; i
         </div>
       </div>
 
-      <div className="w-full flex justify-center mb-10 h-[220px] relative">
-         <div className="absolute inset-0 bg-[#8348C1]/0 group-hover:bg-[#8348C1]/10 blur-[40px] rounded-full transition-colors duration-500"></div>
-        <img 
-          src={imgSrc} 
-          alt={title} 
-          className="h-full w-auto object-contain drop-shadow-[0_10px_25px_rgba(0,0,0,0.5)] transition-transform duration-500 group-hover:scale-105 relative z-10" 
-        />
-      </div>
+      <div className="w-full h-full rounded-[15px] bg-[#05050A] flex flex-col px-[32px] pt-[40px] pb-[32px] relative z-10 overflow-hidden">
+        
+         {/* Легке світіння всередині при наведенні */}
+         <div className="absolute inset-0 bg-[#8348C1]/0 group-hover:bg-[#000000]/10 blur-[40px] rounded-[15px] transition-colors duration-500 pointer-events-none z-0"></div>
 
-      <h3 className="font-montserrat font-medium text-[24px] leading-[32px] text-white mb-4 transition-colors duration-300 group-hover:text-[#ceafef]">
-        {title}
-      </h3>
-      
-      <p className="font-montserrat font-normal text-[16px] leading-[24px] text-white/70 transition-colors duration-300 group-hover:text-white/90">
-        {description}
-      </p>
+        {/* Картинка */}
+        <div className="w-full flex justify-center items-center h-[220px] relative z-10 mb-[30px]">
+          <img 
+            src={imgSrc} 
+            alt={title} 
+            className={`max-h-[100%] w-auto object-contain drop-shadow-[0_10px_25px_rgba(0,0,0,0.5)] transition-transform duration-500 origin-center ${imageScaleClass}`} 
+          />
+        </div>
+
+        {/* Текстовий блок: прибрали h-[64px], оскільки всі заголовки влазять в 1 рядок */}
+        <div className="relative z-10 flex flex-col flex-grow">
+          <h3 className="font-montserrat font-medium text-[22px] leading-[32px] text-[#FFFFFF] mb-[16px] transition-colors duration-300 group-hover:text-[#ceafef]">
+            {title}
+          </h3>
+          
+          <p className="font-montserrat font-normal text-[14px] leading-[24px] text-white/[0.71] transition-colors duration-300 group-hover:text-white/90">
+            {description}
+          </p>
+        </div>
+
+      </div>
     </div>
   );
 };
@@ -523,7 +540,7 @@ const LandingPage: React.FC = () => {
       {/* 6. ЯК ЦЕ ПРАЦЮЄ */}
       <section id="how-it-works" className="py-24 px-8 md:px-12 relative z-20 bg-[#000008] flex flex-col items-center transform-gpu">
         
-{/* НОВА ФОНОВА КАРТИНКА (туманчик зліва) */}
+        {/* НОВА ФОНОВА КАРТИНКА (туманчик зліва) */}
         <img 
           src={thirdGradPic} 
           alt="Background glow left" 
@@ -548,14 +565,14 @@ const LandingPage: React.FC = () => {
           <StepCard 
             number="1"
             title="Створіть акаунт"
-            description="Швидка реєстрація — і ви отримуєте доступ до всіх можливостей CryptoPulse."
+            description="Швидка реєстрація — і ви миттєво отримуєте доступ до всіх інструментів платформи CryptoPulse. Створіть свій профіль за пару кліків та почніть роботу."
             imgSrc={welcomeImg} 
           />
           
           <StepCard 
             number="2"
             title="Обери план"
-            description="Підключи тариф, який відповідає твоїм потребам, і відкрий розширені функції."
+            description="Оберіть оптимальний тариф, який найкраще відповідає вашим цілям, і відкрийте розширені функції. Отримайте максимум інструментів для ефективного аналізу."
             imgSrc={plansImg} 
           />
           
@@ -602,160 +619,142 @@ const LandingPage: React.FC = () => {
         </div>
 
         {/* Контейнер тарифів */}
-        <div className="flex flex-col lg:flex-row justify-center items-center lg:items-center gap-6 max-w-[1250px] mx-auto w-full">
+        <div className="flex flex-col lg:flex-row justify-center items-center gap-6 max-w-[1250px] mx-auto w-full">
           
-          {/* Картка "Безкоштовно" */}
+          {/* Картка "Безкоштовно" (405x456) */}
           <div 
-            className="w-full lg:w-[405px] h-auto lg:min-h-[456px] rounded-[24px] border border-[#2C1969] bg-[#000008] p-8 flex flex-col text-left opacity-0 animate-fade-up transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(131,72,193,0.1)] relative group"
+            className="w-full lg:w-[405px] h-auto lg:h-[456px] rounded-[24px] p-[1px] bg-gradient-to-br from-[#522E8B]/60 to-[#B3B3B3]/60 flex flex-col shrink-0 opacity-0 animate-fade-up transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(131,72,193,0.1)] relative group"
             style={{ animationDelay: '0ms' }}
           >
-            <h3 className="font-montserrat text-[16px] font-medium text-white mb-4">Безкоштовно</h3>
-            <div className="flex items-baseline gap-1 mb-6">
-              <span className="font-montserrat text-[48px] font-medium text-white leading-none">€0</span>
-              <span className="font-montserrat text-[14px] text-white/50">/{isYearly ? 'рік' : 'місяць'}</span>
-            </div>
-            
-            {/* Згасаюча лінія */}
-            <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-[#2C1969] to-transparent mb-6 transition-colors duration-300 group-hover:via-[#8348C1]/70"></div>
-            
-            {/* Список з Montserrat (Шрифт 16px, Line Height 20px) */}
-            <ul className="flex flex-col gap-[14px] mb-8">
-              <li className="flex items-center gap-3">
-                <div className="w-[4px] h-[4px] rounded-full bg-white shrink-0"></div>
-                <span className="font-montserrat font-normal text-[16px] leading-[20px] text-white">Відстеження до 60 криптовалют</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <div className="w-[4px] h-[4px] rounded-full bg-white shrink-0"></div>
-                <span className="font-montserrat font-normal text-[16px] leading-[20px] text-white">Оновлення даних кожних 60 секунд</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <div className="w-[4px] h-[4px] rounded-full bg-white shrink-0"></div>
-                <span className="font-montserrat font-normal text-[16px] leading-[20px] text-white">До 3 активних алертів</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <div className="w-[4px] h-[4px] rounded-full bg-white shrink-0"></div>
-                <span className="font-montserrat font-normal text-[16px] leading-[20px] text-white">Telegram сповіщення</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <div className="w-[4px] h-[4px] rounded-full bg-white shrink-0"></div>
-                <span className="font-montserrat font-normal text-[16px] leading-[20px] text-white">Історія сповіщень до 7 днів</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <div className="w-[4px] h-[4px] rounded-full bg-white shrink-0"></div>
-                <span className="font-montserrat font-regular text-[16px] leading-[20px] text-white">Базовий Dashboard</span>
-              </li>
-            </ul>
-            
-            <div className="mt-auto">
-              <div className="w-full h-[48px] p-[1px] rounded-[8px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] via-[52%] to-[#FFFFFF]">
-                <button className="w-full h-full bg-[#000008] rounded-[7px] flex items-center justify-center text-[14px] font-montserrat font-medium text-white hover:bg-white/5 transition-colors uppercase tracking-wider">
-                  ПОЧАТИ ЗАРАЗ
-                </button>
+            <div className="w-full h-full rounded-[23px] bg-[#000008] px-[32px] py-[32px] flex flex-col text-left">
+              <h3 className="font-montserrat text-[16px] font-medium text-white mb-[16px]">Безкоштовно</h3>
+              <div className="flex items-end gap-1 mb-[24px]">
+                <span className="font-montserrat text-[40px] font-normal text-white leading-[40px]">€0</span>
+                <span className="font-montserrat text-[14px] text-white/50 mb-[4px]">/{isYearly ? 'рік' : 'місяць'}</span>
+              </div>
+              
+              {/* Згасаюча лінія */}
+              <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-[#2C1969] to-transparent mb-[24px]"></div>
+              
+              {/* Список з gap 12px */}
+              <ul className="flex flex-col gap-[12px]">
+                {[
+                  "Відстеження до 60 криптовалют",
+                  "Оновлення даних кожних 60 секунд",
+                  "До 3 активних алертів",
+                  "Telegram сповіщення",
+                  "Історія сповіщень до 7 днів",
+                  "Базовий Dashboard"
+                ].map((text, idx) => (
+                  <li key={idx} className="flex items-center gap-3">
+                    <div className="w-[4px] h-[4px] rounded-full bg-white shrink-0"></div>
+                    <span className="font-montserrat font-normal text-[16px] leading-[20px] text-white">{text}</span>
+                  </li>
+                ))}
+              </ul>
+              
+              <div className="mt-auto">
+                <div className="w-full h-[48px] p-[1px] rounded-[28px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] via-[52%] to-[#FFFFFF]">
+                  <button className="w-full h-full bg-[#000008] rounded-[28px] flex items-center justify-center text-[14px] font-montserrat font-medium text-white hover:bg-white/5 transition-colors uppercase tracking-wider">
+                    ПОЧАТИ ЗАРАЗ
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Картка "Pro" */}
-<div 
-  className="w-full lg:w-[406px] h-auto lg:min-h-[490px] rounded-[24px] p-[1px] relative opacity-0 animate-fade-up transform-gpu transition-all duration-300 lg:-translate-y-4 hover:lg:-translate-y-6 z-10 shadow-[0_0_30px_rgba(131,72,193,0.3)] bg-gradient-to-b from-[#8348C1] via-[#2C1969] to-[#FFFFFF]/20" 
-  style={{ animationDelay: '200ms' }}
->
-  <div 
-    className="w-full h-full rounded-[23px] bg-[#0A0516] bg-cover bg-center p-8 flex flex-col relative text-left"
-    style={{ backgroundImage: `url(${bgForPro})` }}
-  >
-    {/* Бадж "Популярний" */}
-    <div className="flex justify-between items-start mb-4">
-      <h3 className="font-montserrat text-[16px] font-normal text-white">Pro</h3>
-      <div className="px-3 py-1 rounded-full border border-[#8348C1] text-[11px] font-montserrat font-normal text-[#ceafef] bg-[#8348C1]/20 backdrop-blur-md">
-        Популярний
-      </div>
-    </div>
-    
-    <div className="flex items-baseline gap-1 mb-6">
-      <span className="font-montserrat font-medium text-[48px] text-white leading-none">€{isYearly ? '70' : '7'}</span>
-      <span className="font-montserrat font-normal text-[14px] text-white/50">/{isYearly ? 'рік' : 'місяць'}</span>
-    </div>
-    
-    {/* Роздільна лінія */}
-    <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-[#8348C1]/70 to-transparent mb-6"></div>
-    
-    <p className="font-montserrat font-normal text-[15px] text-white mb-3">Все з Free, +:</p>
-    
-    <ul className="flex flex-col gap-[14px] mb-8">
-      {[
-        "Відстеження до 100 криптовалют",
-        "Оновлення даних кожні 15 секунд",
-        "Повна інтеграція з Telegram",
-        "Розширені типи алертів",
-        "Історія сповіщень до 90 днів",
-        "До 5 Watchlist",
-        "Експорт даних у CSV",
-        "Портфоліо трекер (прибуток/збиток)",
-        "Швидка підтримка"
-      ].map((text, idx) => (
-        <li key={idx} className="flex items-center gap-3">
-          <div className="w-[4px] h-[4px] rounded-full bg-white shrink-0"></div>
-          <span className="font-montserrat font-normal text-[16px] leading-[20px] text-white/90">{text}</span>
-        </li>
-      ))}
-    </ul>
-    
-    <button className="w-full h-[48px] mt-auto rounded-[8px] font-montserrat font-medium text-[14px] uppercase tracking-wider bg-gradient-to-r from-[#6B37C6] to-[#9B64E5] text-white hover:shadow-[0_0_20px_rgba(155,100,229,0.4)] transition-all active:scale-[0.98]">
-      ПОЧАТИ ЗАРАЗ
-    </button>
-  </div>
-</div>
-
-          {/* Картка "Бізнес" */}
+          {/* Картка "Pro" (406x509) */}
           <div 
-            className="w-full lg:w-[405px] h-auto lg:min-h-[456px] rounded-[24px] border border-[#2C1969] bg-[#000008] p-8 flex flex-col text-left opacity-0 animate-fade-up transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(131,72,193,0.1)] relative group"
+            className="w-full lg:w-[406px] h-auto lg:h-[509px] rounded-[24px] p-[1px] bg-gradient-to-br from-[#522E8B]/60 to-[#B3B3B3]/60 flex flex-col shrink-0 relative opacity-0 animate-fade-up transform-gpu transition-all duration-300 lg:-translate-y-4 hover:lg:-translate-y-6 z-10 shadow-[0_0_30px_rgba(131,72,193,0.3)]" 
+            style={{ animationDelay: '200ms' }}
+          >
+            <div 
+              className="w-full h-full rounded-[23px] bg-[#0A0516] bg-cover bg-center px-[32px] py-[32px] flex flex-col relative text-left"
+              style={{ backgroundImage: `url(${bgForPro})` }}
+            >
+              <div className="flex justify-between items-start mb-[16px]">
+                <h3 className="font-montserrat text-[16px] font-normal text-white">Pro</h3>
+                {/* Бейдж Популярний з налаштуваннями Фігми */}
+                <div className="px-[12px] py-[4px] rounded-[16px] border border-[#522E8B]/40 flex items-center justify-center bg-transparent">
+                  <span className="font-montserrat font-normal text-[11px] text-[#8348C1]">Популярний</span>
+                </div>
+              </div>
+              
+              <div className="flex items-end gap-1 mb-[20px]">
+                <span className="font-montserrat text-[40px] font-normal text-white leading-[40px]">€{isYearly ? '70' : '7'}</span>
+                <span className="font-montserrat text-[14px] text-white/50 mb-[4px]">/{isYearly ? 'рік' : 'місяць'}</span>
+              </div>
+              
+              {/* Згасаюча лінія */}
+              <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-[#8348C1]/50 to-transparent mb-[20px]"></div>
+              
+              <p className="font-montserrat font-normal text-[15px] text-white mb-[12px]">Все з Free, +:</p>
+              
+              {/* Список з gap 9px */}
+              <ul className="flex flex-col gap-[9px]">
+                {[
+                  "Відстеження до 100 криптовалют",
+                  "Оновлення даних кожні 15 секунд",
+                  "Повна інтеграція з Telegram",
+                  "Розширені типи алертів",
+                  "Історія сповіщень до 90 днів",
+                  "До 5 Watchlist",
+                  "Портфоліо трекер (прибуток/збиток)",
+
+                ].map((text, idx) => (
+                  <li key={idx} className="flex items-center gap-3">
+                    <div className="w-[4px] h-[4px] rounded-full bg-white shrink-0"></div>
+                    <span className="font-montserrat font-normal text-[16px] leading-[20px] text-white/90">{text}</span>
+                  </li>
+                ))}
+              </ul>
+              
+              <button className="w-full h-[48px] mt-auto rounded-[28px] font-montserrat font-medium text-[14px] uppercase tracking-wider bg-gradient-to-r from-[#6B37C6] to-[#9B64E5] text-white hover:shadow-[0_0_20px_rgba(155,100,229,0.4)] transition-all active:scale-[0.98]">
+                ПОЧАТИ ЗАРАЗ
+              </button>
+            </div>
+          </div>
+
+          {/* Картка "Бізнес" (405x456) */}
+          <div 
+            className="w-full lg:w-[405px] h-auto lg:h-[456px] rounded-[24px] p-[1px] bg-gradient-to-br from-[#522E8B]/60 to-[#B3B3B3]/60 flex flex-col shrink-0 opacity-0 animate-fade-up transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(131,72,193,0.1)] relative group"
             style={{ animationDelay: '400ms' }}
           >
-            <h3 className="font-montserrat text-[16px] font-normal text-white/70 mb-4">Бізнес</h3>
-            <div className="flex items-baseline gap-1 mb-6">
-              <span className="font-montserrat font-medium text-[48px] text-white leading-none">€{isYearly ? '190' : '19'}</span>
-              <span className="font-montserrat font-normal text-[14px] text-white/50">/{isYearly ? 'рік' : 'місяць'}</span>
-            </div>
-            
-            {/* Згасаюча лінія */}
-            <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-[#2C1969] to-transparent mb-6 transition-colors duration-300 group-hover:via-[#8348C1]/70"></div>
-            
-            <p className="font-montserrat font-normal text-[15px] text-white mb-3">Все з Pro, +:</p>
-            
-            {/* Список з Montserrat (Шрифт 16px, Line Height 20px) */}
-            <ul className="flex flex-col gap-[14px] mb-8">
-              <li className="flex items-center gap-3">
-                <div className="w-[4px] h-[4px] rounded-full bg-white shrink-0"></div>
-                <span className="font-montserrat font-normal text-[16px] leading-[20px] text-white/80">Необмежена кількість активів</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <div className="w-[4px] h-[4px] rounded-full bg-white shrink-0"></div>
-                <span className="font-montserrat font-normal text-[16px] leading-[20px] text-white/80">Необмежена кількість алертів</span>
-              </li>
+            <div className="w-full h-full rounded-[23px] bg-[#000008] px-[32px] py-[32px] flex flex-col text-left">
+              <h3 className="font-montserrat text-[16px] font-normal text-white/70 mb-[16px]">Бізнес</h3>
+              <div className="flex items-end gap-1 mb-[24px]">
+                <span className="font-montserrat text-[40px] font-normal text-white leading-[40px]">€{isYearly ? '190' : '19'}</span>
+                <span className="font-montserrat text-[14px] text-white/50 mb-[4px]">/{isYearly ? 'рік' : 'місяць'}</span>
+              </div>
               
-              <li className="flex items-center gap-3">
-                <div className="w-[4px] h-[4px] rounded-full bg-white shrink-0"></div>
-                <span className="font-montserrat font-normal text-[16px] leading-[20px] text-white/80">AI помічник</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <div className="w-[4px] h-[4px] rounded-full bg-white shrink-0"></div>
-                <span className="font-montserrat font-normal text-[16px] leading-[20px] text-white/80">Розширена аналітика</span>
-              </li>
+              {/* Згасаюча лінія */}
+              <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-[#2C1969] to-transparent mb-[20px]"></div>
               
-              <li className="flex items-center gap-3">
-                <div className="w-[4px] h-[4px] rounded-full bg-white shrink-0"></div>
-                <span className="font-montserrat font-normal text-[16px] leading-[20px] text-white/80">Необмежена історія даних</span>
-              </li>
+              <p className="font-montserrat font-normal text-[15px] text-white mb-[12px]">Все з Pro, +:</p>
               
-            </ul>
-            
-            <div className="mt-auto">
-              {/* Кнопка з градієнтною рамкою */}
-              <div className="w-full h-[48px] p-[1px] rounded-[8px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] via-[52%] to-[#FFFFFF]">
-                <button className="w-full h-full bg-[#000008] rounded-[7px] flex items-center justify-center text-[14px] font-montserrat font-medium text-white hover:bg-white/5 transition-colors uppercase tracking-wider">
-                  ПОЧАТИ ЗАРАЗ
-                </button>
+              {/* Список ТІЛЬКИ з 5 пунктів (як у твоєму коді) та gap 8px */}
+              <ul className="flex flex-col gap-[8px]">
+                {[
+                  "Необмежена кількість активів",
+                  "Необмежена кількість алертів",
+                  "AI помічник",
+                  "Розширена аналітика",
+                  "Необмежена історія даних",
+                  "Пріорітетна підтримка"
+                ].map((text, idx) => (
+                  <li key={idx} className="flex items-center gap-3">
+                    <div className="w-[4px] h-[4px] rounded-full bg-white shrink-0"></div>
+                    <span className="font-montserrat font-normal text-[16px] leading-[20px] text-white/80">{text}</span>
+                  </li>
+                ))}
+              </ul>
+              
+              <div className="mt-auto">
+                <div className="w-full h-[48px] p-[1px] rounded-[28px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] via-[52%] to-[#FFFFFF]">
+                  <button className="w-full h-full bg-[#000008] rounded-[28px] flex items-center justify-center text-[14px] font-montserrat font-medium text-white hover:bg-white/5 transition-colors uppercase tracking-wider">
+                    ПОЧАТИ ЗАРАЗ
+                  </button>
+                </div>
               </div>
             </div>
           </div>
