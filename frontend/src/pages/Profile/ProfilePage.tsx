@@ -1,4 +1,3 @@
-import React from 'react';
 import userAvatar from '../../assets/images/user_avatar.png';
 
 const cardClass =
