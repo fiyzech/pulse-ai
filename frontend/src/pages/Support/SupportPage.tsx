@@ -63,8 +63,8 @@ export default function SupportPage() {
       top: 0; left: 0; right: 0; bottom: 0;
       padding: 1px; 
       border-radius: inherit; 
-      /* Яскравіша обводка (0.4 замість 0.15) */
-      background: linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.4) 100%);
+      /* Оновлений градієнт для рамок */
+      background: linear-gradient(90deg, rgba(82, 46, 139, 0.32) 0%, rgba(179, 179, 179, 0.32) 100%);
       -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
       mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
       -webkit-mask-composite: xor;
@@ -86,9 +86,9 @@ export default function SupportPage() {
       
       <div className="pt-[24px] pl-[40px] pr-[40px] pb-[24px] flex justify-start gap-[24px]">
         
-        {/* Картка «Поширені запитання» - Висота зменшена на 10% */}
+        {/* Картка «Поширені запитання» */}
         <div 
-          className="gradient-border-box bg-[#050506] rounded-[32px] pt-8 pb-8 px-[24px] shadow-2xl flex-shrink-0 overflow-y-auto no-scrollbar"
+          className="gradient-border-box bg-[#050506] rounded-[32px] pt-8 pb-8 px-[24px] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] flex-shrink-0 overflow-y-auto no-scrollbar"
           style={{ width: '546px', height: '685px' }}
         >
           <h2 className="text-[24px] font-medium mb-8 text-white tracking-tight leading-none px-4">Поширені запитання</h2>
@@ -124,9 +124,9 @@ export default function SupportPage() {
           </div>
         </div>
 
-        {/* Картка «Зв'язатися з підтримкою» - Висота зменшена на 10% */}
+        {/* Картка «Зв'язатися з підтримкою» */}
         <div 
-          className="gradient-border-box bg-[#050506] rounded-[32px] pt-8 pb-8 shadow-2xl flex flex-col flex-shrink-0 no-scrollbar"
+          className="gradient-border-box bg-[#050506] rounded-[32px] pt-8 pb-8 shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] flex flex-col flex-shrink-0 no-scrollbar"
           style={{ width: '546px', height: '685px' }}
         >
           <h2 className="text-[24px] font-medium mb-[32px] text-[#FFFFFF] tracking-tight leading-none px-[24px]">
@@ -179,8 +179,7 @@ export default function SupportPage() {
 
               <div className="px-[24px] pb-[8px]">
                 <button 
-                  className="w-[498px] h-[44px] rounded-full text-[16px] font-medium text-[#FFFFFF] transition-all hover:opacity-90 active:scale-[0.98] shadow-[0_8px_15px_rgba(44,25,105,0.3)]" 
-                  style={{ background: 'linear-gradient(90deg, #4F2CC9 0%, #8348C1 50%, #A47CF3 100%)' }}
+                  className="w-[498px] h-[44px] rounded-full text-[16px] font-medium text-[#FFFFFF] transition-all hover:opacity-90 active:scale-[0.98] shadow-[0_8px_15px_rgba(44,25,105,0.3)] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF]"
                 >
                   Надіслати
                 </button>
