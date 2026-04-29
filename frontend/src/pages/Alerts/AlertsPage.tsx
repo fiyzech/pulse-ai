@@ -59,7 +59,7 @@ export default function AlertsPage() {
       </div>
 
       {/* TABLE */}
-      <div className="p-[1px] rounded-2xl bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_0_30px_rgba(131,72,193,0.04)]">
+      <div className="p-[1px] rounded-2xl bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]  shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
 
          <div className="rounded-2xl bg-[#050506] overflow-hidden">
 
