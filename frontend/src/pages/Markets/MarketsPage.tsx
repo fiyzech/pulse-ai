@@ -43,25 +43,6 @@ const mockMarkets = [
 
 export default function MarketsPage() {
   const globalStyles = `
-    .vibrant-gradient-border {
-      position: relative;
-      border: 1px solid transparent;
-      background-clip: padding-box;
-    }
-    .vibrant-gradient-border::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      padding: 1px;
-      border-radius: inherit; 
-      /* Тільки білий градієнт: від прозорого зліва до помітного справа */
-      background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.25) 100%);
-      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
-      pointer-events: none;
-    }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   `;
@@ -82,16 +63,16 @@ export default function MarketsPage() {
         <MarketStatsCard title="Найновіші" items={topCardsData.new} />
       </div>
 
-      {/* Нижня картка: ширина 1116px, висота адаптивна (h-fit) з відступом pb-6 (24px) */}
+      {/* Нижня картка */}
       <div 
         style={{ width: '1116px' }}
-        className="ml-10 relative rounded-[24px] overflow-hidden vibrant-gradient-border h-fit"
+        className="ml-10 p-[1px] rounded-[24px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]"
       >
-        <div className="bg-[#000000] rounded-[23px] overflow-hidden flex flex-col no-scrollbar">
+        <div className="relative h-full rounded-[24px] bg-[#050506] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] overflow-hidden flex flex-col no-scrollbar">
           
           <div 
             style={{ minHeight: '57px' }}
-            className="grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr_1fr] gap-4 px-8 border-b border-white/5 text-[14px] text-[#A3A4B0] font-semibold bg-[#000000] items-center"
+            className="grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr_1fr] gap-4 px-8 border-b border-white/5 text-[14px] text-[#A3A4B0] font-semibold items-center bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)]"
           >
             <div>Монета</div>
             <div>Ціна</div>
@@ -138,9 +119,9 @@ function MarketStatsCard({ title, items }: MarketStatsCardProps) {
   return (
     <div 
       style={{ width: '356px', height: '199px' }} 
-      className="relative rounded-[24px] vibrant-gradient-border overflow-hidden"
+      className="p-[1px] rounded-[24px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]"
     >
-      <div className="bg-[#000000] rounded-[23px] p-6 h-full flex flex-col no-scrollbar">
+      <div className="relative h-full rounded-[24px] bg-[#050506] p-6 shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] overflow-hidden flex flex-col no-scrollbar">
         <h3 className="text-[16px] font-medium mb-[20px] text-[#FFFFFF]">{title}</h3>
         <div className="flex flex-col gap-[12px] pb-[24px]">
           {items.map((item, idx) => (
