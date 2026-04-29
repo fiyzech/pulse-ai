@@ -28,10 +28,10 @@ export default function DashboardPage() {
     "1 д": "1 день",
   };
 
-  const coins = [
-    { name: "Bitcoin", symbol: "BTC", icon: "/Bitcoin.svg", path: "/markets" },
-    { name: "Ethereum", symbol: "ETH", icon: "/Ethereum.svg", path: "/markets" },
-    { name: "Tether", symbol: "USDT", icon: "/Tether.svg", path: "/markets" },
+ const coins = [
+    { name: "Bitcoin", symbol: "BTC", icon: "/Bitcoin.svg", path: "/asset/btc" },
+    { name: "Ethereum", symbol: "ETH", icon: "/Ethereum.svg", path: "/asset/eth" }, 
+    { name: "Tether", symbol: "USDT", icon: "/Tether.svg", path: "/asset/usdt" }, 
   ];
 
   return (
@@ -138,7 +138,7 @@ export default function DashboardPage() {
               <div className="flex items-center">
                 <img src="/Bitcoin.svg" className="w-[40px] h-[40px]" />
                 <p className="ml-[8px] h-[32px] text-[28px] leading-[32px] font-medium text-white whitespace-nowrap">Bitcoin(BTC)</p>
-                <button onClick={() => navigate("/markets")} className="ml-[12px] h-[40px] w-[40px] transition-all duration-300 hover:scale-110 group">
+                  <button onClick={() => navigate("/asset/btc")} className="ml-[12px] h-[40px] w-[40px] transition-all duration-300 hover:scale-110 group">
                   <div className="absolute inset-0 rounded-full bg-[#7c3aed]/40 blur-md opacity-0 group-hover:opacity-100 transition-all" />
                   <img src="/buttom.svg" className="relative z-10 h-[40px] w-[40px]" />
                 </button>
