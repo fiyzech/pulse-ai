@@ -40,7 +40,7 @@ export default function FavoritesContent() {
     },
   ];
 
-  // Дані для таблиці "Вибрані активи"
+  // Дані для таблиці "Вибрані активи."
   const favoriteAssets = [
     { name: "Bitcoin", symbol: "BTC", price: "$68,420", change: "+2.4%", marketCap: "$1.35T", volume: "$32.51B", color: "bg-[#F7931A]" },
     { name: "Ethereum", symbol: "ETH", price: "$3,260", change: "-1.2%", marketCap: "$395.80B", volume: "$20.97B", color: "bg-[#627EEA]" },
