@@ -2,14 +2,75 @@ import { useState, useEffect, useRef } from 'react';
 import { createChart, ColorType, CrosshairMode, AreaSeries, CandlestickSeries } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, Time } from 'lightweight-charts';
 
-export default function AssetPage() {
+// Мапінг тикерів Binance на ID для CoinGecko
+const COINGECKO_IDS: Record<string, string> = {
+  'BTC': 'bitcoin',
+  'ETH': 'ethereum',
+  'SOL': 'solana',
+  'BNB': 'binancecoin',
+  'XRP': 'ripple',
+  'ADA': 'cardano',
+  'AVAX': 'avalanche-2',
+  'DOGE': 'dogecoin',
+  'DOT': 'polkadot',
+  'MATIC': 'matic-network',
+};
+
+// Функції для красивого форматування великих чисел
+const formatCurrency = (value: number) => {
+  if (!value) return '---';
+  if (value >= 1e12) return (value / 1e12).toFixed(2) + ' T USD';
+  if (value >= 1e9) return (value / 1e9).toFixed(2) + ' B USD';
+  if (value >= 1e6) return (value / 1e6).toFixed(2) + ' M USD';
+  return value.toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' USD';
+};
+
+const formatSupply = (value: number) => {
+  if (!value) return '∞';
+  if (value >= 1e9) return (value / 1e9).toFixed(2) + ' B';
+  if (value >= 1e6) return (value / 1e6).toFixed(2) + ' M';
+  return value.toLocaleString('en-US', { maximumFractionDigits: 0 });
+};
+
+interface AssetPageProps {
+  coinSymbol?: string; 
+  coinName?: string;   
+  coinShort?: string;  
+  coinIcon?: string;   
+}
+
+export default function AssetPage({
+  coinSymbol = 'BTCUSDT',
+  coinName = 'Bitcoin',
+  coinShort = 'BTC',
+  coinIcon = '/Bitcoin.svg',
+}: AssetPageProps) {
+  
   const [timeframe, setTimeframe] = useState('15 хв');
-  const [chartType, setChartType] = useState<'area' | 'candle'>('candle');
+  const [chartType, setChartType] = useState<'area' | 'candle'>('area');
   
   const [currentPrice, setCurrentPrice] = useState<number>(0);
   const [priceColor, setPriceColor] = useState<string>('text-white');
   const [priceChange, setPriceChange] = useState({ value: 0, percent: 0, isPositive: true });
   const [isLoading, setIsLoading] = useState(true);
+
+  // Стан для статистики Binance (24 год)
+  const [stats, setStats] = useState({
+    priceChange1h: 0,
+    priceChange24h: 0,
+    high24h: 0,
+    low24h: 0,
+    volume24h: 0,
+  });
+
+  // Стан для фундаментальних даних з CoinGecko
+  const [fundamentals, setFundamentals] = useState({
+    ath: 0,
+    mcap: 0,
+    circSupply: 0,
+    maxSupply: 0,
+    totalSupply: 0,
+  });
   
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -21,115 +82,114 @@ export default function AssetPage() {
     if (!chartContainerRef.current) return;
 
     const chart = createChart(chartContainerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: 'rgba(255, 255, 255, 0.4)',
-      },
-      grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.03)' },
-        horzLines: { color: 'rgba(255, 255, 255, 0.03)' },
-      },
-      crosshair: {
-        mode: CrosshairMode.Normal,
-        vertLine: { color: '#8348C1', width: 1, style: 3, labelBackgroundColor: '#8348C1' },
-        horzLine: { color: '#8348C1', width: 1, style: 3, labelBackgroundColor: '#8348C1' },
-      },
-      rightPriceScale: {
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-      },
-      timeScale: {
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        timeVisible: true,
-      },
+      layout: { background: { type: ColorType.Solid, color: 'transparent' }, textColor: 'rgba(255, 255, 255, 0.4)' },
+      grid: { vertLines: { color: 'rgba(255, 255, 255, 0.03)' }, horzLines: { color: 'rgba(255, 255, 255, 0.03)' } },
+      crosshair: { mode: CrosshairMode.Normal, vertLine: { color: '#8348C1', width: 1, style: 3, labelBackgroundColor: '#8348C1' }, horzLine: { color: '#8348C1', width: 1, style: 3, labelBackgroundColor: '#8348C1' } },
+      rightPriceScale: { borderColor: 'rgba(255, 255, 255, 0.1)' },
+      timeScale: { borderColor: 'rgba(255, 255, 255, 0.1)', timeVisible: true },
       autoSize: true,
     });
 
     chartRef.current = chart;
-
-    return () => {
-      chart.remove();
-    };
+    return () => chart.remove();
   }, []);
 
-  // 2. ЗАВАНТАЖЕННЯ ДАНИХ (REST API)
+  // 2. ЗАВАНТАЖЕННЯ ДАНИХ (BINANCE СТАТИСТИКА + COINGECKO ФУНДАМЕНТАЛ)
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const tickerRes = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${coinSymbol}`);
+        const tickerData = await tickerRes.json();
+
+        const kline1hRes = await fetch(`https://api.binance.com/api/v3/klines?symbol=${coinSymbol}&interval=1h&limit=2`);
+        const kline1hData = await kline1hRes.json();
+        
+        let change1h = 0;
+        if (kline1hData.length >= 2) {
+          const open1h = parseFloat(kline1hData[1][1]);
+          const current = parseFloat(kline1hData[1][4]);
+          change1h = ((current - open1h) / open1h) * 100;
+        }
+
+        setStats({
+          priceChange1h: change1h,
+          priceChange24h: parseFloat(tickerData.priceChangePercent),
+          high24h: parseFloat(tickerData.highPrice),
+          low24h: parseFloat(tickerData.lowPrice),
+          volume24h: parseFloat(tickerData.quoteVolume),
+        });
+
+        const cgId = COINGECKO_IDS[coinShort] || coinName.toLowerCase();
+        const cgRes = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${cgId}`);
+        const cgData = await cgRes.json();
+        
+        if (cgData && cgData.length > 0) {
+          const coinData = cgData[0];
+          setFundamentals({
+            ath: coinData.ath,
+            mcap: coinData.market_cap,
+            circSupply: coinData.circulating_supply,
+            maxSupply: coinData.max_supply,
+            totalSupply: coinData.total_supply,
+          });
+        }
+      } catch (error) {
+        console.error("Помилка завантаження статистики:", error);
+      }
+    };
+    fetchStats();
+  }, [coinSymbol, coinShort, coinName]);
+
+  // 3. ЗАВАНТАЖЕННЯ ДАНИХ ГРАФІКА (REST API BINANCE)
   useEffect(() => {
     const fetchChartData = async () => {
       setIsLoading(true);
+      setCurrentPrice(0); 
+      
       try {
         const tfConfig: Record<string, { interval: string; limit: number }> = {
-          '1 сек': { interval: '1s', limit: 200 },
-          '1 хв': { interval: '1m', limit: 200 },
-          '15 хв': { interval: '15m', limit: 200 },
-          '1 год': { interval: '1h', limit: 200 },
-          '4 год': { interval: '4h', limit: 200 },
-          '1 день': { interval: '1d', limit: 200 },
+          '1 сек': { interval: '1s', limit: 200 }, '1 хв': { interval: '1m', limit: 200 }, '5 хв': { interval: '5m', limit: 200 },
+          '15 хв': { interval: '15m', limit: 200 }, '1 год': { interval: '1h', limit: 200 }, '4 год': { interval: '4h', limit: 200 },
+          '1 день': { interval: '1d', limit: 200 }, '1 тиж': { interval: '1w', limit: 200 }, '1 міс': { interval: '1M', limit: 200 },
         };
-
         const config = tfConfig[timeframe] || tfConfig['15 хв'];
         
         if (chartRef.current) {
-          chartRef.current.applyOptions({
-            timeScale: { secondsVisible: timeframe === '1 сек' || timeframe === '1 хв' }
-          });
+          chartRef.current.applyOptions({ timeScale: { secondsVisible: timeframe === '1 сек' || timeframe === '1 хв' || timeframe === '5 хв' } });
         }
 
-        const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${config.interval}&limit=${config.limit}`);
+        const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${coinSymbol}&interval=${config.interval}&limit=${config.limit}`);
         const data = await res.json() as (string | number)[][];
 
         if (chartRef.current) {
-          if (seriesRef.current) {
-            chartRef.current.removeSeries(seriesRef.current);
-          }
+          if (seriesRef.current) chartRef.current.removeSeries(seriesRef.current);
 
           if (chartType === 'candle') {
             const candleSeries = chartRef.current.addSeries(CandlestickSeries, {
-              upColor: '#36D399',
-              downColor: '#F87272',
-              borderVisible: false,
-              wickUpColor: '#36D399',
-              wickDownColor: '#F87272',
+              upColor: '#00E676', downColor: '#FF2E2E', borderVisible: false, wickUpColor: '#00E676', wickDownColor: '#FF2E2E',
             });
             seriesRef.current = candleSeries;
-            
-            const formattedData = data.map((item) => ({
-              time: Math.floor(Number(item[0]) / 1000) as Time,
-              open: parseFloat(item[1] as string),
-              high: parseFloat(item[2] as string),
-              low: parseFloat(item[3] as string),
-              close: parseFloat(item[4] as string),
-            }));
-            candleSeries.setData(formattedData);
-            
+            candleSeries.setData(data.map((item) => ({
+              time: Math.floor(Number(item[0]) / 1000) as Time, open: parseFloat(item[1] as string), high: parseFloat(item[2] as string), low: parseFloat(item[3] as string), close: parseFloat(item[4] as string),
+            })));
           } else {
             const areaSeries = chartRef.current.addSeries(AreaSeries, {
-              lineColor: '#B57AFF',
-              topColor: 'rgba(181, 122, 255, 0.4)',
-              bottomColor: 'rgba(181, 122, 255, 0)',
-              lineWidth: 3,
+              lineColor: '#B57AFF', topColor: 'rgba(181, 122, 255, 0.4)', bottomColor: 'rgba(181, 122, 255, 0)', lineWidth: 3,
             });
             seriesRef.current = areaSeries;
-            
-            const formattedData = data.map((item) => ({
-              time: Math.floor(Number(item[0]) / 1000) as Time,
-              value: parseFloat(item[4] as string),
-            }));
-            areaSeries.setData(formattedData);
+            areaSeries.setData(data.map((item) => ({
+              time: Math.floor(Number(item[0]) / 1000) as Time, value: parseFloat(item[4] as string),
+            })));
           }
 
           if (data.length > 1) {
             const firstPrice = parseFloat(data[0][4] as string);
             const latestPrice = parseFloat(data[data.length - 1][4] as string);
-            
             setCurrentPrice(latestPrice);
             prevPriceRef.current = latestPrice;
             
             const changeValue = latestPrice - firstPrice;
-            const changePercent = (changeValue / firstPrice) * 100;
-            setPriceChange({
-              value: Math.abs(changeValue),
-              percent: Math.abs(changePercent),
-              isPositive: changeValue >= 0
-            });
+            setPriceChange({ value: Math.abs(changeValue), percent: Math.abs((changeValue / firstPrice) * 100), isPositive: changeValue >= 0 });
           }
         }
       } catch (error) {
@@ -138,317 +198,352 @@ export default function AssetPage() {
         setIsLoading(false);
       }
     };
-
     fetchChartData();
-  }, [timeframe, chartType]);
+  }, [timeframe, chartType, coinSymbol]);
 
-  // 3. WEBSOCKET (ЖИВІ ДАНІ)
+  // 4. WEBSOCKET (ЖИВІ ДАНІ BINANCE)
   useEffect(() => {
     const tfConfig: Record<string, string> = {
-      '1 сек': '1s', '1 хв': '1m', '15 хв': '15m', '1 год': '1h', '4 год': '4h', '1 день': '1d',
+      '1 сек': '1s', '1 хв': '1m', '5 хв': '5m', '15 хв': '15m', '1 год': '1h', '4 год': '4h', '1 день': '1d', '1 тиж': '1w', '1 міс': '1M'
     };
-    const interval = tfConfig[timeframe] || '15m';
-
-    const ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${interval}`);
+    const wsUrl = `wss://stream.binance.com:9443/ws/${coinSymbol.toLowerCase()}@kline_${tfConfig[timeframe] || '15m'}`;
+    const ws = new WebSocket(wsUrl);
 
     ws.onmessage = (event: MessageEvent) => {
-      // Сувора типізація для WebSocket повідомлень
-      const message = JSON.parse(event.data as string) as {
-        k: { t: number; o: string; h: string; l: string; c: string };
-      };
-      const kline = message.k;
-
-      const newLivePrice = parseFloat(kline.c);
+      const message = JSON.parse(event.data as string);
+      const newLivePrice = parseFloat(message.k.c);
       setCurrentPrice(newLivePrice);
 
-      if (newLivePrice > prevPriceRef.current) setPriceColor('text-[#36D399]');
-      else if (newLivePrice < prevPriceRef.current) setPriceColor('text-[#F87272]');
+      if (newLivePrice > prevPriceRef.current) setPriceColor('text-[#00E676]');
+      else if (newLivePrice < prevPriceRef.current) setPriceColor('text-[#FF2E2E]');
       setTimeout(() => setPriceColor('text-white'), 500);
       prevPriceRef.current = newLivePrice;
 
       if (!seriesRef.current) return;
-
-      const timestamp = Math.floor(kline.t / 1000) as Time;
-      
+      const timestamp = Math.floor(message.k.t / 1000) as Time;
       if (chartType === 'candle') {
         (seriesRef.current as ISeriesApi<"Candlestick">).update({
-          time: timestamp,
-          open: parseFloat(kline.o),
-          high: parseFloat(kline.h),
-          low: parseFloat(kline.l),
-          close: parseFloat(kline.c),
+          time: timestamp, open: parseFloat(message.k.o), high: parseFloat(message.k.h), low: parseFloat(message.k.l), close: parseFloat(message.k.c),
         });
       } else {
-        (seriesRef.current as ISeriesApi<"Area">).update({
-          time: timestamp,
-          value: parseFloat(kline.c),
-        });
+        (seriesRef.current as ISeriesApi<"Area">).update({ time: timestamp, value: parseFloat(message.k.c) });
       }
     };
-
     return () => ws.close();
-  }, [timeframe, chartType]);
+  }, [timeframe, chartType, coinSymbol]);
+  
+  // Розрахунок позиції повзунка для лінії 24h High/Low
+  const highLowRange = stats.high24h - stats.low24h;
+  const currentPositionPercent = highLowRange > 0 
+    ? Math.max(0, Math.min(100, ((currentPrice - stats.low24h) / highLowRange) * 100)) 
+    : 50;
+
+  // Вираховуємо відношення об'єму до капіталізації
+  const volMcapRatio = (fundamentals.mcap > 0 && stats.volume24h > 0) 
+    ? (stats.volume24h / fundamentals.mcap).toFixed(4) 
+    : '---';
 
   return (
     <section className="w-full max-w-[1600px] mx-auto px-10 pt-7 pb-12 font-montserrat">
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_356px] gap-[24px]">
+      
+      {/* 
+        ГЛОБАЛЬНА СІТКА 
+        Тут я залишив items-start, щоб графік і віджет алертів вирівнювались по верхньому краю.
+      */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_261px] gap-[24px] items-start">
         
-        {/* ЛІВА КОЛОНКА */}
-        <div className="flex flex-col gap-[24px]">
-          
-          {/* ГРАФІК */}
-          <div className="w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
-            <div className="relative w-full h-[500px] rounded-[27px] bg-[#050506] p-8 flex flex-col overflow-hidden">
-              
-              <div className="flex justify-between items-start relative z-20 flex-wrap gap-4">
-                <div>
-                  <div className="flex items-center gap-3 mb-4">
-                    <img src="/Bitcoin.svg" alt="BTC" className="w-[40px] h-[40px]" />
-                    <h2 className="text-[28px] font-semibold text-white">Bitcoin <span className="text-white/50 text-[18px]">(BTC)</span></h2>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className={`text-[36px] font-medium leading-none transition-colors duration-300 ${priceColor}`}>
-                      {currentPrice > 0 ? currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '---'}
-                    </span>
-                    <span className="text-[14px] text-white/50">USDT</span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className={`text-[14px] font-medium ${priceChange.isPositive ? 'text-[#36D399]' : 'text-[#F87272]'}`}>
-                      {priceChange.isPositive ? '+' : '-'}{priceChange.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({priceChange.percent.toFixed(2)}%) {priceChange.isPositive ? '↑' : '↓'}
-                    </span>
-                  </div>
+        {/* ЛІВА КОЛОНКА (Графік) */}
+        <div className="w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
+          <div className="relative w-full h-[438px] rounded-[27px] bg-[#050506] p-8 flex flex-col overflow-hidden">
+            <div className="flex justify-between items-start relative z-20 flex-wrap gap-4">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <img src={coinIcon} alt={coinShort} className="w-[32px] h-[32px]" />
+                  <h2 className="text-[28px] font-semibold text-white">
+                    {coinName} <span className="text-white/50 text-[18px]">({coinShort})</span>
+                  </h2>
                 </div>
-
-                <div className="flex flex-col items-end gap-3">
-                  {/* ПЕРЕМИКАЧ: Лінія / Свічки */}
-                  <div className="flex gap-1 bg-white/5 p-1 rounded-xl border border-white/5">
-                    <button 
-                      onClick={() => setChartType('area')} 
-                      className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[13px] font-medium transition-all ${chartType === 'area' ? 'bg-[#8348C1] text-white shadow-lg' : 'text-white/40 hover:text-white'}`}
-                    >
-                      Лінія
-                    </button>
-                    <button 
-                      onClick={() => setChartType('candle')} 
-                      className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[13px] font-medium transition-all ${chartType === 'candle' ? 'bg-[#8348C1] text-white shadow-lg' : 'text-white/40 hover:text-white'}`}
-                    >
-                      Свічки
-                    </button>
-                  </div>
-
-                  {/* ПЕРЕМИКАЧ: Таймфрейми */}
-                  <div className="flex gap-2 items-center bg-white/5 p-1.5 rounded-2xl border border-white/5">
-                    {['1 сек', '1 хв', '15 хв', '1 год', '4 год', '1 день'].map((t) => (
-                      <button 
-                        key={t} 
-                        onClick={() => setTimeframe(t)} 
-                        className={`text-[12px] font-medium px-3 py-1.5 rounded-xl transition-all duration-300 ${timeframe === t ? 'bg-[#8348C1]/30 text-white shadow-lg border border-[#8348C1]/50' : 'text-white/40 hover:text-white hover:bg-white/5 border border-transparent'}`}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex items-baseline gap-2">
+                  <span className={`text-[36px] font-medium leading-none transition-colors duration-300 ${priceColor}`}>
+                    {currentPrice > 0 ? currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'Завантаження...'}
+                  </span>
+                  <span className="text-[14px] text-white/50">USDT</span>
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className={`text-[14px] font-medium ${priceChange.isPositive ? 'text-[#00E676]' : 'text-[#FF2E2E]'}`}>
+                    {priceChange.isPositive ? '+' : '-'}{priceChange.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({priceChange.percent.toFixed(2)}%) {priceChange.isPositive ? '↑' : '↓'}
+                  </span>
                 </div>
               </div>
 
-              {/* ЗОНА ГРАФІКА TRADINGVIEW */}
-              <div className="absolute bottom-[20px] left-4 right-[10px] h-[320px] z-10">
-                {isLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-[#050506]/60 z-20 rounded-xl backdrop-blur-sm">
-                    <div className="w-8 h-8 border-4 border-[#B57AFF] border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                )}
-                <div ref={chartContainerRef} className="w-full h-full" />
-              </div>
-
-            </div>
-          </div>
-
-          {/* 2. ОСНОВНІ ДАНІ */}
-          <div className="mt-2">
-            <h3 className="text-[24px] font-semibold text-white/95 mb-6">Основні дані</h3>
-            <div className="w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10)]">
-              <div className="w-full rounded-[27px] bg-[#050506] p-8">
-                <h4 className="text-[18px] font-medium text-white mb-6">Графік ефективності Bitcoin</h4>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-y-6 gap-x-12">
-                  <div className="flex flex-col gap-4">
-                    <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                      <span className="text-[13px] text-white/50">Макс. за весь час</span>
-                      <span className="text-[14px] text-white font-medium">126 198,07$</span>
-                    </div>
-                    <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                      <span className="text-[13px] text-white/50">Зміна ціни (1 год)</span>
-                      <span className="text-[14px] text-[#36D399] font-medium">+0,04%</span>
-                    </div>
-                    <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                      <span className="text-[13px] text-white/50">Зміна ціни (24 год)</span>
-                      <span className="text-[14px] text-[#F87272] font-medium">-4,54%</span>
-                    </div>
-                    <div className="pt-2">
-                      <div className="flex justify-between text-[12px] text-white/50 mb-2">
-                        <span>Макс. та мін. за 24 год</span>
-                      </div>
-                      <div className="w-full h-[4px] rounded-full bg-gradient-to-r from-[#F87272] to-[#36D399] mb-2" />
-                      <div className="flex justify-between text-[13px] text-white font-medium">
-                        <span>69 3847,38$</span>
-                        <span>69 3847,38$</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-5">
-                    <div>
-                      <p className="text-[13px] text-white/50 mb-1">Ринкова капіталізація</p>
-                      <p className="text-[15px] text-white font-medium">1,32T USD</p>
-                    </div>
-                    <div>
-                      <p className="text-[13px] text-white/50 mb-1">Макс. предложеннє</p>
-                      <p className="text-[15px] text-white font-medium">21,00 M</p>
-                    </div>
-                    <div>
-                      <p className="text-[13px] text-white/50 mb-1">Об'єм / Капіталізація</p>
-                      <p className="text-[15px] text-white font-medium">0,0288</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-5">
-                    <div>
-                      <p className="text-[13px] text-white/50 mb-1">Циркул. предложеннє</p>
-                      <p className="text-[15px] text-white font-medium">20,00 M</p>
-                    </div>
-                    <div>
-                      <p className="text-[13px] text-white/50 mb-1">Всього монет</p>
-                      <p className="text-[15px] text-white font-medium">20,00 M</p>
-                    </div>
-                    <div>
-                      <p className="text-[13px] text-white/50 mb-1">Об'єм торгів</p>
-                      <p className="text-[15px] text-white font-medium">49,02B USD</p>
-                    </div>
-                  </div>
+              <div className="flex flex-col items-end gap-4 mt-1">
+                <div className="flex gap-4 items-center">
+                  <button onClick={() => setChartType('area')} className={`text-[14px] font-medium pb-1 transition-all duration-300 border-b-2 ${chartType === 'area' ? 'text-[#FFF9F9] border-[#8348C1]' : 'text-[#FFF9F9]/50 border-transparent hover:text-[#FFF9F9]'}`}>Лінія</button>
+                  <button onClick={() => setChartType('candle')} className={`text-[14px] font-medium pb-1 transition-all duration-300 border-b-2 ${chartType === 'candle' ? 'text-[#FFF9F9] border-[#8348C1]' : 'text-[#FFF9F9]/50 border-transparent hover:text-[#FFF9F9]'}`}>Свічки</button>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 3. ОСТАННІ НОВИНИ */}
-          <div className="mt-2">
-            <h3 className="text-[24px] font-semibold text-white/95 mb-6">Останні новини</h3>
-            <div className="w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10)]">
-              <div className="relative w-full rounded-[27px] bg-[#050506] px-8 pt-8 pb-20">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-[80px] gap-y-8">
-                  {[
-                    { time: "20 хвилин тому · The Block", title: "Bitcoin знову досяг $78 000 після заяви Трампа про відкриття Ормузької протоки" },
-                    { time: "2 години тому · The Block", title: "Сенатор Блюменталь тисне на Мін'юст і Казначейство США щодо контролю за Binance" },
-                    { time: "39 хвилин тому · The Block", title: "Представник X заявив, що функція Cashtags для крипти принесла $1 млрд торгового обсягу" },
-                    { time: "2 години тому · The Block", title: "Bitcoin тестує рівні опору — огляд ринку" },
-                    { time: "1 годину тому · The Block", title: "Індекс страху та жадібності крипторинку на максимумі з липня — огляд ринку" },
-                    { time: "3 години тому · The Block", title: "Circle запускає USDC Bridge для нативних кросчейн – переказів стейблкоїнів" },
-                  ].map((news, index) => (
-                    <div key={index} className="flex flex-col gap-2">
-                      <div className="flex items-center gap-2">
-                        <img src="/Bitcoin.svg" alt="Icon" className="h-[20px] w-[20px]" />
-                        <span className="text-[12px] text-white/60">{news.time}</span>
-                      </div>
-                      <p className="text-[15px] font-medium leading-snug text-white/90">{news.title}</p>
-                    </div>
+                <div className="flex gap-4 items-center flex-wrap justify-end">
+                  {['1 сек', '1 хв', '5 хв', '15 хв', '1 год', '4 год', '1 день', '1 тиж', '1 міс'].map((t) => (
+                    <button key={t} onClick={() => setTimeframe(t)} className={`text-[14px] font-medium pb-1 transition-all duration-300 border-b-2 ${timeframe === t ? 'text-[#FFF9F9] border-[#8348C1]' : 'text-[#FFF9F9]/50 border-transparent hover:text-[#FFF9F9]'}`}>{t}</button>
                   ))}
                 </div>
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
-                  <button className="group relative flex h-[44px] px-8 items-center justify-center rounded-[28px] text-[14px] font-medium text-white hover:scale-105 transition-transform">
-                    <svg className="absolute inset-0 h-full w-full pointer-events-none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="100%" height="42" rx="21" fill="none" stroke="url(#news-grad)" strokeWidth="1.5" /><defs><linearGradient id="news-grad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#2C1969" /><stop offset="50%" stopColor="#8348C1" /><stop offset="100%" stopColor="#C38BFF" /></linearGradient></defs></svg>
-                    <span className="relative z-10 whitespace-nowrap">Перейти до головних новин</span>
-                  </button>
-                </div>
               </div>
             </div>
-          </div>
 
-          {/* 4. СХОЖІ МОНЕТИ */}
-          <div className="mt-2">
-            <h3 className="text-[24px] font-semibold text-white/95 mb-6">Схожі монети</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-[180px] p-[1px] rounded-[24px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10)] cursor-pointer group">
-                  <div className="relative h-full w-full rounded-[23px] bg-[#050506] p-5 overflow-hidden transition-all group-hover:bg-[#0a0a0d]">
-                    <button className="absolute right-4 top-4 h-[32px] w-[32px] hover:scale-110 transition-transform z-20">
-                       <img src="/buttom.svg" alt="Open" className="w-full h-full" />
-                    </button>
-                    <div className="flex items-center gap-2 mb-4 relative z-10">
-                      <img src="/Ethereum.svg" alt="ETH" className="w-8 h-8" />
-                      <div>
-                        <h4 className="text-[14px] font-semibold text-white leading-tight">Ethereum</h4>
-                        <p className="text-[11px] text-white/50">(ETH)</p>
-                      </div>
-                    </div>
-                    <div className="relative z-10">
-                      <p className="text-[24px] font-semibold text-white leading-none mb-1">98.432 <span className="text-[12px] font-normal text-white/50">USDT</span></p>
-                      <p className="text-[11px] text-white/60">Зміна: <span className="text-[#36D399]">+2.45%</span></p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-[#050506]/60 z-20 rounded-xl backdrop-blur-sm">
+                <div className="w-8 h-8 border-4 border-[#B57AFF] border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            )}
+            <div className="absolute bottom-[20px] left-4 right-[10px] h-[260px] z-10" ref={chartContainerRef} />
           </div>
-
         </div>
 
-        {/* ПРАВА КОЛОНКА (Віджети) */}
-        <div className="flex flex-col gap-6 w-full xl:w-[356px] shrink-0">
-          
-          <div className="w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10)]">
-            <div className="w-full rounded-[27px] bg-[#050506] p-6">
-              
-              <div className="flex items-center gap-2 mb-6">
-                 <img src="/logo-crypro-pulse.svg" alt="Logo" className="w-5 h-5" />
-                 <span className="text-[14px] font-medium text-white/80">CryptoPulse</span>
-              </div>
+        {/* ПРАВА КОЛОНКА (Віджет 1: Створити алерт) */}
+        <div className="w-full h-[438px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10)]">
+          <div className="w-full h-full rounded-[27px] bg-[#050506] p-6 flex flex-col justify-between">
+            
+            <div className="flex items-center gap-2 mb-4">
+                <img src="/logo-crypro-pulse.svg" alt="Logo" className="w-5 h-5 object-contain" />
+                <div className="text-[15.5px] tracking-wide font-montserrat">
+                  <span className="font-medium text-white">Crypto</span>
+                  <span className="font-semibold bg-gradient-to-r from-[#ceafef] to-[#9a64d4] bg-clip-text text-transparent">Pulse</span>
+                </div>
+            </div>
 
+            <div>
               <div className="flex items-center gap-2 mb-2">
-                <h3 className="text-[20px] font-semibold text-white">Створити алерт</h3>
+                <h3 className="text-[16px] font-medium text-white font-montserrat">Створити алерт</h3>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/40"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
               </div>
-              <p className="text-[13px] text-white/50 mb-6">Створи алерт і не пропускай важливі зміни</p>
+              <p className="text-[12px] font-light text-[#8E8E8E] mb-5 leading-relaxed font-montserrat">Створи алерт і не пропускай важливі зміни</p>
+            </div>
 
-              <div className="flex flex-col gap-4">
-                <div>
-                  <label className="text-[12px] text-white/60 mb-1 block">Умова</label>
-                  <div className="relative">
-                    <select className="w-full bg-transparent border border-white/10 rounded-xl px-4 py-3 text-[14px] text-white appearance-none outline-none focus:border-[#8348C1]">
+            <div className="flex flex-col gap-4 flex-grow">
+              <div>
+                <label className="text-[12px] font-light text-[#8E8E8E] mb-1.5 block font-montserrat">Умова</label>
+                <div className="w-full h-[44px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
+                  <div className="relative w-full h-full rounded-[27px] bg-[#050506]">
+                    <select className="w-full h-full bg-transparent px-4 text-[14px] font-normal text-white appearance-none outline-none font-montserrat rounded-[27px]">
                       <option>Ціна вище ніж</option>
                       <option>Ціна нижче ніж</option>
                     </select>
+                    <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="text-[12px] font-light text-[#8E8E8E] mb-1.5 block font-montserrat">Значення</label>
+                  <div className="w-full h-[44px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
+                      <div className="w-full h-full rounded-[27px] bg-[#050506]">
+                        <input 
+                          type="text" 
+                          key={currentPrice} 
+                          defaultValue={currentPrice > 0 ? `${currentPrice.toFixed(0)} USDT` : '---'} 
+                          className="w-full h-full bg-transparent px-2 text-[14px] font-normal text-white outline-none font-montserrat text-center rounded-[27px]" 
+                        />
+                      </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[12px] text-white/60 mb-1 block">Значення</label>
-                    <div className="relative">
-                      <input type="text" defaultValue="70000" className="w-full bg-transparent border border-white/10 rounded-xl px-4 py-3 text-[14px] text-white outline-none focus:border-[#8348C1]" />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[12px] text-white/40">USDT</span>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-[12px] text-white/60 mb-1 block">Період</label>
-                    <div className="relative">
-                      <select className="w-full bg-transparent border border-white/10 rounded-xl px-4 py-3 text-[14px] text-white appearance-none outline-none focus:border-[#8348C1]">
+                <div className="w-[87px] shrink-0">
+                  <label className="text-[12px] font-light text-[#8E8E8E] mb-1.5 block font-montserrat">Період</label>
+                  <div className="w-full h-[44px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
+                    <div className="relative w-full h-full rounded-[27px] bg-[#050506]">
+                      <select className="w-full h-full bg-transparent pl-4 pr-6 text-[14px] font-normal text-white appearance-none outline-none font-montserrat rounded-[27px]">
                         <option>1 год</option>
                         <option>4 год</option>
                         <option>1 день</option>
                       </select>
+                      <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4">
+                <div className="flex items-center justify-between mb-4 px-1">
+                  <span className="text-[13px] font-light text-[#8E8E8E] font-montserrat">Сповіщати щоразу</span>
+                  <div className="w-[36px] h-[20px] bg-[#FFF9F9]/20 rounded-full relative cursor-pointer">
+                      <div className="absolute left-1 top-[2px] w-[16px] h-[16px] bg-[#FFF9F9] rounded-full"></div>
+                  </div>
+                </div>
+                <button className="w-full h-[44px] rounded-[28px] font-montserrat font-medium text-[14px] text-[#FFF9F9] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] shadow-[0_4px_15px_rgba(131,72,193,0.3)] hover:scale-[1.02] transition-transform">
+                  Створити
+                </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* 
+        ДРУГИЙ РЯД (Основні дані + PulseAI) 
+        ТУТ ГОЛОВНЕ: flex items-end змушує обидва блоки притиснутись донизу, 
+        щоб їх нижні краї були на одному рівні.
+      */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_261px] gap-[24px] items-end mt-[24px]">
+
+        {/* 2. ОСНОВНІ ДАНІ (Висота 300px) */}
+        <div>
+          <h3 className="text-[24px] font-semibold text-[#FFF9F9] mb-6">Основні дані</h3>
+          <div className="w-full h-[300px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10)]">
+            <div className="w-full h-full rounded-[27px] bg-[#050506] p-8 flex flex-col justify-between">
+              
+              <h4 className="text-[20px] font-medium text-[#FFF9F9] mb-6 font-montserrat">Графік ефективності {coinName}</h4>
+              
+              <div className="flex flex-col md:flex-row justify-between items-start gap-8 md:gap-4 flex-grow">
+                
+                {/* Column 1 */}
+                <div className="flex flex-col gap-[22px] w-full md:w-[280px] shrink-0">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[14px] font-normal text-[#8E8E8E] font-montserrat">Макс. за весь час</span>
+                    <span className="text-[14px] font-normal text-[#FFF9F9] font-montserrat">{fundamentals.ath > 0 ? `${fundamentals.ath.toLocaleString('en-US')}$` : '---'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[14px] font-normal text-[#8E8E8E] font-montserrat">Зміна ціни (1 год)</span>
+                    <span className={`text-[14px] font-normal font-montserrat ${stats.priceChange1h >= 0 ? 'text-[#00E676]' : 'text-[#FF2E2E]'}`}>
+                      {stats.priceChange1h > 0 ? '+' : ''}{stats.priceChange1h !== 0 ? `${stats.priceChange1h.toFixed(2)}%` : '---'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[14px] font-normal text-[#8E8E8E] font-montserrat">Зміна ціни (24 год)</span>
+                    <span className={`text-[14px] font-normal font-montserrat ${stats.priceChange24h >= 0 ? 'text-[#00E676]' : 'text-[#FF2E2E]'}`}>
+                        {stats.priceChange24h > 0 ? '+' : ''}{stats.priceChange24h !== 0 ? `${stats.priceChange24h.toFixed(2)}%` : '---'}
+                    </span>
+                  </div>
+                  <div className="pt-1">
+                    <div className="flex justify-between text-[14px] font-medium text-[#FFF9F9] mb-3 font-montserrat">
+                      <span>Макс. та мін. за 24 год</span>
+                    </div>
+                    <div className="relative w-full h-[6px] rounded-full bg-gradient-to-r from-[#FF2E2E] to-[#00E676] mb-3">
+                        {stats.high24h > 0 && (
+                          <div 
+                            className="absolute top-1/2 -translate-y-1/2 w-2 h-3 bg-white rounded-full shadow-[0_0_5px_rgba(255,255,255,0.8)] transition-all duration-300" 
+                            style={{ left: `calc(${currentPositionPercent}% - 4px)` }}
+                          />
+                        )}
+                    </div>
+                    <div className="flex justify-between text-[14px] font-normal text-[#FFF9F9] font-montserrat">
+                      <span>{stats.low24h > 0 ? `${stats.low24h.toLocaleString('en-US', {maximumFractionDigits: 2})}$` : '---'}</span>
+                      <span>{stats.high24h > 0 ? `${stats.high24h.toLocaleString('en-US', {maximumFractionDigits: 2})}$` : '---'}</span>
                     </div>
                   </div>
                 </div>
 
-                <button className="w-full h-[48px] rounded-[28px] mt-4 font-montserrat font-medium text-[14px] text-white bg-gradient-to-r from-[#4A269C] to-[#9C65E8] hover:scale-[1.02] transition-transform">
-                  Створити
-                </button>
+                {/* Divider 1 */}
+                <div className="hidden md:block w-[1px] h-[228px] bg-gradient-to-b from-[#522E8B] to-[#B3B3B3]/10 opacity-40"></div>
+
+                {/* Column 2 */}
+                <div className="flex flex-col gap-6 w-full md:w-auto">
+                  <div>
+                    <p className="text-[12px] font-medium text-[#8E8E8E] mb-1.5 font-montserrat">Ринкова капіталізація</p>
+                    <p className="text-[14px] font-medium text-[#FFF9F9] font-montserrat">{formatCurrency(fundamentals.mcap)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[12px] font-medium text-[#8E8E8E] mb-1.5 font-montserrat">Макс. пропозиція</p>
+                    <p className="text-[14px] font-medium text-[#FFF9F9] font-montserrat">{formatSupply(fundamentals.maxSupply)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[12px] font-medium text-[#8E8E8E] mb-1.5 font-montserrat">Об'єм / Капіталізація</p>
+                    <p className="text-[14px] font-medium text-[#FFF9F9] font-montserrat">{volMcapRatio}</p>
+                  </div>
+                </div>
+
+                {/* Divider 2 */}
+                <div className="hidden md:block w-[1px] h-[228px] bg-gradient-to-b from-[#522E8B] to-[#B3B3B3]/10 opacity-40"></div>
+
+                {/* Column 3 */}
+                <div className="flex flex-col gap-6 w-full md:w-auto">
+                  <div>
+                    <p className="text-[12px] font-medium text-[#8E8E8E] mb-1.5 font-montserrat">Циркул. пропозиція</p>
+                    <p className="text-[14px] font-medium text-[#FFF9F9] font-montserrat">{formatSupply(fundamentals.circSupply)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[12px] font-medium text-[#8E8E8E] mb-1.5 font-montserrat">Всього монет</p>
+                    <p className="text-[14px] font-medium text-[#FFF9F9] font-montserrat">{formatSupply(fundamentals.totalSupply)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[12px] font-medium text-[#8E8E8E] mb-1.5 font-montserrat">Об'єм торгів (24 год)</p>
+                    <p className="text-[14px] font-medium text-[#FFF9F9] font-montserrat">{formatCurrency(stats.volume24h)}</p>
+                  </div>
+                </div>
+
               </div>
             </div>
           </div>
-
         </div>
+
+        {/* НОВИЙ ВІДЖЕТ 2: PulseAI (Висота 352px) */}
+        <div className="w-full h-[352px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10)]">
+          <div className="w-full h-full rounded-[27px] bg-[#050506] p-6 flex flex-col">
+            
+            {/* Хедер віджета */}
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-2">
+                <img src="/logo-crypro-pulse.svg" alt="PulseAI" className="w-5 h-5 object-contain" />
+                <div className="text-[16px] tracking-wide font-montserrat">
+                  <span className="font-medium text-white">Pulse</span>
+                  <span className="font-semibold bg-gradient-to-r from-[#ceafef] to-[#9a64d4] bg-clip-text text-transparent">AI</span>
+                </div>
+              </div>
+              
+              {/* Бейдж "АІ АНАЛІЗ" із "туманчиком" зверху та знизу */}
+              <div className="h-[24px] p-[1px] rounded-[16px] bg-[linear-gradient(90deg,rgba(82,46,139,0.4),rgba(179,179,179,0.4))] shrink-0">
+                  <div className="w-full h-full rounded-[15px] bg-[#050506] bg-[linear-gradient(180deg,rgba(255,255,255,0.25)_0%,transparent_35%,transparent_65%,rgba(255,255,255,0.25)_100%)] flex items-center justify-center gap-1.5 px-3">
+                    <div className="w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_4px_rgba(255,255,255,0.8)]"></div>
+                    <span className="text-[10px] font-medium text-[#8348C1] uppercase font-montserrat tracking-wider">АІ Аналіз</span>
+                  </div>
+              </div>
+            </div>
+
+            {/* Аналітика Short/Long */}
+            <div className="flex justify-between items-center px-1 mb-4">
+              <div className="flex flex-col items-center gap-1 w-1/2">
+                <span className="text-[32px] font-medium text-[#E53232] leading-none font-montserrat">68%</span>
+                <span className="text-[14px] font-medium text-[#E53232] font-montserrat">Short</span>
+              </div>
+              <div className="w-[1px] h-[36px] bg-white/10"></div>
+              <div className="flex flex-col items-center gap-1 w-1/2">
+                <span className="text-[32px] font-medium text-[#00E676] leading-none font-montserrat">32%</span>
+                <span className="text-[14px] font-medium text-[#00E676] font-montserrat">Long</span>
+              </div>
+            </div>
+
+            {/* Прогрес бар AI */}
+            <div className="w-full h-[6px] rounded-full bg-gradient-to-r from-[#E53232] to-[#00E676] mb-6"></div>
+
+            {/* Повідомлення тренду */}
+            <div className="flex items-start gap-3 mb-6">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0 mt-0.5">
+                <path d="M2 20H22" stroke="#E53232" strokeWidth="1.5" strokeLinecap="round"/>
+                <rect x="5" y="6" width="4" height="14" stroke="#E53232" strokeWidth="1.5" strokeLinejoin="round"/>
+                <rect x="13" y="12" width="4" height="8" stroke="#E53232" strokeWidth="1.5" strokeLinejoin="round"/>
+              </svg>
+              <p className="text-[12px] font-normal text-white/70 font-montserrat leading-[1.4]">
+                Ймовірне зниження ціни<br />в найближчі 24 год
+              </p>
+            </div>
+
+            {/* Кнопка */}
+            <div className="flex flex-col gap-3 mt-auto">
+              <button className="w-full h-[44px] rounded-[28px] font-montserrat font-medium text-[14px] text-[#FFF9F9] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] shadow-[0_4px_15px_rgba(131,72,193,0.3)] hover:scale-[1.02] transition-transform">
+                Запитати AI
+              </button>
+              <p className="text-[10px] font-medium text-[#8E8E8E] text-center font-montserrat">
+                Не є фінансовою порадою
+              </p>
+            </div>
+
+          </div>
+        </div>
+
       </div>
     </section>
   );
