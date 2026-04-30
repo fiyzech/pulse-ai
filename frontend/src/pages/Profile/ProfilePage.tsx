@@ -1,13 +1,32 @@
-import userAvatar from "../../assets/images/user_avatar.png";
-import editIcon from "../../assets/icons/pencil-edit.svg";
+import userAvatar from '../../assets/images/user_avatar.png';
+import trashredIcon from '../../assets/icons/trashred.svg';
 
-const cardWrapper =
-  "p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_100px_rgba(131,72,193,0.3),0_8px_25px_rgba(0,0,0,0.4)]";
+const cardWrapperClass =
+  'p-[1px] rounded-2xl bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]';
+
+const cardClass =
+  'relative h-full rounded-2xl bg-[#050506] overflow-hidden';
+
+const editBtnStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '6px',
+  width: '135px',
+  height: '36px',
+  borderRadius: '999px',
+  border: '1px solid transparent',
+  background:
+    'linear-gradient(#0D0D0D, #0D0D0D) padding-box, linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%) border-box',
+  color: '#A3A4B0',
+  fontSize: '14px',
+  cursor: 'pointer',
+};
 
 export default function ProfilePage() {
   return (
-    <div className="w-full h-screen overflow-hidden bg-[#050505] text-white px-[40px] pt-[24px]">
-      <div className="flex flex-col gap-[24px] h-full">
+    <div className="h-screen bg-[#050505] text-white w-full">
+      <div style={{ padding: '24px 40px 36px' }}>
 
         {/* USER */}
         <section className="flex flex-col gap-[24px]">
@@ -15,144 +34,178 @@ export default function ProfilePage() {
             Користувач
           </h2>
 
-          <div className={cardWrapper}>
-            <div className="relative flex items-center justify-between h-[108px] p-[24px] rounded-[28px] bg-[#050506] overflow-hidden">
-              <div className="flex items-center gap-[12px]">
-                <img
-                  src={userAvatar}
-                  className="w-[60px] h-[60px] rounded-full border border-white/10"
-                />
+          {/* Користувач */}
+          <section>
+            <h2 style={{ fontSize: '24px', fontWeight: 600, marginBottom: '24px' }}>
+              Користувач
+            </h2>
 
-                <div>
-                  <div className="flex items-center gap-[12px] mb-[4px]">
-                    <span className="text-[20px] leading-[24px] font-semibold text-white">
-                      Alexander Mironov
-                    </span>
+            <div className={cardWrapperClass}>
+              <div
+                className={cardClass}
+                style={{
+                  padding: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  height: '108px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <img
+                    src={userAvatar}
+                    alt="Avatar"
+                    style={{ width: '46px', height: '46px', borderRadius: '50%' }}
+                  />
 
-                    <div className="p-[1px] rounded-full bg-[linear-gradient(135deg,#FFFFFF_0%,#8348C1_48%,#2C1969_100%)]">
-                      <span className="flex items-center justify-center w-[46px] h-[24px] rounded-full bg-[#0A0A0A] font-normal text-[#5C49AA] text-[12px] leading-[16px]">
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '20px', fontWeight: 600 }}>
+                        Alexander Mironov
+                      </span>
+
+                      <span
+                        style={{
+                          fontSize: '12px',
+                          padding: '2px 9px',
+                          borderRadius: '999px',
+                          border: '1px solid transparent',
+                          background:
+                            'linear-gradient(#0A0A0A, #0A0A0A) padding-box, linear-gradient(135deg, #FFFFFF 0%, #8348C1 48%, #2C1969 100%) border-box',
+                        }}
+                      >
                         Pro
                       </span>
                     </div>
+
+                    <span style={{ fontSize: '14px', color: '#A3A4B0' }}>
+                      @alexM
+                    </span>
                   </div>
-
-                  <span className="text-[14px] leading-[20px] font-extralight text-white">
-                    @alexM
-                  </span>
                 </div>
-              </div>
 
-              <div className="absolute top-[24px] right-[24px] p-[1px] rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF]">
-                <button className="w-[136px] h-[36px] rounded-full bg-[#0D0D0D] flex items-center justify-center gap-[8px] text-[#A3A4B0] text-[14px] leading-[20px]">
-                  Редагувати
-                  <img src={editIcon} className="w-[20px] h-[20px] opacity-80" />
-                </button>
+                <button style={editBtnStyle}>Редагувати</button>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* PERSONAL INFO */}
-        <section className="flex flex-col gap-[24px]">
-          <h2 className="text-[24px] leading-[28px] font-semibold text-white">
-            Персональна інформація
-          </h2>
+          {/* Персональна інформація */}
+          <section>
+            <h2 style={{ fontSize: '24px', fontWeight: 600, marginBottom: '24px' }}>
+              Персональна інформація
+            </h2>
 
-          <div className={cardWrapper}>
-            <div className="relative h-[160px] p-[24px] rounded-[28px] bg-[#050506] overflow-hidden">
-              <div className="absolute top-[24px] right-[24px] p-[1px] rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF]">
-                <button className="w-[136px] h-[36px] rounded-full bg-[#0D0D0D] flex items-center justify-center gap-[8px] text-[#A3A4B0] text-[14px] leading-[20px]">
+            <div className={cardWrapperClass}>
+              <div className={cardClass} style={{ padding: '24px', position: 'relative' }}>
+                <button style={{ ...editBtnStyle, position: 'absolute', top: '24px', right: '24px' }}>
                   Редагувати
-                  <img src={editIcon} className="w-[20px] h-[20px] opacity-80" />
                 </button>
-              </div>
 
-              <div className="grid grid-cols-[160px_230px_200px] gap-x-[120px] gap-y-[24px]">
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">Ім'я</p>
-                  <p>Олександр</p>
-                </div>
-
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">E-mail</p>
-                  <p>alexmironov@gmail.com</p>
-                </div>
-
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">
-                    День народження
-                  </p>
-                  <p>07.05.2007</p>
-                </div>
-
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">Прізвище</p>
-                  <p>Миронов</p>
-                </div>
-
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">Телефон</p>
-                  <p>(+380) 98 962 77 13</p>
-                </div>
-
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">Регіон</p>
-                  <p>Україна</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '200px 200px 300px', gap: '24px' }}>
+                  {[
+                    { label: "Ім'я", value: 'Олександр' },
+                    { label: 'E-mail', value: 'alexmironov@gmail.com' },
+                    { label: 'День народження', value: '07.05.2007' },
+                    { label: 'Прізвище', value: 'Миронов' },
+                    { label: 'Телефон', value: '(+380) 98 962 77 13' },
+                    { label: 'Регіон', value: 'Україна' },
+                  ].
+                  map(({ label, value }) => (
+                    <div key={label}>
+                      <p style={{ fontSize: '14px', color: '#A3A4B0', marginBottom: '5px' }}>
+                        {label}
+                      </p>
+                      <p style={{ fontSize: '14px' }}>{value}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* SECURITY */}
-        <section className="flex flex-col gap-[24px]">
-          <h2 className="text-[24px] leading-[28px] font-semibold text-white">
-            Безпека
-          </h2>
+          {/* Безпека */}
+          <section>
+            <h2 style={{ fontSize: '24px', fontWeight: 600, marginBottom: '24px' }}>
+              Безпека
+            </h2>
 
-          <div className={cardWrapper}>
-            <div className="relative h-[160px] p-[24px] rounded-[28px] bg-[#050506] overflow-hidden">
-              <div className="absolute top-[24px] right-[24px] p-[1px] rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF]">
-                <button className="w-[136px] h-[36px] rounded-full bg-[#0D0D0D] flex items-center justify-center gap-[8px] text-[#A3A4B0] text-[14px] leading-[20px]">
+            <div className={cardWrapperClass}>
+              <div className={cardClass} style={{ padding: '24px', position: 'relative' }}>
+                <button style={{ ...editBtnStyle, position: 'absolute', top: '24px', right: '24px' }}>
                   Редагувати
-                  <img src={editIcon} className="w-[20px] h-[20px] opacity-80" />
                 </button>
-              </div>
 
-              <div className="grid grid-cols-[160px_230px] gap-x-[120px] gap-y-[24px]">
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">Пароль</p>
-                  <p className="tracking-[0.15em]">•••••••</p>
-                </div>
-
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">
-                    Остання зміна
-                  </p>
-                  <p>2 тижні тому</p>
-                </div>
-
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">Пристрої</p>
-                  <p>2 активних</p>
-                </div>
-
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">
-                    Останній вхід
-                  </p>
-                  <p>Україна, Львів</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 200px)', gap: '24px' }}>
+                  {[
+                    { label: 'Пароль', value: '•••••••' },
+                    { label: 'Остання зміна', value: '2 тижні тому' },
+                    { label: 'Пристрої', value: '2 активних' },
+                    { label: 'Останній вхід', value: 'Україна, Львів' },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <p style={{ fontSize: '14px', color: '#A3A4B0', marginBottom: '5px' }}>
+                        {label}
+                      </p>
+                      <p style={{ fontSize: '14px' }}>{value}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* DELETE BUTTON */}
-        <div className="pt-[16px]">
-          <div className="w-[210px] h-[44px] p-[1.5px] rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF]">
-            <button className="w-full h-full rounded-full bg-[#0D0D0D] flex items-center justify-center gap-2 text-[#FF0000] text-[14px] font-normal cursor-pointer transition-all duration-300 hover:bg-[#111111] active:scale-[0.98]">
-              <span>Видалити акаунт</span>
+          {/* КНОПКА */}
+<div style={{ marginTop: '40px' }}>
+  <button
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '8px',
+
+      width: '201px',
+      height: '44px',
+
+      borderRadius: '28px',
+      border: '1px solid transparent',
+
+      background:
+        'linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%) border-box',
+
+      color: '#FF0000',
+      fontSize: '14px',
+      lineHeight: '20px',
+      fontWeight: 400,
+
+      boxShadow:
+        '0 20px 70px rgba(131,72,193,0.10), 0 8px 25px rgba(0,0,0,0.35)',
+
+      cursor: 'pointer',
+    }}
+  >
+    <span
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        lineHeight: '20px',
+      }}
+    >
+      Видалити акаунт
+    </span>
+
+    <img
+      src={trashredIcon}
+      alt="delete"
+      style={{
+        width: '20px',
+        height: '20px',
+        display: 'block',
+        position: 'relative',
+        top: '1px', // 🔥 головний фікс вирівнювання
+      }}
+    />
+  </button>
+</div>
 
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path

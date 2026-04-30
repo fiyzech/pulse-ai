@@ -12,6 +12,7 @@ import AlertsPage from "../pages/Alerts/AlertsPage";
 import TelegramPage from "../pages/Telegram/TelegramPage";
 import SettingsPage from "../pages/Settings/SettingsPage";
 import ProfilePage from "../pages/Profile/ProfilePage";
+import AssetPage from "../pages/Asset/AssetPage";
 
 export const router = createBrowserRouter([
   {
@@ -38,6 +39,7 @@ export const router = createBrowserRouter([
       { path: "profile", element: <ProfilePage /> },
       { path: "markets", element: <MarketsPage /> },
       { path: "support", element: <SupportPage /> },
+      { path: "asset/:symbol", element: <AssetPage /> },
     ],
   },
 ]);
