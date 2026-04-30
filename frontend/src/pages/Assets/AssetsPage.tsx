@@ -16,7 +16,6 @@ export default function FavoritesContent() {
       title: "Зростають сьогодні",
       value: "4",
       icon: (
-        // Замінив колір на #36D399
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#36D399" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 19V5M5 12l7-7 7 7" />
         </svg>
@@ -26,7 +25,6 @@ export default function FavoritesContent() {
       title: "Падають сьогодні",
       value: "2",
       icon: (
-        // Замінив колір на #F87272
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F87272" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 5v14M19 12l-7 7-7-7" />
         </svg>
@@ -36,11 +34,10 @@ export default function FavoritesContent() {
       title: "Найкраща динаміка",
       value: "SOL +6.2%",
       icon: null,
-      valueClass: "text-[22px] font-semibold text-[#36D399]", // Стиль успішного тексту
+      valueClass: "text-[22px] font-semibold text-[#36D399]", 
     },
   ];
 
-  // Дані для таблиці "Вибрані активи."
   const favoriteAssets = [
     { name: "Bitcoin", symbol: "BTC", price: "$68,420", change: "+2.4%", marketCap: "$1.35T", volume: "$32.51B", color: "bg-[#F7931A]" },
     { name: "Ethereum", symbol: "ETH", price: "$3,260", change: "-1.2%", marketCap: "$395.80B", volume: "$20.97B", color: "bg-[#627EEA]" },
@@ -50,7 +47,6 @@ export default function FavoritesContent() {
     { name: "Cardano", symbol: "ADA", price: "$0.71", change: "+3.1%", marketCap: "$25.10B", volume: "$880M", color: "bg-[#0033AD]" },
   ];
 
-  // Дані для списку "Рекомендовано"
   const recommendedAssets = [
     { symbol: "XRP", color: "bg-[#23292F]" },
     { symbol: "DOGE", color: "bg-[#F3C623]" },
@@ -63,24 +59,24 @@ export default function FavoritesContent() {
   return (
     <div className="w-full font-montserrat">
       
-      {/* 1. Верхній блок (Опис + Кнопка Telegram) */}
+      {/* 1. ВЕРХНІЙ БЛОК */}
       <div className="mb-6 flex items-start justify-between mt-[23px]">
         <p className="w-[546px] pl-[40px] font-montserrat text-[16px] font-normal leading-[28px] text-[#FFFFFF]">
           Зберігайте криптовалюти в обране, щоб швидко відстежувати ціни, зміни ринку та створювати алерти
         </p>
-        <button className="mr-[40px] flex h-[44px] w-[208px] items-center justify-center rounded-[28px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-[13px] font-medium text-white transition-all hover:brightness-110 active:scale-95">
+        <button className="mr-[40px] flex h-[44px] w-[208px] items-center justify-center rounded-[28px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-[13px] font-medium text-white transition-all duration-300 hover:scale-105 hover:shadow-[0_0_20px_rgba(131,72,193,0.5)] active:scale-95">
           Підключити Telegram
         </button>
       </div>
 
-      {/* 2. Блок статистики (4 картки) */}
-      <div className=" ml-[40px] mr-[40px] grid grid-cols-1 gap-[24px] lg:grid-cols-4">
+     {/* 2. БЛОК СТАТИСТИКИ (Заокруглення 28px + анімація) */}
+      <div className="ml-[40px] mr-[40px] grid grid-cols-1 gap-[24px] lg:grid-cols-4">
         {stats.map((stat, idx) => (
           <div 
             key={idx} 
-            className="h-[108px] w-full p-[1px] rounded-[24px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]"
+            className="h-[108px] w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] transition-all duration-500 ease-out hover:shadow-[0_10px_40px_rgba(131,72,193,0.25),0_4px_15px_rgba(0,0,0,0.4)] hover:-translate-y-1"
           >
-            <div className="flex h-full w-full flex-col items-center justify-center rounded-[24px] bg-[#050506] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
+            <div className="flex h-full w-full flex-col items-center justify-center rounded-[28px] bg-[#050506] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
               <p className="mb-1.5 text-[12px] font-medium text-[#A3A4B0]">{stat.title}</p>
               <div className="flex items-center gap-2">
                 <span className={stat.valueClass || "text-[22px] font-semibold text-[#FFFFFF]"}>
@@ -93,10 +89,9 @@ export default function FavoritesContent() {
         ))}
       </div>
 
-      {/* 3. Головний контент (Таблиця + Рекомендації) */}
+      {/* 3. Головний контент */}
       <div className="ml-[40px] mr-[40px] mt-[26px] flex flex-col lg:flex-row gap-[24px]">
         
-        {/* ЛІВА КОЛОНКА */}
         <div className="flex w-full flex-col lg:w-[calc(75%-6px)]">
           <h2 className="mb-[24px] text-[20px] font-semibold leading-none text-white/95">
             Вибрані активи
@@ -137,20 +132,16 @@ export default function FavoritesContent() {
                           <td className="py-[14px]">{asset.marketCap}</td>
                           <td className="py-[14px]">{asset.volume}</td>
                           <td className="py-[14px] pr-6 text-center">
-                            <div className="inline-flex h-[36px] items-center justify-center rounded-full bg-[linear-gradient(90deg,#4C2475_0%,#7A40B5_50%,#B57AFF_100%)] p-[1px] transition-all hover:scale-105 active:scale-95">
-                              <button 
-                              className="relative p-[1px] rounded-full transition-all hover:brightness-110 active:scale-95"
-                              style={{ background: 'linear-gradient(90deg, #4C2475 0%, #7A40B5 50%, #B57AFF 100%)' }}
-                            >
-                              <div className="px-6 py-2 rounded-full bg-[#000000] flex items-center justify-center">
-                                <span className="text-[14px] text-[#A3A4B0] font-normal">Переглянути</span>
+                            {/* КНОПКА ПЕРЕГЛЯНУТИ З АНІМАЦІЄЮ */}
+                            <button className="group relative inline-flex h-[38px] w-[130px] items-center justify-center rounded-full p-[1px] bg-gradient-to-r from-[#4C2475] via-[#7A40B5] to-[#B57AFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-95">
+                              <div className="flex h-full w-full items-center justify-center rounded-full bg-[#000000] group-hover:bg-opacity-80 transition-all">
+                                <span className="text-[14px] font-normal text-[#A3A4B0] group-hover:text-white transition-colors">
+                                  Переглянути
+                                </span>
                               </div>
                             </button>
-                            </div>
                           </td>
                         </tr>
-                        
-                        {/* Лінія під рядком */}
                         {index !== favoriteAssets.length - 1 && (
                           <tr>
                             <td colSpan={6} className="p-0">
@@ -163,7 +154,6 @@ export default function FavoritesContent() {
                   })}
                 </tbody>
               </table>
-
             </div>
           </div>
         </div>
@@ -173,7 +163,6 @@ export default function FavoritesContent() {
           <h2 className="mb-[24px] text-[20px] font-semibold leading-none text-white/95">
             Рекомендовано 
           </h2>
-          
           <div className="w-full p-[1px] rounded-[24px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
             <div className="w-full rounded-[24px] bg-[#050506] py-2 shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
               <div className="flex flex-col">
@@ -187,19 +176,16 @@ export default function FavoritesContent() {
                         <span className="text-[15px] font-semibold text-[#FFFFFF]">{asset.symbol}</span>
                       </div>
                       
-                      {/* === ОНОВЛЕНА КНОПКА "ДОДАТИ" === */}
-                      <button 
-                        className="relative p-[1px] rounded-full transition-all hover:brightness-110 active:scale-95"
-                        style={{ background: 'linear-gradient(90deg, #4C2475 0%, #7A40B5 50%, #B57AFF 100%)' }}
-                      >
-                        <div className="px-6 py-2 rounded-full bg-[#000000] flex items-center justify-center">
-                          <span className="text-[14px] text-[#A3A4B0] font-normal transition-colors hover:text-white">Додати</span>
+                      {/* КНОПКА ДОДАТИ З АНІМАЦІЄЮ */}
+                      <button className="group relative inline-flex h-[38px] w-[90px] items-center justify-center rounded-full p-[1px] bg-gradient-to-r from-[#4C2475] via-[#7A40B5] to-[#B57AFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-95">
+                        <div className="flex h-full w-full items-center justify-center rounded-full bg-[#000000] group-hover:bg-opacity-80 transition-all">
+                          <span className="text-[14px] font-normal text-[#A3A4B0] group-hover:text-white transition-colors">
+                            Додати
+                          </span>
                         </div>
                       </button>
-                      {/* ================================= */}
 
                     </div>
-
                     {index !== recommendedAssets.length - 1 && (
                       <div className="mx-auto h-[1px] w-[calc(100%-48px)] bg-white/5"></div>
                     )}
