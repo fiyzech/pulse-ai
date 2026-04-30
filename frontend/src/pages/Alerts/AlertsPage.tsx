@@ -13,7 +13,7 @@ export default function AlertsPage() {
           коли задана умова буде виконана
         </p>
 
-        <button className="min-w-[165px] h-[44px] px-6 rounded-full flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium transition-all duration-300 ease-out hover:scale-[1.04] hover:shadow-[0_0_24px_rgba(195,139,255,0.35)] active:scale-[0.98]">
+        <button className="min-w-[165px] h-[44px] px-6 rounded-full flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium transition-transform  duration-300 ease-out hover:scale-105 active:scale-[0.98]">
          Створити алерт
         </button>
       </div>
@@ -22,8 +22,8 @@ export default function AlertsPage() {
       <div className="grid grid-cols-4 gap-4 mb-[24px] w-full">
 
         {/* CARD 1 */}
-        <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-          <div className="relative h-full rounded-[28px] bg-[#050506] p-5 text-center shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] overflow-hidden">
+        <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.4),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-1">
+          <div className="relative h-full rounded-[28px] bg-[#050506] p-5 text-center overflow-hidden">
             <p className="text-white text-[14px]">Активні алерти</p>
 
             <div className="flex items-center justify-center gap-2 mt-2">
@@ -34,24 +34,24 @@ export default function AlertsPage() {
         </div>
 
         {/* CARD 2 */}
-        <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-          <div className="relative h-full rounded-[28px] bg-[#050506] p-5 text-center shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] overflow-hidden ">
+        <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.4),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-1">
+          <div className="relative h-full rounded-[28px] bg-[#050506] p-5 text-center overflow-hidden">
            <p className="text-white text-[14px] font-normal">Спрацювали сьогодні</p>
            <h2 className="text-2xl font-semibold mt-2">1</h2>
          </div>
        </div>
 
         {/* CARD 3 */}
-        <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-         <div className="relative h-full rounded-[28px] bg-[#050506] p-5 text-center shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] overflow-hidden">
+        <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.4),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-1">
+          <div className="relative h-full rounded-[28px] bg-[#050506] p-5 text-center overflow-hidden">
            <p className="text-white text-[14px] font-normal">Telegram підключено</p>
            <h2 className="text-2xl font-semibold mt-2">Так</h2>
          </div>
        </div>
 
         {/* CARD 4 */}
-        <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-          <div className="relative h-full rounded-[28px] bg-[#050506] p-5 text-center shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] overflow-hidden">
+        <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.4),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-1">
+          <div className="relative h-full rounded-[28px] bg-[#050506] p-5 text-center overflow-hidden">
             <p className="text-white text-[14px] font-normal">Останнє сповіщення</p>
             <h2 className="text-2xl font-semibold mt-2">1 година тому</h2>
           </div>
@@ -59,8 +59,7 @@ export default function AlertsPage() {
       </div>
 
       {/* TABLE */}
-      <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]  shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
-
+      <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_100px_rgba(131,72,193,0.3),0_8px_25px_rgba(0,0,0,0.4)]">
          <div className="rounded-[28px] bg-[#050506] overflow-hidden">
 
            {/* HEADER */}
