@@ -198,7 +198,6 @@ export default function SettingsPage() {
                       background: "#050508",
                       padding: "28px 24px",
                       minHeight: 520,
-                      boxShadow: plan.highlighted ? "0 0 40px rgba(131,72,193,0.15)" : "none",
                     }}
                   >
                     <p style={{ fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.25em", color: "rgba(255,255,255,0.4)", marginBottom: 16 }}>{plan.name}</p>
@@ -248,14 +247,6 @@ export default function SettingsPage() {
               padding: "32px 28px",
               overflow: "hidden",
             }}>
-              <div style={{
-                position: "absolute",
-                inset: "auto -140px -220px -140px",
-                height: 360,
-                background: "radial-gradient(closest-side, rgba(131,72,193,0.35), rgba(131,72,193,0) 70%)",
-                filter: "blur(8px)",
-                pointerEvents: "none",
-              }} />
               <div style={{ position: "absolute", right: 28, top: 26, zIndex: 2 }}>
                 <button type="button" style={{
                   display: "flex", alignItems: "center", gap: 8,
@@ -509,7 +500,6 @@ export default function SettingsPage() {
           </div>
         ))}
 
-       {/* Мова */}
 <div style={{ 
   display: "flex", 
   alignItems: "center", 
@@ -546,7 +536,6 @@ export default function SettingsPage() {
   </div>
 </div>
 
-{/* Валюта */}
 <div style={{ 
   display: "flex", 
   alignItems: "center", 
