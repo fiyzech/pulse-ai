@@ -9,6 +9,10 @@ import laptopImg from '../../assets/images/laptop.svg';
 import whyCryptoPic from '../../assets/images/why-crupto-pic.svg';
 import firstGradPic from '../../assets/images/first-grad-pic.svg';
 import secondGradPic from '../../assets/images/second-grad-pic.svg';
+import lastPhoto from '../../assets/images/lastPhoto.svg';
+import sixthGridPic from '../../assets/images/sixth-grid-pic.svg';
+import seventhGridPic from '../../assets/images/seventh-grid-pic.svg';
+import eighthGridPic from '../../assets/images/eighth-grid-pic.svg';
 
 // Імпорт фону для тарифу Pro
 import bgForPro from '../../assets/images/bg-for-pro.svg';
@@ -153,36 +157,41 @@ const FaqItem: React.FC<{ question: string; answer?: string }> = ({ question, an
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div 
-      className={`mb-4 rounded-[16px] border border-[#2C1969] transition-all duration-300 overflow-hidden relative group transform-gpu ${
-        isOpen 
-          ? 'bg-[linear-gradient(180deg,#FFFFFF_-200%,#000008_38%,#000008_72%,#FFFFFF_200%)]' 
-          : 'bg-[#000008] hover:bg-[#05050A]'
-      }`}
-    >
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex justify-between items-center text-left transition-all duration-300 relative z-10 px-8 py-5 ${isOpen ? 'pb-4' : 'pb-5'}`}
-      >
-        <span className="font-montserrat font-medium text-[18px] text-white">
-          {question}
-        </span>
-        <svg 
-          width="20" height="20" viewBox="0 0 24 24" fill="none" 
-          className={`transition-transform duration-300 group-hover:scale-110 ${isOpen ? 'rotate-180' : ''}`}
-        >
-          <path d="M6 9L12 15L18 9" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
-
-      {/* Плавне відкриття */}
+    /* Зовнішній div = рамка + градієнт */
+    <div className="mb-4 p-[1px] rounded-[16px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] transition-all duration-300 transform-gpu group">
+      
+      
       <div 
-        className={`overflow-hidden transition-all duration-300 ease-in-out relative z-10 ${
-          isOpen ? 'max-h-[500px] opacity-100 pb-10' : 'max-h-0 opacity-0 pb-0'
+        className={`relative h-full rounded-[15px] transition-all duration-300 overflow-hidden shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] ${
+          isOpen 
+            ? 'bg-[linear-gradient(180deg,#FFFFFF_-200%,#000008_38%,#000008_72%,#FFFFFF_200%)]' 
+            : 'bg-[#000008] hover:bg-[#05050A]'
         }`}
       >
-        <div className="px-8 font-montserrat font-light text-[14px] leading-[22px] text-white/70 pt-1">
-          {answer}
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className={`w-full flex justify-between items-center text-left transition-all duration-300 relative z-10 px-8 py-5 ${isOpen ? 'pb-4' : 'pb-5'}`}
+        >
+          <span className="font-montserrat font-medium text-[18px] text-white">
+            {question}
+          </span>
+          <svg 
+            width="20" height="20" viewBox="0 0 24 24" fill="none" 
+            className={`transition-transform duration-300 group-hover:scale-110 ${isOpen ? 'rotate-180' : ''}`}
+          >
+            <path d="M6 9L12 15L18 9" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+
+        {/* Плавне відкриття */}
+        <div 
+          className={`overflow-hidden transition-all duration-300 ease-in-out relative z-10 ${
+            isOpen ? 'max-h-[500px] opacity-100 pb-10' : 'max-h-0 opacity-0 pb-0'
+          }`}
+        >
+          <div className="px-8 font-montserrat font-light text-[14px] leading-[22px] text-white/70 pt-1">
+            {answer}
+          </div>
         </div>
       </div>
     </div>
@@ -317,9 +326,9 @@ const LandingPage: React.FC = () => {
             Усі сповіщення миттєво надходять через Telegram-бота.
           </p>
 
-          <button
+         <button
             onClick={() => navigate('/dashboard')}
-            className="px-[34px] py-[11px] rounded-full tracking-wide font-montserrat font-medium text-[18px] text-white bg-gradient-to-r from-[#3D1B7C] to-[#B783FF] transition-all hover:scale-[1.02] hover:shadow-[0_0_25px_rgba(183,131,255,0.4)]"
+            className="px-[34px] py-[11px] rounded-full tracking-wide font-montserrat font-medium text-[18px] text-white flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_25px_rgba(195,139,255,0.4)]"
           >
             Почати відстеження
           </button>
@@ -544,7 +553,7 @@ const LandingPage: React.FC = () => {
         <img 
           src={thirdGradPic} 
           alt="Background glow left" 
-          className="absolute top-[-12%] left-[0%] w-[600px] md:w-[500px] h-[70%] object-cover pointer-events-none -z-10 opacity-80 mix-blend-screen" 
+          className="absolute top-[-20%] left-[0%] w-[600px] md:w-[500px] h-[70%] object-cover pointer-events-none -z-10 opacity-80 mix-blend-screen" 
         />
 
         <div className="inline-flex p-[1px] rounded-[16px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] via-[52%] to-[#FFFFFF] mb-8 shadow-[0_0_15px_rgba(131,72,193,0.1)]">
@@ -709,7 +718,8 @@ const LandingPage: React.FC = () => {
                 ))}
               </ul>
               
-              <button className="w-full h-[48px] mt-auto rounded-[28px] font-montserrat font-medium text-[14px] uppercase tracking-wider bg-gradient-to-r from-[#6B37C6] to-[#9B64E5] text-white hover:shadow-[0_0_20px_rgba(155,100,229,0.4)] transition-all active:scale-[0.98]">
+              
+              <button className="w-full h-[48px] mt-auto rounded-[28px] flex items-center justify-center font-montserrat font-medium text-[14px] uppercase tracking-wider bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white hover:shadow-[0_0_25px_rgba(131,72,193,0.5)] transition-all active:scale-[0.98]">
                 ПОЧАТИ ЗАРАЗ
               </button>
             </div>
@@ -761,12 +771,25 @@ const LandingPage: React.FC = () => {
 
         </div>
       </section>
+{/* 8. CЛІДКУЙТЕ ЗА РИНКОМ */}
+      <section className="pt-24 pb-10 px-6 md:px-10 flex flex-col items-center justify-center text-center relative z-20 overflow-hidden transform-gpu w-full">
+        
+        {/* ГРАДІЄНТ ЗЛІВА (Картинка sixth-grid-pic) */}
+        <img 
+          src={sixthGridPic} 
+          alt="Background glow left" 
+          className="absolute top-[-80px] left-[-100px] md:left-[3px] w-[578px] h-[850px] object-cover pointer-events-none -z-10 opacity-100 mix-blend-screen rotate-[-360deg]" 
+        />
 
-      {/* 8. CЛІДКУЙТЕ ЗА РИНКОМ */}
-      <section className="py-24 px-6 md:px-10 flex flex-col items-center justify-center text-center relative z-20 overflow-hidden transform-gpu">
-        {/* Фонове світіння залишаємо для акценту */}
+        {/* НОВИЙ ГРАДІЄНТ СПРАВА (Картинка seventh-grid-pic) */}
+        <img 
+          src={seventhGridPic} 
+          alt="Background glow right" 
+          className="absolute top-[-78px] right-[-100px] md:right-[3px] w-[500px] h-[850px] object-cover pointer-events-none -z-10 opacity-100 mix-blend-screen" 
+        />
        
-        <div className="relative z-10 flex flex-col items-center w-full max-w-[624px]">
+        {/* Текстовий блок і кнопка */}
+        <div className="relative z-10 flex flex-col items-center w-full max-w-[624px] mb-[64px]">
           <h2 className="font-montserrat font-medium text-[36px] md:text-[44px] leading-[46px] md:leading-[56px] text-white mb-6">
             Слідкуйте за ринком<br />без зайвих зусиль
           </h2>
@@ -777,15 +800,26 @@ const LandingPage: React.FC = () => {
           
           <button
             onClick={() => navigate('/dashboard')}
-            className="px-[40px] py-[14px] rounded-full font-montserrat font-medium text-[16px] text-white bg-gradient-to-r from-[#4A269C] to-[#9C65E8] transition-all hover:scale-[1.03] hover:shadow-[0_0_30px_rgba(156,101,232,0.4)] active:scale-[0.98]"
+            className="px-[34px] py-[11px] rounded-full tracking-wide font-montserrat font-medium text-[18px] text-white flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_25px_rgba(195,139,255,0.4)]"
           >
             Почати відстеження
           </button>
         </div>
+
+       {/* КАРТИНКА (Дашборд) */}
+        <div className="relative z-10 w-full max-w-[1062px] mx-auto flex justify-center px-4 md:px-0 mt-[28px]"> 
+          <img 
+            src={lastPhoto} 
+            alt="CryptoPulse Interface" 
+            className="w-full h-auto lg:h-[532px] object-contain object-top drop-shadow-[0_0_40px_rgba(131,72,193,0.15)]"
+          />
+        </div>
+                <div className="absolute top-233 left-0 w-full h-[1px] bg-[linear-gradient(90deg,#000000_0%,#8348C1_48%,#2C1969_100%)]"></div>
+
       </section>
 
       {/* 9. FAQ */}
-      <section id="faq" className="py-24 px-6 lg:px-[80px] relative z-20 bg-[#000008] transform-gpu">
+      <section id="faq" className="pt-1 pb-28 px-6 lg:px-[80px] relative z-20 bg-[#000008] transform-gpu">
         <div className="max-w-[1440px] mx-auto flex flex-col lg:flex-row gap-12 lg:gap-50">
           
           {/* Ліва частина: Заголовок та Бадж */}
@@ -807,6 +841,12 @@ const LandingPage: React.FC = () => {
               Поширені запитання
             </h2>
           </div>
+
+           <img 
+          src={eighthGridPic} 
+          alt="Background glow left" 
+          className="absolute top-[-50px] left-[-100px] md:left-[3px] w-[378px] h-[567px] object-cover pointer-events-none -z-10 opacity-70 mix-blend-screen rotate-[-360deg]" 
+        />
 
           {/* Права частина: Акордеон */}
           <div className="lg:flex-1 max-w-[624px] w-full">
