@@ -28,7 +28,11 @@ export default function ProfilePage() {
     <div className="h-screen bg-[#050505] text-white w-full">
       <div style={{ padding: '24px 40px 36px' }}>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {/* USER */}
+        <section className="flex flex-col gap-[24px]">
+          <h2 className="text-[24px] leading-[28px] font-semibold text-white">
+            Користувач
+          </h2>
 
           {/* Користувач */}
           <section>
@@ -203,7 +207,19 @@ export default function ProfilePage() {
   </button>
 </div>
 
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path
+                  d="M8.333 9.167V14.167M11.667 9.167V14.167M3.333 5.833H16.667M7.5 5.833V4.167C7.5 3.706 7.873 3.333 8.333 3.333H11.667C12.127 3.333 12.5 3.706 12.5 4.167V5.833M15.833 5.833L15.111 15.944C15.052 16.766 14.368 17.5 13.544 17.5H6.456C5.632 17.5 4.948 16.766 4.889 15.944L4.167 5.833"
+                  stroke="#FF0000"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
+
       </div>
     </div>
   );
