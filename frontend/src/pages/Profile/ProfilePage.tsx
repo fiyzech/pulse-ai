@@ -29,10 +29,6 @@ export default function ProfilePage() {
       <div style={{ padding: '24px 40px 36px' }}>
 
         {/* USER */}
-        <section className="flex flex-col gap-[24px]">
-          <h2 className="text-[24px] leading-[28px] font-semibold text-white">
-            Користувач
-          </h2>
 
           {/* Користувач */}
           <section>
@@ -109,8 +105,7 @@ export default function ProfilePage() {
                     { label: 'Прізвище', value: 'Миронов' },
                     { label: 'Телефон', value: '(+380) 98 962 77 13' },
                     { label: 'Регіон', value: 'Україна' },
-                  ].
-                  map(({ label, value }) => (
+                  ].map(({ label, value }) => (
                     <div key={label}>
                       <p style={{ fontSize: '14px', color: '#A3A4B0', marginBottom: '5px' }}>
                         {label}
@@ -154,71 +149,52 @@ export default function ProfilePage() {
             </div>
           </section>
 
-          {/* КНОПКА */}
-<div style={{ marginTop: '40px' }}>
-  <button
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '8px',
+          {/* КНОПКА ВИДАЛЕННЯ */}
+          <div style={{ marginTop: '40px' }}>
+            <button
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                width: '201px',
+                height: '44px',
+                borderRadius: '28px',
+                border: '1px solid transparent',
+                background:
+                  'linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%) border-box',
+                color: '#FF0000',
+                fontSize: '14px',
+                lineHeight: '20px',
+                fontWeight: 400,
+                boxShadow:
+                  '0 20px 70px rgba(131,72,193,0.10), 0 8px 25px rgba(0,0,0,0.35)',
+                cursor: 'pointer',
+              }}
+            >
+              <span
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  lineHeight: '20px',
+                }}
+              >
+                Видалити акаунт
+              </span>
 
-      width: '201px',
-      height: '44px',
-
-      borderRadius: '28px',
-      border: '1px solid transparent',
-
-      background:
-        'linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%) border-box',
-
-      color: '#FF0000',
-      fontSize: '14px',
-      lineHeight: '20px',
-      fontWeight: 400,
-
-      boxShadow:
-        '0 20px 70px rgba(131,72,193,0.10), 0 8px 25px rgba(0,0,0,0.35)',
-
-      cursor: 'pointer',
-    }}
-  >
-    <span
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        lineHeight: '20px',
-      }}
-    >
-      Видалити акаунт
-    </span>
-
-    <img
-      src={trashredIcon}
-      alt="delete"
-      style={{
-        width: '20px',
-        height: '20px',
-        display: 'block',
-        position: 'relative',
-        top: '1px', // 🔥 головний фікс вирівнювання
-      }}
-    />
-  </button>
-</div>
-
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path
-                  d="M8.333 9.167V14.167M11.667 9.167V14.167M3.333 5.833H16.667M7.5 5.833V4.167C7.5 3.706 7.873 3.333 8.333 3.333H11.667C12.127 3.333 12.5 3.706 12.5 4.167V5.833M15.833 5.833L15.111 15.944C15.052 16.766 14.368 17.5 13.544 17.5H6.456C5.632 17.5 4.948 16.766 4.889 15.944L4.167 5.833"
-                  stroke="#FF0000"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <img
+                src={trashredIcon}
+                alt="delete"
+                style={{
+                  width: '20px',
+                  height: '20px',
+                  display: 'block',
+                  position: 'relative',
+                  top: '1px', // 🔥 головний фікс вирівнювання
+                }}
+              />
             </button>
           </div>
-        </div>
 
       </div>
     </div>
