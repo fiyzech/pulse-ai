@@ -112,7 +112,7 @@ export default function Sidebar() {
 
         {/* PulseAI блок */}
         <NavLink
-          to="/pulse-ai"
+          to="/settings"
           className="block w-full cursor-pointer transition-transform hover:scale-[1.02] active:scale-95"
         >
           <img src={pulseAiIcon} alt="Активуйте PulseAI" className="w-full h-auto object-contain" />
