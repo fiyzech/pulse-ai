@@ -533,7 +533,10 @@ export default function AssetPage({
 
             {/* Кнопка */}
             <div className="flex flex-col gap-3 mt-auto">
-              <button className="w-full h-[44px] rounded-[28px] font-montserrat font-medium text-[14px] text-[#FFF9F9] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] shadow-[0_4px_15px_rgba(131,72,193,0.3)] hover:scale-[1.02] transition-transform">
+              <button 
+                onClick={() => window.open('https://cryptomisha-ai-agent-c2fa3q367soa93m2cjyfrw.streamlit.app/', '_blank', 'noopener,noreferrer')}
+                className="w-full h-[44px] rounded-[28px] font-montserrat font-medium text-[14px] text-[#FFF9F9] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] shadow-[0_4px_15px_rgba(131,72,193,0.3)] hover:scale-[1.02] transition-transform"
+              >
                 Запитати AI
               </button>
               <p className="text-[10px] font-medium text-[#8E8E8E] text-center font-montserrat">
