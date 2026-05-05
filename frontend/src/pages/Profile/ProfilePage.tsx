@@ -85,9 +85,8 @@ export default function ProfilePage() {
             </div>
           </section>
 
-          {/* Персональна інформація */}
           <section>
-            <h2 style={{ fontSize: '24px', fontWeight: 600, marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '24px', fontWeight: 600, marginBottom: '24px', marginTop: '24px'}}>
               Персональна інформація
             </h2>
 
@@ -120,7 +119,7 @@ export default function ProfilePage() {
 
           {/* Безпека */}
           <section>
-            <h2 style={{ fontSize: '24px', fontWeight: 600, marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '24px', fontWeight: 600, marginBottom: '24px', marginTop: '24px' }}>
               Безпека
             </h2>
 
