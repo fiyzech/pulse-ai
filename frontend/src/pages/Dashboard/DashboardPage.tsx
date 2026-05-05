@@ -72,11 +72,16 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[261px_261px_261px_261px] relative z-0">
           {coins.map((coin) => (
             <div key={coin.symbol} className="h-[305px] w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.4),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-1">
-              <div className="relative h-full w-full cursor-pointer rounded-[28px] bg-[#050506] transition-all overflow-hidden">
-                <button onClick={() => navigate(coin.path)} className="absolute right-6 top-6 h-[40px] w-[40px] transition-all duration-300 hover:scale-110 group">
-                  <div className="absolute inset-0 rounded-full bg-[#7c3aed]/40 blur-md opacity-0 group-hover:opacity-100 transition-all" />
+              {/* ДОДАНО onClick СЮДИ і group/card для анімації стрілочки */}
+              <div 
+                onClick={() => navigate(coin.path)} 
+                className="relative h-full w-full cursor-pointer rounded-[28px] bg-[#050506] transition-all overflow-hidden group/card"
+              >
+                {/* Замінили button на div, бо вся картка тепер кнопка */}
+                <div className="absolute right-6 top-6 h-[40px] w-[40px] transition-all duration-300 group-hover/card:scale-110">
+                  <div className="absolute inset-0 rounded-full bg-[#7c3aed]/40 blur-md opacity-0 group-hover/card:opacity-100 transition-all" />
                   <img src="/buttom.svg" alt="open" className="relative z-10 h-[40px] w-[40px]" />
-                </button>
+                </div>
                 <div className="flex items-center gap-3 pt-6 pl-6">
                   <img src={coin.icon} alt={coin.name} className="h-[40px] w-[40px]" />
                   <div>
