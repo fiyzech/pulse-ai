@@ -10,10 +10,6 @@ export default function ProfilePage() {
       <div className="flex flex-col gap-[24px] h-full">
 
         {/* USER */}
-        <section className="flex flex-col gap-[24px]">
-          <h2 className="text-[24px] leading-[28px] font-semibold text-white">
-            Користувач
-          </h2>
 
           <div className={cardWrapper}>
             <div className="relative flex items-center justify-between h-[108px] p-[24px] rounded-[28px] bg-[#050506] overflow-hidden">
@@ -52,11 +48,10 @@ export default function ProfilePage() {
           </div>
         </section>
 
-        {/* PERSONAL INFO */}
-        <section className="flex flex-col gap-[24px]">
-          <h2 className="text-[24px] leading-[28px] font-semibold text-white">
-            Персональна інформація
-          </h2>
+          <section>
+            <h2 style={{ fontSize: '24px', fontWeight: 600, marginBottom: '24px', marginTop: '24px'}}>
+              Персональна інформація
+            </h2>
 
           <div className={cardWrapper}>
             <div className="relative h-[160px] pt-[24px] pb-[24px] pl-[24px] rounded-[28px] bg-[#050506] overflow-hidden">
@@ -67,70 +62,33 @@ export default function ProfilePage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-[160px_230px_200px] gap-x-[96px] gap-y-[24px]">
-                 <div>
-                   <p className="text-[#A3A4B0] text-[14px] leading-[20px] font-normal mb-[4px]">
-                     Ім'я
-                   </p>
-                   <p className="text-white text-[14px] leading-[20px] font-normal">
-                     Олександр
-                   </p>
-                 </div>
-
-                 <div>
-                   <p className="text-[#A3A4B0] text-[14px] leading-[20px] font-normal mb-[4px]">
-                     E-mail
-                   </p>
-                   <p className="text-white text-[14px] leading-[20px] font-normal">
-                     alexmironov@gmail.com
-                   </p>
-                 </div>
-
-                 <div>
-                   <p className="text-[#A3A4B0] text-[14px] leading-[20px] font-normal mb-[4px]">
-                     День народження
-                   </p>
-                   <p className="text-white text-[14px] leading-[20px] font-normal">
-                     07.05.2007
-                   </p>
-                 </div>
-
-                 <div>
-                   <p className="text-[#A3A4B0] text-[14px] leading-[20px] font-normal mb-[4px]">
-                     Прізвище
-                   </p>
-                   <p className="text-white text-[14px] leading-[20px] font-normal">
-                     Миронов
-                   </p>
-                 </div>
-
-                 <div>
-                   <p className="text-[#A3A4B0] text-[14px] leading-[20px] font-normal mb-[4px]">
-                     Телефон
-                   </p>
-                   <p className="text-white text-[14px] leading-[20px] font-normal">
-                     (+380) 98 962 77 13
-                   </p>
-                 </div>
-
-                 <div>
-                   <p className="text-[#A3A4B0] text-[14px] leading-[20px] font-normal mb-[4px]">
-                     Регіон
-                   </p>
-                   <p className="text-white text-[14px] leading-[20px] font-normal">
-                     Україна
-                   </p>
-                 </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '200px 200px 300px', gap: '24px' }}>
+                  {[
+                    { label: "Ім'я", value: 'Олександр' },
+                    { label: 'E-mail', value: 'alexmironov@gmail.com' },
+                    { label: 'День народження', value: '07.05.2007' },
+                    { label: 'Прізвище', value: 'Миронов' },
+                    { label: 'Телефон', value: '(+380) 98 962 77 13' },
+                    { label: 'Регіон', value: 'Україна' },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <p style={{ fontSize: '14px', color: '#A3A4B0', marginBottom: '5px' }}>
+                        {label}
+                      </p>
+                      <p style={{ fontSize: '14px' }}>{value}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* SECURITY */}
-        <section className="flex flex-col gap-[24px]">
-          <h2 className="text-[24px] leading-[28px] font-semibold text-white">
-            Безпека
-          </h2>
+          {/* Безпека */}
+          <section>
+            <h2 style={{ fontSize: '24px', fontWeight: 600, marginBottom: '24px', marginTop: '24px' }}>
+              Безпека
+            </h2>
 
           <div className={cardWrapper}>
             <div className="relative h-[160px] p-[24px] rounded-[28px] bg-[#050506] overflow-hidden">
@@ -199,7 +157,6 @@ export default function ProfilePage() {
               </svg>
             </button>
           </div>
-        </div>
 
       </div>
     </div>
