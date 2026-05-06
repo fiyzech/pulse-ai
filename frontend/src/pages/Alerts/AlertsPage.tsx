@@ -14,7 +14,7 @@ export default function AlertsPage() {
         </p>
 
         <button className="min-w-[165px] h-[44px] px-6 rounded-full flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium transition-transform  duration-300 ease-out hover:scale-105 active:scale-[0.98]">
-         Створити алерт
+         Як створити алерт?
         </button>
       </div>
 
@@ -59,11 +59,12 @@ export default function AlertsPage() {
       </div>
 
       {/* TABLE */}
-      <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_100px_rgba(131,72,193,0.3),0_8px_25px_rgba(0,0,0,0.4)]">
+      <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
          <div className="rounded-[28px] bg-[#050506] overflow-hidden">
 
            {/* HEADER */}
-           <div className="flex items-center px-[24px] py-4 text-[#A3A4B0] text-[14px] font-normal border-b border-white/10 bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)]">
+           <div className="relative flex items-center px-[24px] py-4 text-[#A3A4B0] text-[14px] font-normal bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)]">
+            <div className="absolute bottom-0 left-0 w-full h-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))]" />
              <div className="w-[55px]">
                <span>Валюта</span>
             </div>
@@ -132,13 +133,13 @@ export default function AlertsPage() {
            {/* Дії */}
            <div className="ml-[107px] flex gap-[16px]">
              <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center">
+               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center cursor-pointer transition-all duration-300 ease-out hover:scale-110 hover:bg-[#111111] active:scale-95">
                  <img src={editIcon} className="h-4 w-4" />
                </button>
              </div>
     
              <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center">
+               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center cursor-pointer transition-all duration-300 ease-out hover:scale-110 hover:bg-red-500/50 active:scale-95">
                  <img src={trashIcon} className="h-4 w-4" />
                </button>
              </div>
@@ -193,13 +194,13 @@ export default function AlertsPage() {
            {/* Дії */}
            <div className="ml-[107px] flex gap-[16px]">
              <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center">
+               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center cursor-pointer transition-all duration-300 ease-out hover:scale-110 hover:bg-[#111111] active:scale-95">
                  <img src={editIcon} className="h-4 w-4" />
                </button>
              </div>
     
              <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center">
+               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center cursor-pointer transition-all duration-300 ease-out hover:scale-110 hover:bg-red-500/50 active:scale-95">
                  <img src={trashIcon} className="h-4 w-4" />
                </button>
              </div>
@@ -254,13 +255,13 @@ export default function AlertsPage() {
            {/* Дії */}
            <div className="ml-[107px] flex gap-[16px]">
              <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center">
+               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center cursor-pointer transition-all duration-300 ease-out hover:scale-110 hover:bg-[#111111] active:scale-95">
                  <img src={editIcon} className="h-4 w-4" />
                </button>
              </div>
     
              <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center">
+               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center cursor-pointer transition-all duration-300 ease-out hover:scale-110 hover:bg-red-500/50 active:scale-95">
                  <img src={trashIcon} className="h-4 w-4" />
                </button>
              </div>
