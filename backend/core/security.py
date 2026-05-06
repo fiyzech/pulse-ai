@@ -1,6 +1,8 @@
 import bcrypt
 from authx import AuthX, AuthXConfig
 
+from config import JWT_A_Cookie_Name, JWT_CSRF_Pr,  JWT_S_Key, JWT_T_Loc
+
 
 def get_password_hash(password: str) -> str:
     # Перетворюємо рядок у байти
@@ -21,9 +23,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(password_bytes, hashed_password_bytes)
 
 configx = AuthXConfig()
-configx.JWT_SECRET_KEY = "sinety88_super_secret_key_for_cinema_api_123"
-configx.JWT_ACCESS_COOKIE_NAME = "my_access_token"
-configx.JWT_TOKEN_LOCATION = ["cookies", "headers"]
-configx.JWT_COOKIE_CSRF_PROTECT = False
+configx.JWT_SECRET_KEY = JWT_S_Key
+configx.JWT_ACCESS_COOKIE_NAME = JWT_A_Cookie_Name
+configx.JWT_TOKEN_LOCATION = JWT_T_Loc
+configx.JWT_COOKIE_CSRF_PROTECT = JWT_CSRF_Pr
 
 security = AuthX(config=configx)
