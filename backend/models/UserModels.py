@@ -20,7 +20,7 @@ class User_Model(Base):
 
     username: Mapped[str] = mapped_column(String(50), unique=True, nullable=True, index=True)
     subscription: Mapped[SubscriptionTier] = mapped_column(
-        SAEnum(SubscriptionTier, native_enum=False, lenght=20),
+        SAEnum(SubscriptionTier, native_enum=False, length=20),
         default=SubscriptionTier.FREE,
         server_default='free'
     )
