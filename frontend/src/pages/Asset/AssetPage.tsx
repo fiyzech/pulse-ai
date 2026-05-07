@@ -1,32 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
+import { useLocation, useParams } from 'react-router-dom';
 import { createChart, ColorType, CrosshairMode, AreaSeries, CandlestickSeries } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, Time } from 'lightweight-charts';
 
-// Мапінг тикерів Binance на ID для CoinGecko
 const COINGECKO_IDS: Record<string, string> = {
-  'BTC': 'bitcoin',
-  'ETH': 'ethereum',
-  'SOL': 'solana',
-  'BNB': 'binancecoin',
-  'XRP': 'ripple',
-  'ADA': 'cardano',
-  'AVAX': 'avalanche-2',
-  'DOGE': 'dogecoin',
-  'DOT': 'polkadot',
-  'MATIC': 'matic-network',
+  'BTC': 'bitcoin', 'ETH': 'ethereum', 'SOL': 'solana', 'BNB': 'binancecoin',
+  'XRP': 'ripple', 'ADA': 'cardano', 'AVAX': 'avalanche-2', 'DOGE': 'dogecoin',
+  'DOT': 'polkadot', 'MATIC': 'matic-network',
 };
 
-// Функції для красивого форматування великих чисел
 const formatCurrency = (value: number) => {
-  if (!value) return '---';
+  if (!value || value === 0) return '---';
   if (value >= 1e12) return (value / 1e12).toFixed(2) + ' T USD';
   if (value >= 1e9) return (value / 1e9).toFixed(2) + ' B USD';
   if (value >= 1e6) return (value / 1e6).toFixed(2) + ' M USD';
   return value.toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' USD';
 };
 
-const formatSupply = (value: number) => {
-  if (!value) return '∞';
+const formatSupply = (value: number, isMax: boolean = false) => {
+  if (isMax && (!value || value === 0)) return 'Необмежено'; 
+  if (!value || value === 0) return '---';
   if (value >= 1e9) return (value / 1e9).toFixed(2) + ' B';
   if (value >= 1e6) return (value / 1e6).toFixed(2) + ' M';
   return value.toLocaleString('en-US', { maximumFractionDigits: 0 });
@@ -39,12 +32,20 @@ interface AssetPageProps {
   coinIcon?: string;   
 }
 
-export default function AssetPage({
-  coinSymbol = 'BTCUSDT',
-  coinName = 'Bitcoin',
-  coinShort = 'BTC',
-  coinIcon = '/Bitcoin.svg',
-}: AssetPageProps) {
+export default function AssetPage(props: AssetPageProps) {
+  const location = useLocation();
+  const { id } = useParams<{ id: string }>();
+  const passedCoin = location.state?.coin;
+
+  const coinShort = passedCoin?.symbol || props.coinShort || 'BTC';
+  const coinSymbol = `${coinShort}USDT`; 
+  
+  const coinName = passedCoin?.id 
+    ? passedCoin.id.charAt(0).toUpperCase() + passedCoin.id.slice(1).replace(/-/g, ' ') 
+    : props.coinName || 'Bitcoin';
+    
+  const coinIcon = passedCoin?.imgUrl || props.coinIcon || '/Bitcoin.svg';
+  const cgId = passedCoin?.id || id || COINGECKO_IDS[coinShort] || 'bitcoin';
   
   const [timeframe, setTimeframe] = useState('15 хв');
   const [chartType, setChartType] = useState<'area' | 'candle'>('area');
@@ -52,24 +53,20 @@ export default function AssetPage({
   const [currentPrice, setCurrentPrice] = useState<number>(0);
   const [priceColor, setPriceColor] = useState<string>('text-white');
   const [priceChange, setPriceChange] = useState({ value: 0, percent: 0, isPositive: true });
+  
   const [isLoading, setIsLoading] = useState(true);
+  const [isBinanceAvailable, setIsBinanceAvailable] = useState(true); 
 
-  // Стан для статистики Binance (24 год)
   const [stats, setStats] = useState({
-    priceChange1h: 0,
-    priceChange24h: 0,
-    high24h: 0,
-    low24h: 0,
-    volume24h: 0,
+    priceChange1h: 0, priceChange24h: 0, high24h: 0, low24h: 0, volume24h: 0,
   });
 
-  // Стан для фундаментальних даних з CoinGecko
   const [fundamentals, setFundamentals] = useState({
-    ath: 0,
-    mcap: 0,
-    circSupply: 0,
-    maxSupply: 0,
-    totalSupply: 0,
+    ath: passedCoin?.rawAth || 0,
+    mcap: passedCoin?.rawMcap || 0,
+    circSupply: passedCoin?.rawCircSupply || 0,
+    maxSupply: passedCoin?.rawMaxSupply || 0,
+    totalSupply: passedCoin?.rawTotalSupply || 0,
   });
   
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -77,7 +74,6 @@ export default function AssetPage({
   const seriesRef = useRef<ISeriesApi<"Area"> | ISeriesApi<"Candlestick"> | null>(null);
   const prevPriceRef = useRef<number>(0);
 
-  // 1. ІНІЦІАЛІЗАЦІЯ ГРАФІКА
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
@@ -94,58 +90,76 @@ export default function AssetPage({
     return () => chart.remove();
   }, []);
 
-  // 2. ЗАВАНТАЖЕННЯ ДАНИХ (BINANCE СТАТИСТИКА + COINGECKO ФУНДАМЕНТАЛ)
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const tickerRes = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${coinSymbol}`);
-        const tickerData = await tickerRes.json();
+        if (!passedCoin?.rawMcap) {
+          const cacheKey = `pulse_cg_${cgId}`;
+          const cachedData = sessionStorage.getItem(cacheKey);
+          const cachedTime = sessionStorage.getItem(`${cacheKey}_time`);
 
-        const kline1hRes = await fetch(`https://api.binance.com/api/v3/klines?symbol=${coinSymbol}&interval=1h&limit=2`);
-        const kline1hData = await kline1hRes.json();
-        
-        let change1h = 0;
-        if (kline1hData.length >= 2) {
-          const open1h = parseFloat(kline1hData[1][1]);
-          const current = parseFloat(kline1hData[1][4]);
-          change1h = ((current - open1h) / open1h) * 100;
+          if (cachedData && cachedTime && Date.now() - Number(cachedTime) < 120000) {
+            const coinData = JSON.parse(cachedData);
+            setFundamentals({
+              ath: coinData.ath, mcap: coinData.market_cap, circSupply: coinData.circulating_supply,
+              maxSupply: coinData.max_supply, totalSupply: coinData.total_supply,
+            });
+          } else {
+            const cgRes = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${cgId}`);
+            if(cgRes.ok) {
+              const cgData = await cgRes.json();
+              if (cgData && cgData.length > 0) {
+                const coinData = cgData[0];
+                setFundamentals({
+                  ath: coinData.ath, mcap: coinData.market_cap, circSupply: coinData.circulating_supply,
+                  maxSupply: coinData.max_supply, totalSupply: coinData.total_supply,
+                });
+                sessionStorage.setItem(cacheKey, JSON.stringify(coinData));
+                sessionStorage.setItem(`${cacheKey}_time`, Date.now().toString());
+              }
+            }
+          }
         }
 
-        setStats({
-          priceChange1h: change1h,
-          priceChange24h: parseFloat(tickerData.priceChangePercent),
-          high24h: parseFloat(tickerData.highPrice),
-          low24h: parseFloat(tickerData.lowPrice),
-          volume24h: parseFloat(tickerData.quoteVolume),
-        });
+        const tickerRes = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${coinSymbol}`);
+        if(tickerRes.ok) {
+          setIsBinanceAvailable(true);
+          const tickerData = await tickerRes.json();
+          const kline1hRes = await fetch(`https://api.binance.com/api/v3/klines?symbol=${coinSymbol}&interval=1h&limit=2`);
+          const kline1hData = await kline1hRes.json();
+          
+          let change1h = 0;
+          if (kline1hData.length >= 2) {
+            const open1h = parseFloat(kline1hData[1][1]);
+            const current = parseFloat(kline1hData[1][4]);
+            change1h = ((current - open1h) / open1h) * 100;
+          }
 
-        const cgId = COINGECKO_IDS[coinShort] || coinName.toLowerCase();
-        const cgRes = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${cgId}`);
-        const cgData = await cgRes.json();
-        
-        if (cgData && cgData.length > 0) {
-          const coinData = cgData[0];
-          setFundamentals({
-            ath: coinData.ath,
-            mcap: coinData.market_cap,
-            circSupply: coinData.circulating_supply,
-            maxSupply: coinData.max_supply,
-            totalSupply: coinData.total_supply,
+          setStats({
+            priceChange1h: change1h,
+            priceChange24h: parseFloat(tickerData.priceChangePercent),
+            high24h: parseFloat(tickerData.highPrice),
+            low24h: parseFloat(tickerData.lowPrice),
+            volume24h: parseFloat(tickerData.quoteVolume),
           });
+        } else {
+          setIsBinanceAvailable(false);
         }
       } catch (error) {
         console.error("Помилка завантаження статистики:", error);
       }
     };
     fetchStats();
-  }, [coinSymbol, coinShort, coinName]);
+  }, [coinSymbol, coinShort, cgId, passedCoin]);
 
-  // 3. ЗАВАНТАЖЕННЯ ДАНИХ ГРАФІКА (REST API BINANCE)
   useEffect(() => {
+    if (!isBinanceAvailable) {
+      setIsLoading(false);
+      return; 
+    }
+
     const fetchChartData = async () => {
       setIsLoading(true);
-      setCurrentPrice(0); 
-      
       try {
         const tfConfig: Record<string, { interval: string; limit: number }> = {
           '1 сек': { interval: '1s', limit: 200 }, '1 хв': { interval: '1m', limit: 200 }, '5 хв': { interval: '5m', limit: 200 },
@@ -159,6 +173,8 @@ export default function AssetPage({
         }
 
         const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${coinSymbol}&interval=${config.interval}&limit=${config.limit}`);
+        if(!res.ok) throw new Error("Binance API Error");
+        
         const data = await res.json() as (string | number)[][];
 
         if (chartRef.current) {
@@ -199,10 +215,11 @@ export default function AssetPage({
       }
     };
     fetchChartData();
-  }, [timeframe, chartType, coinSymbol]);
+  }, [timeframe, chartType, coinSymbol, isBinanceAvailable]);
 
-  // 4. WEBSOCKET (ЖИВІ ДАНІ BINANCE)
   useEffect(() => {
+    if (!isBinanceAvailable) return;
+
     const tfConfig: Record<string, string> = {
       '1 сек': '1s', '1 хв': '1m', '5 хв': '5m', '15 хв': '15m', '1 год': '1h', '4 год': '4h', '1 день': '1d', '1 тиж': '1w', '1 міс': '1M'
     };
@@ -230,53 +247,62 @@ export default function AssetPage({
       }
     };
     return () => ws.close();
-  }, [timeframe, chartType, coinSymbol]);
+  }, [timeframe, chartType, coinSymbol, isBinanceAvailable]);
   
-  // Розрахунок позиції повзунка для лінії 24h High/Low
   const highLowRange = stats.high24h - stats.low24h;
   const currentPositionPercent = highLowRange > 0 
     ? Math.max(0, Math.min(100, ((currentPrice - stats.low24h) / highLowRange) * 100)) 
     : 50;
 
-  // Вираховуємо відношення об'єму до капіталізації
   const volMcapRatio = (fundamentals.mcap > 0 && stats.volume24h > 0) 
     ? (stats.volume24h / fundamentals.mcap).toFixed(4) 
     : '---';
 
   return (
     <section className="w-full max-w-[1600px] mx-auto px-10 pt-7 pb-12 font-montserrat">
-      
-      {/* 
-        ГЛОБАЛЬНА СІТКА 
-        Тут я залишив items-start, щоб графік і віджет алертів вирівнювались по верхньому краю.
-      */}
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_261px] gap-[24px] items-start">
         
         {/* ЛІВА КОЛОНКА (Графік) */}
         <div className="w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
           <div className="relative w-full h-[438px] rounded-[27px] bg-[#050506] p-8 flex flex-col overflow-hidden">
             <div className="flex justify-between items-start relative z-20 flex-wrap gap-4">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <img src={coinIcon} alt={coinShort} className="w-[32px] h-[32px]" />
-                  <h2 className="text-[28px] font-semibold text-white">
-                    {coinName} <span className="text-white/50 text-[18px]">({coinShort})</span>
+              
+              <div className="flex-1 min-w-0 pr-4">
+                {/* === МАГІЯ КАСТОМНОЇ ПІДКАЗКИ (TOOLTIP) === */}
+                <div className="flex items-center gap-3 mb-2 w-full group relative">
+                  <img src={coinIcon} alt={coinShort} className="w-[32px] h-[32px] rounded-full shrink-0" />
+                  
+                  <h2 className="text-[28px] font-semibold text-white flex items-baseline gap-2 min-w-0 max-w-full cursor-default">
+                    <span className="truncate block">{coinName}</span>
+                    <span className="text-white/50 text-[18px] shrink-0">({coinShort})</span>
                   </h2>
+
+                  {/* Оця чорна стильна плашка з'являється моментально при наведенні */}
+                  <div className="absolute left-10 -bottom-9 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 bg-[#1A1A1D] border border-white/10 text-white text-[14px] py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap pointer-events-none">
+                    {coinName} ({coinShort})
+                  </div>
                 </div>
+
                 <div className="flex items-baseline gap-2">
                   <span className={`text-[36px] font-medium leading-none transition-colors duration-300 ${priceColor}`}>
-                    {currentPrice > 0 ? currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'Завантаження...'}
+                    {!isBinanceAvailable && currentPrice === 0 
+                      ? 'Дані відсутні' 
+                      : currentPrice > 0 
+                        ? currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 }) 
+                        : 'Завантаження...'}
                   </span>
                   <span className="text-[14px] text-white/50">USDT</span>
                 </div>
                 <div className="flex items-center gap-2 mt-2">
                   <span className={`text-[14px] font-medium ${priceChange.isPositive ? 'text-[#00E676]' : 'text-[#FF2E2E]'}`}>
-                    {priceChange.isPositive ? '+' : '-'}{priceChange.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({priceChange.percent.toFixed(2)}%) {priceChange.isPositive ? '↑' : '↓'}
+                    {isBinanceAvailable 
+                      ? `${priceChange.isPositive ? '+' : '-'}${priceChange.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} (${priceChange.percent.toFixed(2)}%) ${priceChange.isPositive ? '↑' : '↓'}`
+                      : '---'}
                   </span>
                 </div>
               </div>
 
-              <div className="flex flex-col items-end gap-4 mt-1">
+              <div className="flex flex-col items-end gap-4 mt-1 shrink-0">
                 <div className="flex gap-4 items-center">
                   <button onClick={() => setChartType('area')} className={`text-[14px] font-medium pb-1 transition-all duration-300 border-b-2 ${chartType === 'area' ? 'text-[#FFF9F9] border-[#8348C1]' : 'text-[#FFF9F9]/50 border-transparent hover:text-[#FFF9F9]'}`}>Лінія</button>
                   <button onClick={() => setChartType('candle')} className={`text-[14px] font-medium pb-1 transition-all duration-300 border-b-2 ${chartType === 'candle' ? 'text-[#FFF9F9] border-[#8348C1]' : 'text-[#FFF9F9]/50 border-transparent hover:text-[#FFF9F9]'}`}>Свічки</button>
@@ -289,11 +315,25 @@ export default function AssetPage({
               </div>
             </div>
 
-            {isLoading && (
+            {isLoading && isBinanceAvailable && (
               <div className="absolute inset-0 flex items-center justify-center bg-[#050506]/60 z-20 rounded-xl backdrop-blur-sm">
                 <div className="w-8 h-8 border-4 border-[#B57AFF] border-t-transparent rounded-full animate-spin"></div>
               </div>
             )}
+            
+            {!isBinanceAvailable && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#050506]/80 z-20 rounded-[27px] backdrop-blur-md border border-white/5">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255, 255, 255, 0.2)" strokeWidth="1.5" className="mb-4">
+                  <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" />
+                  <path d="M9 12H15" strokeLinecap="round" />
+                </svg>
+                <span className="text-white/60 font-medium text-[16px] text-center">
+                  Пара {coinSymbol} наразі не торгується на Binance
+                </span>
+                <span className="text-white/30 text-[13px] mt-2">Фундаментальні дані нижче оновлені з CoinGecko</span>
+              </div>
+            )}
+
             <div className="absolute bottom-[20px] left-4 right-[10px] h-[260px] z-10" ref={chartContainerRef} />
           </div>
         </div>
@@ -301,7 +341,6 @@ export default function AssetPage({
         {/* ПРАВА КОЛОНКА (Віджет 1: Створити алерт) */}
         <div className="w-full h-[438px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10)]">
           <div className="w-full h-full rounded-[27px] bg-[#050506] p-6 flex flex-col justify-between">
-            
             <div className="flex items-center gap-2 mb-4">
                 <img src="/logo-crypro-pulse.svg" alt="Logo" className="w-5 h-5 object-contain" />
                 <div className="text-[15.5px] tracking-wide font-montserrat">
@@ -309,7 +348,6 @@ export default function AssetPage({
                   <span className="font-semibold bg-gradient-to-r from-[#ceafef] to-[#9a64d4] bg-clip-text text-transparent">Pulse</span>
                 </div>
             </div>
-
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <h3 className="text-[16px] font-medium text-white font-montserrat">Створити алерт</h3>
@@ -317,7 +355,6 @@ export default function AssetPage({
               </div>
               <p className="text-[12px] font-light text-[#8E8E8E] mb-5 leading-relaxed font-montserrat">Створи алерт і не пропускай важливі зміни</p>
             </div>
-
             <div className="flex flex-col gap-4 flex-grow">
               <div>
                 <label className="text-[12px] font-light text-[#8E8E8E] mb-1.5 block font-montserrat">Умова</label>
@@ -333,7 +370,6 @@ export default function AssetPage({
                   </div>
                 </div>
               </div>
-
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="text-[12px] font-light text-[#8E8E8E] mb-1.5 block font-montserrat">Значення</label>
@@ -348,7 +384,6 @@ export default function AssetPage({
                       </div>
                   </div>
                 </div>
-
                 <div className="w-[87px] shrink-0">
                   <label className="text-[12px] font-light text-[#8E8E8E] mb-1.5 block font-montserrat">Період</label>
                   <div className="w-full h-[44px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
@@ -366,7 +401,6 @@ export default function AssetPage({
                 </div>
               </div>
             </div>
-
             <div className="mt-4">
                 <div className="flex items-center justify-between mb-4 px-1">
                   <span className="text-[13px] font-light text-[#8E8E8E] font-montserrat">Сповіщати щоразу</span>
@@ -380,27 +414,16 @@ export default function AssetPage({
             </div>
           </div>
         </div>
-
       </div>
 
-      {/* 
-        ДРУГИЙ РЯД (Основні дані + PulseAI) 
-        ТУТ ГОЛОВНЕ: flex items-end змушує обидва блоки притиснутись донизу, 
-        щоб їх нижні краї були на одному рівні.
-      */}
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_261px] gap-[24px] items-end mt-[24px]">
-
-        {/* 2. ОСНОВНІ ДАНІ (Висота 300px) */}
+        {/* ОСНОВНІ ДАНІ */}
         <div>
           <h3 className="text-[24px] font-semibold text-[#FFF9F9] mb-6">Основні дані</h3>
           <div className="w-full h-[300px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10)]">
             <div className="w-full h-full rounded-[27px] bg-[#050506] p-8 flex flex-col justify-between">
-              
               <h4 className="text-[20px] font-medium text-[#FFF9F9] mb-6 font-montserrat">Графік ефективності {coinName}</h4>
-              
               <div className="flex flex-col md:flex-row justify-between items-start gap-8 md:gap-4 flex-grow">
-                
-                {/* Column 1 */}
                 <div className="flex flex-col gap-[22px] w-full md:w-[280px] shrink-0">
                   <div className="flex justify-between items-center">
                     <span className="text-[14px] font-normal text-[#8E8E8E] font-montserrat">Макс. за весь час</span>
@@ -409,13 +432,13 @@ export default function AssetPage({
                   <div className="flex justify-between items-center">
                     <span className="text-[14px] font-normal text-[#8E8E8E] font-montserrat">Зміна ціни (1 год)</span>
                     <span className={`text-[14px] font-normal font-montserrat ${stats.priceChange1h >= 0 ? 'text-[#00E676]' : 'text-[#FF2E2E]'}`}>
-                      {stats.priceChange1h > 0 ? '+' : ''}{stats.priceChange1h !== 0 ? `${stats.priceChange1h.toFixed(2)}%` : '---'}
+                      {stats.priceChange1h !== 0 ? `${stats.priceChange1h > 0 ? '+' : ''}${stats.priceChange1h.toFixed(2)}%` : '---'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-[14px] font-normal text-[#8E8E8E] font-montserrat">Зміна ціни (24 год)</span>
                     <span className={`text-[14px] font-normal font-montserrat ${stats.priceChange24h >= 0 ? 'text-[#00E676]' : 'text-[#FF2E2E]'}`}>
-                        {stats.priceChange24h > 0 ? '+' : ''}{stats.priceChange24h !== 0 ? `${stats.priceChange24h.toFixed(2)}%` : '---'}
+                        {stats.priceChange24h !== 0 ? `${stats.priceChange24h > 0 ? '+' : ''}${stats.priceChange24h.toFixed(2)}%` : '---'}
                     </span>
                   </div>
                   <div className="pt-1">
@@ -436,11 +459,7 @@ export default function AssetPage({
                     </div>
                   </div>
                 </div>
-
-                {/* Divider 1 */}
                 <div className="hidden md:block w-[1px] h-[228px] bg-gradient-to-b from-[#522E8B] to-[#B3B3B3]/10 opacity-40"></div>
-
-                {/* Column 2 */}
                 <div className="flex flex-col gap-6 w-full md:w-auto">
                   <div>
                     <p className="text-[12px] font-medium text-[#8E8E8E] mb-1.5 font-montserrat">Ринкова капіталізація</p>
@@ -448,18 +467,14 @@ export default function AssetPage({
                   </div>
                   <div>
                     <p className="text-[12px] font-medium text-[#8E8E8E] mb-1.5 font-montserrat">Макс. пропозиція</p>
-                    <p className="text-[14px] font-medium text-[#FFF9F9] font-montserrat">{formatSupply(fundamentals.maxSupply)}</p>
+                    <p className="text-[14px] font-medium text-[#FFF9F9] font-montserrat">{formatSupply(fundamentals.maxSupply, true)}</p>
                   </div>
                   <div>
                     <p className="text-[12px] font-medium text-[#8E8E8E] mb-1.5 font-montserrat">Об'єм / Капіталізація</p>
                     <p className="text-[14px] font-medium text-[#FFF9F9] font-montserrat">{volMcapRatio}</p>
                   </div>
                 </div>
-
-                {/* Divider 2 */}
                 <div className="hidden md:block w-[1px] h-[228px] bg-gradient-to-b from-[#522E8B] to-[#B3B3B3]/10 opacity-40"></div>
-
-                {/* Column 3 */}
                 <div className="flex flex-col gap-6 w-full md:w-auto">
                   <div>
                     <p className="text-[12px] font-medium text-[#8E8E8E] mb-1.5 font-montserrat">Циркул. пропозиція</p>
@@ -474,17 +489,14 @@ export default function AssetPage({
                     <p className="text-[14px] font-medium text-[#FFF9F9] font-montserrat">{formatCurrency(stats.volume24h)}</p>
                   </div>
                 </div>
-
               </div>
             </div>
           </div>
         </div>
 
-        {/* НОВИЙ ВІДЖЕТ 2: PulseAI (Висота 352px) */}
+        {/* ВІДЖЕТ PulseAI */}
         <div className="w-full h-[352px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10)]">
           <div className="w-full h-full rounded-[27px] bg-[#050506] p-6 flex flex-col">
-            
-            {/* Хедер віджета */}
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-2">
                 <img src="/logo-crypro-pulse.svg" alt="PulseAI" className="w-5 h-5 object-contain" />
@@ -493,8 +505,6 @@ export default function AssetPage({
                   <span className="font-semibold bg-gradient-to-r from-[#ceafef] to-[#9a64d4] bg-clip-text text-transparent">AI</span>
                 </div>
               </div>
-              
-              {/* Бейдж "АІ АНАЛІЗ" із "туманчиком" зверху та знизу */}
               <div className="h-[24px] p-[1px] rounded-[16px] bg-[linear-gradient(90deg,rgba(82,46,139,0.4),rgba(179,179,179,0.4))] shrink-0">
                   <div className="w-full h-full rounded-[15px] bg-[#050506] bg-[linear-gradient(180deg,rgba(255,255,255,0.25)_0%,transparent_35%,transparent_65%,rgba(255,255,255,0.25)_100%)] flex items-center justify-center gap-1.5 px-3">
                     <div className="w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_4px_rgba(255,255,255,0.8)]"></div>
@@ -502,8 +512,6 @@ export default function AssetPage({
                   </div>
               </div>
             </div>
-
-            {/* Аналітика Short/Long */}
             <div className="flex justify-between items-center px-1 mb-4">
               <div className="flex flex-col items-center gap-1 w-1/2">
                 <span className="text-[32px] font-medium text-[#E53232] leading-none font-montserrat">68%</span>
@@ -515,11 +523,7 @@ export default function AssetPage({
                 <span className="text-[14px] font-medium text-[#00E676] font-montserrat">Long</span>
               </div>
             </div>
-
-            {/* Прогрес бар AI */}
             <div className="w-full h-[6px] rounded-full bg-gradient-to-r from-[#E53232] to-[#00E676] mb-6"></div>
-
-            {/* Повідомлення тренду */}
             <div className="flex items-start gap-3 mb-6">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0 mt-0.5">
                 <path d="M2 20H22" stroke="#E53232" strokeWidth="1.5" strokeLinecap="round"/>
@@ -530,8 +534,6 @@ export default function AssetPage({
                 Ймовірне зниження ціни<br />в найближчі 24 год
               </p>
             </div>
-
-            {/* Кнопка */}
             <div className="flex flex-col gap-3 mt-auto">
               <button 
                 onClick={() => window.open('https://cryptomisha-ai-agent-c2fa3q367soa93m2cjyfrw.streamlit.app/', '_blank', 'noopener,noreferrer')}
@@ -543,10 +545,8 @@ export default function AssetPage({
                 Не є фінансовою порадою
               </p>
             </div>
-
           </div>
         </div>
-
       </div>
     </section>
   );
