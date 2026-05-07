@@ -42,13 +42,17 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <div className="absolute top-[24px] right-[24px] p-[1px] rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF]">
-                <button className="w-[136px] h-[36px] rounded-full bg-[#0D0D0D] flex items-center justify-center gap-[8px] text-[#A3A4B0] text-[14px] leading-[20px]">
+            <div className="absolute top-[24px] right-[24px] group p-[1px] rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-95 cursor-pointer">
+             <button className="w-[136px] h-[36px] rounded-full bg-[#0D0D0D] flex items-center justify-center gap-[8px] text-[#A3A4B0] text-[14px] leading-[20px] transition-all group-hover:bg-opacity-80 cursor-pointer">
+               <span className="group-hover:text-white transition-colors">
                   Редагувати
-                  <img src={editIcon} className="w-[20px] h-[20px] opacity-80" />
-                </button>
-              </div>
+               </span>
+
+                <img src={editIcon} className="w-[20px] h-[20px] opacity-80 transition-all duration-300" />
+                
+             </button>
             </div>
+           </div>
           </div>
         </section>
 
@@ -59,46 +63,72 @@ export default function ProfilePage() {
           </h2>
 
           <div className={cardWrapper}>
-            <div className="relative h-[160px] p-[24px] rounded-[28px] bg-[#050506] overflow-hidden">
-              <div className="absolute top-[24px] right-[24px] p-[1px] rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF]">
-                <button className="w-[136px] h-[36px] rounded-full bg-[#0D0D0D] flex items-center justify-center gap-[8px] text-[#A3A4B0] text-[14px] leading-[20px]">
+           <div className="relative h-[160px] pt-[24px] pb-[24px] pl-[24px] rounded-[28px] bg-[#050506] overflow-hidden">
+
+            <div className="absolute top-[24px] right-[24px] group p-[1px] rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-95 cursor-pointer">
+             <button className="w-[136px] h-[36px] rounded-full bg-[#0D0D0D] flex items-center justify-center gap-[8px] text-[#A3A4B0] text-[14px] leading-[20px] transition-all group-hover:bg-opacity-80 cursor-pointer">
+               <span className="group-hover:text-white transition-colors">
                   Редагувати
-                  <img src={editIcon} className="w-[20px] h-[20px] opacity-80" />
-                </button>
-              </div>
+               </span>
 
-              <div className="grid grid-cols-[160px_230px_200px] gap-x-[120px] gap-y-[24px]">
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">Ім'я</p>
-                  <p>Олександр</p>
-                </div>
+                <img src={editIcon} className="w-[20px] h-[20px] opacity-80 transition-all duration-300" />
+             </button>
+            </div>
 
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">E-mail</p>
-                  <p>alexmironov@gmail.com</p>
-                </div>
+              <div className="grid grid-cols-[160px_230px_200px] gap-x-[96px] gap-y-[24px]">
+                 <div>
+                   <p className="text-[#A3A4B0] text-[14px] leading-[20px] font-normal mb-[4px]">
+                     Ім'я
+                   </p>
+                   <p className="text-white text-[14px] leading-[20px] font-normal">
+                     Олександр
+                   </p>
+                 </div>
 
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">
-                    День народження
-                  </p>
-                  <p>07.05.2007</p>
-                </div>
+                 <div>
+                   <p className="text-[#A3A4B0] text-[14px] leading-[20px] font-normal mb-[4px]">
+                     E-mail
+                   </p>
+                   <p className="text-white text-[14px] leading-[20px] font-normal">
+                     alexmironov@gmail.com
+                   </p>
+                 </div>
 
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">Прізвище</p>
-                  <p>Миронов</p>
-                </div>
+                 <div>
+                   <p className="text-[#A3A4B0] text-[14px] leading-[20px] font-normal mb-[4px]">
+                     День народження
+                   </p>
+                   <p className="text-white text-[14px] leading-[20px] font-normal">
+                     07.05.2007
+                   </p>
+                 </div>
 
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">Телефон</p>
-                  <p>(+380) 98 962 77 13</p>
-                </div>
+                 <div>
+                   <p className="text-[#A3A4B0] text-[14px] leading-[20px] font-normal mb-[4px]">
+                     Прізвище
+                   </p>
+                   <p className="text-white text-[14px] leading-[20px] font-normal">
+                     Миронов
+                   </p>
+                 </div>
 
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">Регіон</p>
-                  <p>Україна</p>
-                </div>
+                 <div>
+                   <p className="text-[#A3A4B0] text-[14px] leading-[20px] font-normal mb-[4px]">
+                     Телефон
+                   </p>
+                   <p className="text-white text-[14px] leading-[20px] font-normal">
+                     (+380) 98 962 77 13
+                   </p>
+                 </div>
+
+                 <div>
+                   <p className="text-[#A3A4B0] text-[14px] leading-[20px] font-normal mb-[4px]">
+                     Регіон
+                   </p>
+                   <p className="text-white text-[14px] leading-[20px] font-normal">
+                     Україна
+                   </p>
+                 </div>
               </div>
             </div>
           </div>
@@ -111,47 +141,64 @@ export default function ProfilePage() {
           </h2>
 
           <div className={cardWrapper}>
-            <div className="relative h-[160px] p-[24px] rounded-[28px] bg-[#050506] overflow-hidden">
-              <div className="absolute top-[24px] right-[24px] p-[1px] rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF]">
-                <button className="w-[136px] h-[36px] rounded-full bg-[#0D0D0D] flex items-center justify-center gap-[8px] text-[#A3A4B0] text-[14px] leading-[20px]">
+           <div className="relative h-[160px] pt-[24px] pb-[24px] pl-[24px] rounded-[28px] bg-[#050506] overflow-hidden">
+
+            <div className="absolute top-[24px] right-[24px] group p-[1px] rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-95 cursor-pointer">
+             <button className="w-[136px] h-[36px] rounded-full bg-[#0D0D0D] flex items-center justify-center gap-[8px] text-[#A3A4B0] text-[14px] leading-[20px] transition-all group-hover:bg-opacity-80 cursor-pointer">
+               <span className="group-hover:text-white transition-colors">
                   Редагувати
-                  <img src={editIcon} className="w-[20px] h-[20px] opacity-80" />
-                </button>
-              </div>
+               </span>
+
+                <img src={editIcon} className="w-[20px] h-[20px] opacity-80 transition-all duration-300" />  
+             </button>
+            </div>
+
 
               <div className="grid grid-cols-[160px_230px] gap-x-[120px] gap-y-[24px]">
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">Пароль</p>
-                  <p className="tracking-[0.15em]">•••••••</p>
-                </div>
-
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">
-                    Остання зміна
+                 <div>
+                  <p className="text-[#A3A4B0] text-[14px] leading-[20px] font-normal mb-[4px]">
+                   Пароль
                   </p>
-                  <p>2 тижні тому</p>
-                </div>
-
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">Пристрої</p>
-                  <p>2 активних</p>
-                </div>
-
-                <div>
-                  <p className="text-[#A3A4B0] text-[14px] mb-[5px]">
-                    Останній вхід
+                  <p className="text-white text-[14px] leading-[20px] font-normal tracking-[0.15em]">
+                   ********
                   </p>
-                  <p>Україна, Львів</p>
+                 </div>
+                 
+                 <div>
+                  <p className="text-[#A3A4B0] text-[14px] leading-[20px] font-normal mb-[4px]">
+                   Остання зміна
+                  </p>
+                  <p className="text-white text-[14px] leading-[20px] font-normal">
+                   2 тижні тому
+                  </p>
+                 </div>
+
+                 <div>
+                  <p className="text-[#A3A4B0] text-[14px] leading-[20px] font-normal mb-[4px]">
+                   Пристрої
+                  </p>
+                  <p className="text-white text-[14px] leading-[20px] font-normal">
+                   2 активних
+                  </p>
+                 </div>
+                
+                 <div>
+                  <p className="text-[#A3A4B0] text-[14px] leading-[20px] font-normal mb-[4px]">
+                   Останній вхід
+                  </p>
+                  <p className="text-white text-[14px] leading-[20px] font-normal">
+                   Україна, Львів
+                  </p>
+                 </div>
                 </div>
               </div>
-            </div>
-          </div>
+           </div>
         </section>
 
         {/* DELETE BUTTON */}
         <div className="pt-[16px]">
-          <div className="w-[210px] h-[44px] p-[1.5px] rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF]">
-            <button className="w-full h-full rounded-full bg-[#0D0D0D] flex items-center justify-center gap-2 text-[#FF0000] text-[14px] font-normal cursor-pointer transition-all duration-300 hover:bg-[#111111] active:scale-[0.98]">
+          <div className="group relative w-[210px] h-[44px] p-[1.5px] rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-95 cursor-pointer">
+            <button className="w-full h-full rounded-full bg-[#050506] flex items-center justify-center gap-2 text-[#FF0000] text-[14px] font-normal cursor-pointer transition-all duration-300 hover:bg-[#050506] active:scale-[0.98]">
               <span>Видалити акаунт</span>
 
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -166,7 +213,6 @@ export default function ProfilePage() {
             </button>
           </div>
         </div>
-
       </div>
     </div>
   );
