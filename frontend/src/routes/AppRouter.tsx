@@ -2,6 +2,8 @@ import { createBrowserRouter } from "react-router-dom";
 
 import LandingPage from "../pages/Landing/LandingPage";
 import AuthPage from "../pages/Auth/AuthPage";
+import LoginPage from "../pages/Login/LoginPage";
+import RegisterPage from "../pages/Register/RegisterPage";
 import PricingPage from "../pages/Pricing/PricingPage";
 import MarketsPage from "../pages/Markets/MarketsPage";
 import SupportPage from "../pages/Support/SupportPage";
@@ -18,6 +20,14 @@ export const router = createBrowserRouter([
   {
     path: "/",
     element: <LandingPage />,
+  },
+  {
+    path: "/login",
+    element: <LoginPage />,
+  },
+  {
+    path: "/register",
+    element: <RegisterPage />,
   },
   {
     path: "/auth",

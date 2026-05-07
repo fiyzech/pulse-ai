@@ -293,7 +293,7 @@ const LandingPage: React.FC = () => {
 
         {/* ПРАВА ЧАСТИНА: Кнопка 235x44 */}
         <button
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate('/register')}
           className="hidden md:flex w-[235px] h-[44px] p-[1px] rounded-[28px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] via-[52%] to-[#FFFFFF] transition-all hover:shadow-[0_0_15px_rgba(131,72,193,0.3)] group transform-gpu"
         >
           <div className="flex items-center justify-center w-full h-full rounded-[27px] bg-[#000008] group-hover:bg-[#120B1D] transition-colors">
@@ -327,7 +327,7 @@ const LandingPage: React.FC = () => {
           </p>
 
          <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/register')}
             className="px-[34px] py-[11px] rounded-full tracking-wide font-montserrat font-medium text-[18px] text-white flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_25px_rgba(195,139,255,0.4)]"
           >
             Почати відстеження
@@ -799,7 +799,7 @@ const LandingPage: React.FC = () => {
           </p>
           
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/register')}
             className="px-[34px] py-[11px] rounded-full tracking-wide font-montserrat font-medium text-[18px] text-white flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_25px_rgba(195,139,255,0.4)]"
           >
             Почати відстеження
