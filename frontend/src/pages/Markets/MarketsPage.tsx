@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 // === ДАНІ ДЛЯ ВЕРХНІХ КАРТОК ===
 interface MarketItem {
@@ -18,6 +19,12 @@ interface TableMarketItem {
   cap: string;
   vol: string;
   imgUrl: string;
+  // ОСЬ ЦІ ДАНІ ОБОВ'ЯЗКОВІ ДЛЯ ЕФІРУ ТА ІНШИХ:
+  rawMcap: number;
+  rawAth: number;
+  rawCircSupply: number;
+  rawTotalSupply: number;
+  rawMaxSupply: number;
 }
 
 const initialTopCardsData: Record<string, MarketItem[]> = {
@@ -38,7 +45,6 @@ const initialTopCardsData: Record<string, MarketItem[]> = {
   ]
 };
 
-// ID тільки для верхніх карток
 const topCardsIds: Record<string, string> = {
   BTC: 'bitcoin', ETH: 'ethereum', SOL: 'solana',
   BNB: 'binancecoin', ARB: 'arbitrum', AVAX: 'avalanche-2',
@@ -46,10 +52,13 @@ const topCardsIds: Record<string, string> = {
 };
 
 export default function MarketsPage() {
-  const [liveTopData, setLiveTopData] = useState<Record<string, { price: number; change: number }>>({});
-  const [tableMarkets, setTableMarkets] = useState<TableMarketItem[]>([]);
+  const navigate = useNavigate();
 
-  // Хелпери для форматування
+  const [liveTopData, setLiveTopData] = useState<Record<string, { price: number; change: number }>>({});
+  const [allTableMarkets, setAllTableMarkets] = useState<TableMarketItem[]>([]);
+  const [visibleCount, setVisibleCount] = useState<number>(30); 
+  const [apiError, setApiError] = useState<string | null>(null);
+
   const formatPrice = (price: number | null) => {
     if (!price) return "$0.00";
     if (price < 0.01) return `$${price}`; 
@@ -71,13 +80,23 @@ export default function MarketsPage() {
   };
 
   useEffect(() => {
-    const fetchAllData = async () => {
+    const fetchTopCards = async () => {
       try {
-        // 1. Отримуємо дані для верхніх карток
-        const ids = Object.values(topCardsIds).join(',');
-        const topRes = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`);
-        if (topRes.ok) {
-          const topData = await topRes.json();
+        const cachedTopData = sessionStorage.getItem('pulse_top_cards');
+        const cachedTopTime = sessionStorage.getItem('pulse_top_time');
+
+        if (cachedTopData && cachedTopTime && Date.now() - Number(cachedTopTime) < 60000) {
+          setLiveTopData(JSON.parse(cachedTopData));
+          return; 
+        }
+
+        const topIds = Object.values(topCardsIds).join(',');
+        const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${topIds}&vs_currencies=usd&include_24hr_change=true`);
+        
+        if (res.status === 429) return;
+
+        if (res.ok) {
+          const topData = await res.json();
           const parsedTop: Record<string, { price: number; change: number }> = {};
           Object.entries(topCardsIds).forEach(([symbol, id]) => {
             if (topData[id]) {
@@ -85,13 +104,63 @@ export default function MarketsPage() {
             }
           });
           setLiveTopData(parsedTop);
+          sessionStorage.setItem('pulse_top_cards', JSON.stringify(parsedTop));
+          sessionStorage.setItem('pulse_top_time', Date.now().toString());
+        }
+      } catch (error) {
+        console.error('Помилка завантаження топ карток:', error);
+      }
+    };
+
+    fetchTopCards();
+    const intervalId = setInterval(fetchTopCards, 60000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    const fetchTableData = async () => {
+      try {
+        setApiError(null);
+
+        const cachedTableData = sessionStorage.getItem('pulse_table_cards');
+        const cachedTableTime = sessionStorage.getItem('pulse_table_time');
+
+        if (cachedTableData && cachedTableTime && Date.now() - Number(cachedTableTime) < 120000) {
+          setAllTableMarkets(JSON.parse(cachedTableData));
+          return; 
         }
 
-        // 2. Отримуємо 125 монет для таблиці
-        const marketsRes = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=125&page=1&sparkline=false');
-        if (marketsRes.ok) {
-          const marketsData = await marketsRes.json();
-          const formattedTable = marketsData.map((coin: any) => ({
+        const [binanceRes, cgRes] = await Promise.all([
+          fetch('https://api.binance.com/api/v3/ticker/price'),
+          fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=false')
+        ]);
+
+        if (cgRes.status === 429) {
+          setApiError("Забагато запитів. Зачекайте хвилинку...");
+          return;
+        }
+
+        if (binanceRes.ok && cgRes.ok) {
+          const binanceData = await binanceRes.json();
+          const cgData = await cgRes.json();
+
+          const validBinancePairs = new Set(
+            binanceData
+              .filter((item: any) => item.symbol.endsWith('USDT'))
+              .map((item: any) => item.symbol)
+          );
+
+          const ignoredStablecoins = ['USDT', 'USDC', 'DAI', 'FDUSD', 'TUSD', 'USDD', 'USDS'];
+
+          const validBinanceCoins = cgData.filter((coin: any) => {
+            const symbolUpper = coin.symbol.toUpperCase();
+            if (ignoredStablecoins.includes(symbolUpper)) return false;
+            return validBinancePairs.has(`${symbolUpper}USDT`);
+          });
+
+          const final125Coins = validBinanceCoins.slice(0, 125);
+
+          const formattedTable = final125Coins.map((coin: any) => ({
             id: coin.id,
             symbol: coin.symbol.toUpperCase(),
             price: formatPrice(coin.current_price),
@@ -99,19 +168,26 @@ export default function MarketsPage() {
             isPositive: coin.price_change_percentage_24h > 0,
             cap: formatCompactNumber(coin.market_cap),
             vol: formatCompactNumber(coin.total_volume),
-            imgUrl: coin.image 
+            imgUrl: coin.image,
+            // ПАКУЄМО СИРІ ДАНІ ДЛЯ АКТИВУ (ЦЕ ВАЖЛИВО ДЛЯ ЕФІРУ!)
+            rawMcap: coin.market_cap || 0,
+            rawAth: coin.ath || 0,
+            rawCircSupply: coin.circulating_supply || 0,
+            rawTotalSupply: coin.total_supply || 0,
+            rawMaxSupply: coin.max_supply || 0
           }));
-          setTableMarkets(formattedTable);
+          
+          setAllTableMarkets(formattedTable);
+          sessionStorage.setItem('pulse_table_cards', JSON.stringify(formattedTable));
+          sessionStorage.setItem('pulse_table_time', Date.now().toString());
         }
       } catch (error) {
-        console.error('Помилка завантаження даних:', error);
+        console.error('Помилка завантаження таблиці:', error);
       }
     };
 
-    fetchAllData();
-    
-    // Оновлення кожні 2 хвилини
-    const intervalId = setInterval(fetchAllData, 120000); 
+    fetchTableData();
+    const intervalId = setInterval(fetchTableData, 120000); 
     return () => clearInterval(intervalId);
   }, []);
 
@@ -131,6 +207,17 @@ export default function MarketsPage() {
   const currentPopular = mergeLiveStats(initialTopCardsData.popular);
   const currentFutures = mergeLiveStats(initialTopCardsData.futures);
   const currentNew = mergeLiveStats(initialTopCardsData.new);
+
+  const handleViewClick = (coin: TableMarketItem) => {
+    navigate(`/asset/${coin.id}`, { state: { coin } });
+  };
+
+  const handleLoadMore = () => {
+    setVisibleCount((prev) => Math.min(prev + 30, allTableMarkets.length));
+  };
+
+  const visibleTableMarkets = allTableMarkets.slice(0, visibleCount);
+  const hasMore = visibleCount < allTableMarkets.length;
 
   const globalStyles = `
     .row-divider { position: relative; }
@@ -170,11 +257,37 @@ export default function MarketsPage() {
       border-radius: 9999px; 
       padding: 1px;
       background: linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%);
-      -webkit-mask: 
-         linear-gradient(#fff 0 0) content-box, 
-         linear-gradient(#fff 0 0);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
       -webkit-mask-composite: xor;
-              mask-composite: exclude;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    .load-more-btn {
+      position: relative;
+      border-radius: 9999px;
+      background: #050506;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 32px;
+      cursor: pointer;
+      transition: all 0.3s ease-in-out;
+    }
+    .load-more-btn:hover {
+      background: rgba(82,46,139,0.15);
+      transform: translateY(-2px);
+    }
+    .load-more-btn::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 9999px; 
+      padding: 1px;
+      background: linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
       pointer-events: none;
     }
   `;
@@ -216,17 +329,21 @@ export default function MarketsPage() {
             <div className="pl-4">Дії</div>
           </div>
 
-          <div className="flex flex-col pb-4">
-            {tableMarkets.length === 0 ? (
+          <div className="flex flex-col">
+            {apiError && allTableMarkets.length === 0 ? (
+              <div className="flex items-center justify-center py-10 text-[#FF4B4B] text-[15px]">
+                {apiError}
+              </div>
+            ) : allTableMarkets.length === 0 ? (
               <div className="flex items-center justify-center py-10 text-[#A3A4B0] text-[15px]">
                 Завантаження криптовалют...
               </div>
             ) : (
-              tableMarkets.map((coin) => (
+              visibleTableMarkets.map((coin) => (
                 <div 
                   key={coin.id} 
-                  // ОСЬ ТУТ МАГІЯ: додав hover:bg-[rgba(82,46,139,0.15)] та transition-colors duration-300
-className="row-divider grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr_1fr] gap-4 px-8 items-center h-[68px] min-h-[68px] bg-transparent hover:bg-white/5 transition-colors duration-300 ease-in-out cursor-default"                >
+                  className="row-divider grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr_1fr] gap-4 px-8 items-center h-[68px] min-h-[68px] bg-transparent hover:bg-white/5 transition-colors duration-300 ease-in-out cursor-default"                
+                >
                   <div className="flex items-center gap-3">
                     <img src={coin.imgUrl} alt={coin.symbol} className="w-7 h-7 object-contain rounded-full" />
                     <span className="font-semibold text-[15px]">{coin.symbol}</span>
@@ -239,7 +356,10 @@ className="row-divider grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr_1fr] gap-4 px-8 i
                   <div className="text-[15px] text-[#FFFFFF]">{coin.vol}</div>
                   
                   <div className="flex items-center">
-                    <button className="action-button">
+                    <button 
+                      className="action-button"
+                      onClick={() => handleViewClick(coin)} 
+                    >
                       <span className="text-[14px] font-medium text-[#FFFFFF] whitespace-nowrap font-['Montserrat']">
                         Переглянути
                       </span>
@@ -248,6 +368,18 @@ className="row-divider grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr_1fr] gap-4 px-8 i
                 </div>
               ))
             )}
+            
+            {hasMore && allTableMarkets.length > 0 && !apiError && (
+              <div className="flex justify-center items-center py-8">
+                <button 
+                  className="load-more-btn"
+                  onClick={handleLoadMore}
+                >
+                  <span className="text-[15px] font-medium text-white tracking-wide">Завантажити ще</span>
+                </button>
+              </div>
+            )}
+            
           </div>
         </div>
       </div>
