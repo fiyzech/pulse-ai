@@ -13,7 +13,7 @@ export default function AlertsPage() {
           коли задана умова буде виконана
         </p>
 
-        <button className="min-w-[165px] h-[44px] px-6 rounded-full flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium transition-transform  duration-300 ease-out hover:scale-105 active:scale-[0.98]">
+        <button className="min-w-[165px] h-[44px] px-6 rounded-full flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium transition-all duration-300 ease-out hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-[0.98] cursor-pointer">
          Як створити алерт?
         </button>
       </div>
@@ -64,7 +64,7 @@ export default function AlertsPage() {
 
            {/* HEADER */}
            <div className="relative flex items-center px-[24px] py-4 text-[#A3A4B0] text-[14px] font-normal bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)]">
-            <div className="absolute bottom-0 left-0 w-full h-[1px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]" />
+            <div className="absolute bottom-0 left-0 w-full h-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))]" />
              <div className="w-[55px]">
                <span>Валюта</span>
             </div>
@@ -91,7 +91,7 @@ export default function AlertsPage() {
            </div>
 
          {/* ROW 1 */}
-         <div className="flex items-center px-[24px] py-4">
+         <div className="flex items-center px-[24px] py-4 transition-all duration-300 ease-out hover:bg-white/5">
 
            {/* Валюта */}
            <div className="w-[128px] flex items-center gap-3">
@@ -152,7 +152,7 @@ export default function AlertsPage() {
 
 
          {/* ROW 2 */}
-         <div className="flex items-center px-[24px] py-4">
+         <div className="flex items-center px-[24px] py-4 transition-all duration-300 ease-out hover:bg-white/5">
 
            {/* Валюта */}
            <div className="w-[128px] flex items-center gap-3">
@@ -213,7 +213,7 @@ export default function AlertsPage() {
 
 
          {/* ROW 3 */}
-         <div className="flex items-center px-[24px] py-4">
+         <div className="flex items-center px-[24px] py-4 transition-all duration-300 ease-out hover:bg-white/5">
 
            {/* Валюта */}
            <div className="w-[128px] flex items-center gap-3">
