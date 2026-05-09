@@ -20,7 +20,7 @@ export default function ProfilePage() {
               <div className="flex items-center gap-[12px]">
                 <img
                   src={userAvatar}
-                  className="w-[60px] h-[60px] rounded-full border border-white/10"
+                  className="w-[60px] h-[60px] shrink-0 object-cover rounded-full border border-white/10"
                 />
 
                 <div>
@@ -29,7 +29,7 @@ export default function ProfilePage() {
                       Alexander Mironov
                     </span>
 
-                    <div className="p-[1px] rounded-full bg-[linear-gradient(135deg,#FFFFFF_0%,#8348C1_48%,#2C1969_100%)]">
+                    <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,#FFFFFF_0%,#8348C1_48%,#2C1969_100%)]">
                       <span className="flex items-center justify-center w-[46px] h-[24px] rounded-full bg-[#0A0A0A] font-normal text-[#5C49AA] text-[12px] leading-[16px]">
                         Pro
                       </span>
@@ -43,7 +43,7 @@ export default function ProfilePage() {
               </div>
 
             <div className="absolute top-[24px] right-[24px] group p-[1px] rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-95 cursor-pointer">
-             <button className="w-[136px] h-[36px] rounded-full bg-[#0D0D0D] flex items-center justify-center gap-[8px] text-[#A3A4B0] text-[14px] leading-[20px] transition-all group-hover:bg-opacity-80 cursor-pointer">
+             <button className="w-[136px] h-[36px] rounded-full bg-[#0D0D0D] flex items-center justify-center gap-[8px] text-[#A3A4B0] text-[14px] leading-[20px] font-medium transition-all group-hover:bg-opacity-80 cursor-pointer">
                <span className="group-hover:text-white transition-colors">
                   Редагувати
                </span>
@@ -66,7 +66,7 @@ export default function ProfilePage() {
            <div className="relative h-[160px] pt-[24px] pb-[24px] pl-[24px] rounded-[28px] bg-[#050506] overflow-hidden">
 
             <div className="absolute top-[24px] right-[24px] group p-[1px] rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-95 cursor-pointer">
-             <button className="w-[136px] h-[36px] rounded-full bg-[#0D0D0D] flex items-center justify-center gap-[8px] text-[#A3A4B0] text-[14px] leading-[20px] transition-all group-hover:bg-opacity-80 cursor-pointer">
+             <button className="w-[136px] h-[36px] rounded-full bg-[#0D0D0D] flex items-center justify-center gap-[8px] text-[#A3A4B0] text-[14px] leading-[20px] font-medium transition-all group-hover:bg-opacity-80 cursor-pointer">
                <span className="group-hover:text-white transition-colors">
                   Редагувати
                </span>
@@ -144,7 +144,7 @@ export default function ProfilePage() {
            <div className="relative h-[160px] pt-[24px] pb-[24px] pl-[24px] rounded-[28px] bg-[#050506] overflow-hidden">
 
             <div className="absolute top-[24px] right-[24px] group p-[1px] rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-95 cursor-pointer">
-             <button className="w-[136px] h-[36px] rounded-full bg-[#0D0D0D] flex items-center justify-center gap-[8px] text-[#A3A4B0] text-[14px] leading-[20px] transition-all group-hover:bg-opacity-80 cursor-pointer">
+             <button className="w-[136px] h-[36px] rounded-full bg-[#0D0D0D] flex items-center justify-center gap-[8px] text-[#A3A4B0] text-[14px] leading-[20px] font-medium transition-all group-hover:bg-opacity-80 cursor-pointer">
                <span className="group-hover:text-white transition-colors">
                   Редагувати
                </span>
