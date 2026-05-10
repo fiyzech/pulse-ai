@@ -15,6 +15,7 @@ import TelegramPage from "../pages/Telegram/TelegramPage";
 import SettingsPage from "../pages/Settings/SettingsPage";
 import ProfilePage from "../pages/Profile/ProfilePage";
 import AssetPage from "../pages/Asset/AssetPage";
+import NewsPage from "../pages/News/NewsPage";
 
 export const router = createBrowserRouter([
   {
@@ -31,7 +32,7 @@ export const router = createBrowserRouter([
   },
   {
     path: "/auth",
-    element: <AuthPage />,  
+    element: <AuthPage />,
   },
   {
     path: "/pricing",
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
       { path: "markets", element: <MarketsPage /> },
       { path: "support", element: <SupportPage /> },
       { path: "asset/:symbol", element: <AssetPage /> },
+      { path: "news", element: <NewsPage /> },
     ],
   },
 ]);
