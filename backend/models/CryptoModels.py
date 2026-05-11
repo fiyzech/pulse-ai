@@ -1,15 +1,11 @@
-from sqlalchemy import String, Boolean
-from sqlalchemy.orm import Mapped, mapped_column
+# from sqlalchemy import String, ForeignKey, DateTime
+# from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database import Base
+# from datetime import datetime
 
-class Alert(Base):
-    """
-    symbol
-    describtion
-    current_price
-    status
-    
-    
-    
-    """
+# from database import Base
+
+# from UserModels import User_Model
+
+
+
