@@ -235,165 +235,191 @@ const RegisterPage: React.FC = () => {
       <img src={secondGradPic} alt="" className="absolute bottom-[0%] -right-[5%] w-[400px] md:w-[500px] opacity-50 pointer-events-none mix-blend-screen z-0" />
 
       <div className="flex-1 flex flex-col items-center justify-center z-10 p-4">
-        {/* 1. РОЗМІР ГОЛОВНОГО КОНТЕЙНЕРА */}
-        <div className="p-[1px] rounded-[30px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] w-[480px] h-[776px]">
-          {/* 2. ВІДСТУПИ ВСЕРЕДИНІ (Padding) */}
-          <div className="relative h-full rounded-[29px] bg-[#050506] pt-[60px] px-[60px] text-center shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] overflow-hidden">
+        {/* РОЗМІР КАРТКИ 480x856 */}
+        <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] w-[480px] h-[856px] ">
+          <div className="relative h-full rounded-[28px] px-[60px] bg-[#050506]  px-0 text-center shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] overflow-hidden">
             <div className="absolute top-[-50px] left-[-20px] w-[200px] h-[200px] bg-[#8348C1]/28 blur-[20px] rounded-full pointer-events-none z-0"></div>
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[70%] bg-[#522E8B]/10 blur-[80px] rounded-full pointer-events-none z-0"></div>
 
             <div className="relative z-10">
-              {/* 3. ЗАГОЛОВОК "ВІТАЄМО" */}
-              <h1 className="w-[136px] h-[40px] text-[32px] font-bold leading-none mx-auto flex items-center justify-center text-white">Вітаємо</h1>
-              
-              {/* 4. ВІДСТУП МІЖ ТЕКСТОМ (mt-[4px]) */}
-              <p className="font-light text-[15px] md:text-[16px] text-[#A3A4B0] mt-[4px] mb-6">Створіть свій акаунт</p>
-
-              {generalError && (
-                <div className="mb-4 rounded-[18px] border border-red-400/30 bg-[linear-gradient(135deg,rgba(239,68,68,0.14),rgba(131,72,193,0.08))] px-4 py-3 text-left shadow-[0_0_24px_rgba(239,68,68,0.08)]">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-[1px] flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border border-red-400/40 bg-red-500/15 text-[13px] text-red-200">!</div>
-                    <div>
-                      <p className="text-[12px] font-medium text-red-200 leading-[18px]">Перевірте дані</p>
-                      <p className="text-[12px] text-red-300/90 leading-[18px]">{generalError}</p>
-                    </div>
+              {/* СТЕППЕР: 140px до країв, 120px між ними */}
+              <div className="flex items-center justify-center pt-[60px] mb-[40px] px-[140px]">
+                {/* Цифра 1 */}
+                <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] flex-shrink-0">
+                  <div className="w-[38px] h-[38px] rounded-full bg-[#000000] flex items-center justify-center text-[#8348C1] text-[16px] font-medium font-montserrat shadow-[0_0_15px_rgba(131,72,193,0.15)]">
+                    1
                   </div>
                 </div>
-              )}
 
-              {success && (
-                <div className="mb-4 rounded-[18px] border border-[#22C55E]/30 bg-[linear-gradient(135deg,rgba(34,197,94,0.13),rgba(131,72,193,0.08))] px-4 py-3 text-left shadow-[0_0_24px_rgba(34,197,94,0.08)]">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-[1px] flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border border-[#22C55E]/40 bg-[#22C55E]/15 text-[12px] text-[#86EFAC]">✓</div>
-                    <div>
-                      <p className="text-[12px] font-medium text-[#BBF7D0] leading-[18px]">Готово</p>
-                      <p className="text-[12px] text-[#86EFAC]/90 leading-[18px]">{success}</p>
-                    </div>
+                {/* Лінія: Градієнт 2C1969 -> 8348C1 -> 2C1969 */}
+                <div
+                  className="flex-1 h-[1px] min-w-[120px]"
+                  style={{
+                    background: 'linear-gradient(90deg, #2C1969 0%, #8348C1 48%, #2C1969 100%)'
+                  }}
+                />
+
+                {/* Цифра 2: Додано обгортку для градієнтного контуру */}
+                <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] flex-shrink-0">
+                  <div className="w-[38px] h-[38px] rounded-full bg-[#050506] flex items-center justify-center text-[#A3A4B0] text-[16px] font-medium font-montserrat">
+                    2
                   </div>
                 </div>
-              )}
+              </div>
 
-              <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3 text-left items-center">
-                {/* Email */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-[#A3A4B0] ml-3">Електронна пошта</label>
-                  <div className="relative">
-                    <input
-                      type="email"
-                      placeholder="Введіть електронну пошту"
-                      value={email}
-                      onChange={(e) => {
-                        setEmail(e.target.value);
-                        setEmailAvailable(null);
-                        clearFieldError('email');
-                        setGeneralError('');
-                      }}
-                      className={`${getInputClass(Boolean(fieldErrors.email))} pr-20`}
-                    />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                      {checkingEmail && <span className="text-[10px] text-[#A3A4B0]">перевірка...</span>}
-                      {!checkingEmail && emailAvailable === true && <span className="text-[11px] text-[#86EFAC]">✓</span>}
-                      {!checkingEmail && emailAvailable === false && <span className="text-[11px] text-red-300">!</span>}
-                    </div>
-                  </div>
-                  <ErrorMessage message={fieldErrors.email} />
-                </div>
 
-                {/* Password */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-[#A3A4B0] ml-3">Пароль</label>
-                  <div className="relative w-[360px]">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value);
-                        clearFieldError('password');
-                        setGeneralError('');
-                      }}
-                      className={getPasswordInputClass(Boolean(fieldErrors.password))}
-                    />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A3A4B0] hover:text-white transition-colors">
-                      {showPassword ? <EyeOpenIcon /> : <EyeClosedIcon />}
-                    </button>
-                  </div>
-                  <ErrorMessage message={fieldErrors.password} />
-                  {password && (
-                    <div className="mt-2 ml-3 mr-3 w-[336px]">
-                      <div className="h-[4px] w-full overflow-hidden rounded-full bg-white/10">
-                        <div className={`h-full rounded-full transition-all duration-300 ${passwordStrength.barClass}`} style={{ width: passwordStrength.percent }} />
-                      </div>
-                      <div className="mt-1 flex items-center justify-between gap-3">
-                        <span className={`text-[11px] leading-[16px] ${passwordStrength.textClass}`}>{passwordStrength.label}</span>
-                        <span className="text-[10px] leading-[16px] text-[#A3A4B0]/70">{passwordStrength.hint}</span>
+
+              {/* Вітаємо: 172px до боків */}
+              <h1 className="text-white text-[32px] font-bold font-montserrat text-center">
+                Вітаємо
+              </h1>
+
+              {/* Підзаголовок: 4px від Вітаємо, 48px до інпутів */}
+              <p className="w-[189px] h-[24px] mx-auto font-light text-[16px] text-[#A3A4B0] mt-[4px] mb-[48px] flex items-center justify-center font-light font-montserrat">
+                Створіть свій акаунт
+              </p>
+
+              <div className="px-[60px]">
+                {generalError && (
+                  <div className="mb-4 rounded-[18px] border border-red-400/30 bg-[linear-gradient(135deg,rgba(239,68,68,0.14),rgba(131,72,193,0.08))] px-4 py-3 text-left shadow-[0_0_24px_rgba(239,68,68,0.08)]">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-[1px] flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border border-red-400/40 bg-red-500/15 text-[13px] text-red-200">!</div>
+                      <div>
+                        <p className="text-[12px] font-medium text-red-200 leading-[18px]">Перевірте дані</p>
+                        <p className="text-[12px] text-red-300/90 leading-[18px]">{generalError}</p>
                       </div>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
-                {/* Confirm Password */}
-                <div className="flex flex-col gap-1 mb-1">
-                  <label className="text-[11px] text-[#A3A4B0] ml-3">Підтвердження паролю</label>
-                  <div className="relative w-[360px]">
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={confirmPassword}
-                      onChange={(e) => {
-                        setConfirmPassword(e.target.value);
-                        clearFieldError('confirmPassword');
-                        setGeneralError('');
-                      }}
-                      className={getPasswordInputClass(Boolean(fieldErrors.confirmPassword))}
-                    />
-                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A3A4B0] hover:text-white transition-colors">
-                      {showConfirmPassword ? <EyeOpenIcon /> : <EyeClosedIcon />}
+                {success && (
+                  <div className="mb-4 rounded-[18px] border border-[#22C55E]/30 bg-[linear-gradient(135deg,rgba(34,197,94,0.13),rgba(131,72,193,0.08))] px-4 py-3 text-left shadow-[0_0_24px_rgba(34,197,94,0.08)]">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-[1px] flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border border-[#22C55E]/40 bg-[#22C55E]/15 text-[12px] text-[#86EFAC]">✓</div>
+                      <div>
+                        <p className="text-[12px] font-medium text-[#BBF7D0] leading-[18px]">Готово</p>
+                        <p className="text-[12px] text-[#86EFAC]/90 leading-[18px]">{success}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit} noValidate className="flex flex-col items-center px-[60px]">
+
+                  {/* Email: 360x16 label, 360x44 input, 12px gap */}
+                  <div className="flex flex-col mb-[24px] items-start">
+                    <label className="w-[360px] h-[16px] text-[12px] text-[#A3A4B0] text-left pl-[1px] mb-[12px] font-montserrat">
+                      Електронна пошта
+                    </label>
+
+                    {/* Контейнер для градієнтної обводки */}
+                    <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] w-[360px]">
+                      <input
+                        type="email"
+                        placeholder="Введіть електронну пошту"
+                        className="w-full h-[44px] px-5 bg-[#050506] rounded-full text-[14px] text-white outline-none transition-shadow focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-col mb-[24px]">
+                    <label className="w-[360px] h-[16px] text-[12px] text-[#A3A4B0] text-left pl-[1px] mb-[12px]">
+                      Пароль
+                    </label>
+                    <div className="relative w-[360px] h-[44px]">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        className={`${getPasswordInputClass(Boolean(fieldErrors.password))} w-full h-full px-5 text-[14px] text-white outline-none rounded-full`}
+                        style={{
+                          /* Магія контуру: перший градієнт замальовує середину чорним, другий — малює лінію рамки */
+                          background: 'linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, rgba(82, 46, 139, 0.32), rgba(179, 179, 179, 0.32)) border-box',
+                          border: '1px solid transparent' /* Прозора рамка, щоб було видно градієнт під нею */
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A3A4B0]"
+                      >
+                        {showPassword ? <EyeOpenIcon /> : <EyeClosedIcon />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div className="flex flex-col mb-[40px]"> {/* 40px до кнопки Далі */}
+                    <label className="w-[360px] h-[16px] text-[12px] text-[#A3A4B0] text-left pl-[1px] mb-[12px]">
+                      Підтвердження паролю
+                    </label>
+                    <div className="relative w-[360px] h-[44px]">
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        className={`${getPasswordInputClass(Boolean(fieldErrors.confirmPassword))} w-full h-full px-5 text-[14px] text-white outline-none rounded-full`}
+                        style={{
+                          /* Перший градієнт — це колір фону всередині, другий — градієнт самої рамки */
+                          background: 'linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, rgba(82, 46, 139, 0.32), rgba(179, 179, 179, 0.32)) border-box',
+                          border: '1px solid transparent' /* Робимо стандартну рамку прозорою */
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A3A4B0]"
+                      >
+                        {showConfirmPassword ? <EyeOpenIcon /> : <EyeClosedIcon />}
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading || checkingEmail}
+                    className="w-[360px] h-[44px]  rounded-[28px] rounded-full flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] font-medium font-montserrat transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 shadow-[0_4px_15px_rgba(131,72,193,0.2)]"
+                  >
+                    {loading || checkingEmail ? 'Зачекайте...' : 'Далі'}
+                  </button>
+
+
+                  {/* OR Line */}
+                  <div className="flex items-center justify-center w-[360px] my-[32px]">
+                    <div className="flex-1 h-[1px]" style={{ background: 'linear-gradient(90deg, #000000 0%, #8348C1 48%, #2C1969 100%)' }}></div>
+                    <span className="px-4 text-[12px] text-[#A3A4B0] font-montserrat">або</span>
+                    <div className="flex-1 h-[1px]" style={{ background: 'linear-gradient(90deg, #2C1969 0%, #8348C1 52%, #000000 100%)' }}></div>
+                  </div>
+
+                  <div className="flex flex-col items-center">
+                    {/* Кнопка Google */}
+                    <button
+                      type="button"
+                      className="relative w-[360px] h-[44px] mb-[24px] p-[1px] rounded-full overflow-hidden group transition-all duration-200 hover:scale-105 active:scale-95"
+                    >
+                      <div className="absolute inset-0 bg-[linear-gradient(90deg,#2C1969_0%,#8348C1_50%,#C38BFF_100%)]"></div>
+                      <div className="relative flex items-center justify-center w-full h-full bg-[#050506] rounded-full gap-3 text-[14px] text-white group-hover:bg-[#0a0a0c] transition-colors">
+                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
+                        <span className="font-montserrat">Увійти з Google</span>
+                      </div>
+                    </button>
+
+                    {/* Кнопка Facebook */}
+                    <button
+                      type="button"
+                      className="relative w-[360px] h-[44px] p-[1px] rounded-full overflow-hidden group transition-all duration-200 hover:scale-105 active:scale-95"
+                    >
+                      <div className="absolute inset-0 bg-[linear-gradient(90deg,#2C1969_0%,#8348C1_50%,#C38BFF_100%)]"></div>
+                      <div className="relative flex items-center justify-center w-full h-full bg-[#050506] rounded-full gap-3 text-[14px] text-white group-hover:bg-[#0a0a0c] transition-colors">
+                        <img src="https://www.svgrepo.com/show/475647/facebook-color.svg" alt="Facebook" className="w-5 h-5" />
+                        <span className="font-montserrat">Увійти з Facebook</span>
+                      </div>
                     </button>
                   </div>
-                  <ErrorMessage message={fieldErrors.confirmPassword} />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading || checkingEmail}
-                  className="w-[360px] h-[44px] mt-1 rounded-full flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] font-medium transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 shadow-[0_4px_15px_rgba(131,72,193,0.2)]"
-                >
-                  {loading ? 'Створення...' : 'Створити акаунт'}
-                </button>
-
-                {/* OR Line */}
-                <div className="flex items-center justify-center w-[360px] my-3">
-                  <div className="flex-1 h-[1px]" style={{ background: 'linear-gradient(90deg, #000000 0%, #8348C1 48%, #2C1969 100%)' }}></div>
-                  <span className="px-4 text-[12px] text-[#A3A4B0] font-light">або</span>
-                  <div className="flex-1 h-[1px]" style={{ background: 'linear-gradient(90deg, #2C1969 0%, #8348C1 52%, #000000 100%)' }}></div>
-                </div>
-
-                {/* 5. ПОЗИЦІОНУВАННЯ НИЖНЬОГО БЛОКУ (Margin-top для виштовхування) */}
-                <div className="flex flex-col gap-6 items-center mt-[10px]">
-                  <button type="button" className="relative w-[360px] h-[44px] p-[1.0px] rounded-full overflow-hidden group transition-transform hover:scale-[1.01]">
-                    <div className="absolute inset-0 bg-[linear-gradient(90deg,#2C1969_0%,#8348C1_50%,#C38BFF_100%)]"></div>
-                    <div className="relative flex items-center justify-center w-full h-full bg-[#050506] rounded-full gap-3 text-[13px] text-white group-hover:bg-[#0a0a0c] transition-colors">
-                      <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
-                      <span>Увійти з Google</span>
-                    </div>
-                  </button>
-
-                  <button type="button" className="relative w-[360px] h-[44px] p-[1.0px] rounded-full overflow-hidden group transition-transform hover:scale-[1.01] mb-[5px]">
-                    <div className="absolute inset-0 bg-[linear-gradient(90deg,#2C1969_0%,#8348C1_50%,#C38BFF_100%)]"></div>
-                    <div className="relative flex items-center justify-center w-full h-full bg-[#050506] rounded-full gap-3 text-[13px] text-white group-hover:bg-[#0a0a0c] transition-colors">
-                      <img src="https://www.svgrepo.com/show/475647/facebook-color.svg" alt="Facebook" className="w-5 h-5" />
-                      <span>Увійти з Facebook</span>
-                    </div>
-                  </button>
-                </div>
-              </form>
+                </form>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="w-full text-center py-6 z-10 relative">
-          <span className="text-[12px] md:text-[13px] text-[#A3A4B0]">Вже маєте акаунт? </span>
+          <span className="text-[12px] md:text-[13px] text-[#A3A4B0]">Вже зареєсторвані? </span>
           <Link to="/login" className="text-[12px] md:text-[13px] text-[#22C55E] hover:text-[#1ea84f] transition-all">Увійти</Link>
         </div>
       </div>
