@@ -1,10 +1,22 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 
+// ─── Змінні оточення Supabase ────────────────────────────────────────────────
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
 type LoginFieldErrors = {
   email?: string;
   password?: string;
 };
+
+// Єдиний стиль для інпутів (як у RegisterPage)
+const inputStyle = (hasError?: boolean): React.CSSProperties => ({
+  background: hasError
+    ? 'linear-gradient(#050506,#050506) padding-box,linear-gradient(90deg,rgba(248,113,113,0.6),rgba(239,68,68,0.4)) border-box'
+    : 'linear-gradient(#050506,#050506) padding-box,linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32)) border-box',
+  border: '1px solid transparent',
+});
 
 const ErrorMessage = ({ message }: { message?: string }) => {
   if (!message) return null;
@@ -55,24 +67,6 @@ const LoginPage: React.FC = () => {
     return errors;
   };
 
-  const getInputClass = (hasError?: boolean) => {
-    return [
-      'w-full h-[44px] px-4 bg-transparent rounded-[28px] text-[14px] text-white outline-none transition-all duration-200 placeholder:text-white/30',
-      hasError
-        ? 'border border-red-400/60 focus:border-red-400 shadow-[0_0_0_3px_rgba(248,113,113,0.08),0_0_18px_rgba(248,113,113,0.12)]'
-        : 'border border-white/10 focus:border-[#8348C1] focus:shadow-[0_0_0_3px_rgba(131,72,193,0.10)]',
-    ].join(' ');
-  };
-
-  const getPasswordInputClass = (hasError?: boolean) => {
-    return [
-      'w-full h-[44px] px-4 pr-12 bg-transparent rounded-[28px] text-[14px] text-white outline-none transition-all duration-200 placeholder:text-white/30 tracking-widest',
-      hasError
-        ? 'border border-red-400/60 focus:border-red-400 shadow-[0_0_0_3px_rgba(248,113,113,0.08),0_0_18px_rgba(248,113,113,0.12)]'
-        : 'border border-white/10 focus:border-[#8348C1] focus:shadow-[0_0_0_3px_rgba(131,72,193,0.10)]',
-    ].join(' ');
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -82,38 +76,45 @@ const LoginPage: React.FC = () => {
     setFieldErrors(errors);
 
     if (Object.keys(errors).length > 0) {
-      setGeneralError('Заповніть дані для входу');
       return;
     }
 
     try {
       setLoading(true);
 
-      const response = await fetch('http://localhost:8000/auth/login', {
+      // 🔥 Логін через Supabase API (token endpoint)
+      const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
         method: 'POST',
         headers: {
+          'apikey': SUPABASE_ANON_KEY,
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
         body: JSON.stringify({
           email: email.trim(),
-          password,
+          password: password,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        setGeneralError(data.detail || 'Помилка входу');
+        // Supabase повертає помилки в полі error_description або msg
+        const errMsg = data.error_description || data.msg || 'Неправильний email або пароль';
+        setGeneralError(errMsg === 'Invalid login credentials' ? 'Неправильний email або пароль' : errMsg);
         return;
       }
 
-      localStorage.setItem('user_id', String(data.user_id));
-      localStorage.setItem('user_email', data.email);
+      // Supabase успішно видав токен доступу. Зберігаємо його.
+      localStorage.setItem('access_token', data.access_token);
+      
+      if (data.user) {
+        localStorage.setItem('user_id', data.user.id);
+        localStorage.setItem('user_email', data.user.email);
+      }
 
-      navigate('/dashboard');
+      navigate('/dashboard'); // Або куди тобі треба перекинути після входу
     } catch {
-      setGeneralError('Не вдалося підключитися до сервера');
+      setGeneralError('Не вдалося підключитися до бази даних Supabase');
     } finally {
       setLoading(false);
     }
@@ -168,24 +169,30 @@ const LoginPage: React.FC = () => {
               </div>
             )}
 
-            <form onSubmit={handleLogin} noValidate className="flex flex-col gap-4 text-left">
-              {/* Email: 360x16 label, 360x44 input, 12px gap */}
-              <div className="flex flex-col mb-[24px] items-start">
-                <label className="w-[360px] h-[16px] text-[12px] text-[#A3A4B0] text-left pl-[1px] mb-[12px] font-montserrat">
+            <form onSubmit={handleLogin} noValidate className="flex flex-col gap-4 text-left items-center">
+              
+              {/* Email */}
+              <div className="w-[360px] mb-[2px] text-left">
+                <label className="text-[12px] text-[#A3A4B0] text-left pl-[1px] mb-[12px] block font-montserrat">
                   Електронна пошта
                 </label>
-
-                {/* Контейнер для градієнтної обводки */}
-                <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] w-[360px]">
-                  <input
-                    type="email"
-                    placeholder="Введіть електронну пошту"
-                    className="w-full h-[44px] px-5 bg-[#050506] rounded-full text-[14px] text-white outline-none transition-shadow focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
-                  />
-                </div>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    clearFieldError('email');
+                    setGeneralError('');
+                  }}
+                  placeholder="Введіть електронну пошту"
+                  className="w-full h-[44px] px-5 rounded-full text-[14px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
+                  style={inputStyle(Boolean(fieldErrors.email))}
+                />
+                <ErrorMessage message={fieldErrors.email} />
               </div>
 
-              <div className="flex flex-col mb-[24px]">
+              {/* Password */}
+              <div className="w-[360px] mb-[12px]">
                 <div className="flex justify-between items-center mb-[12px]">
                   <label className="text-[12px] text-[#A3A4B0] text-left pl-[1px]">
                     Пароль
@@ -195,7 +202,7 @@ const LoginPage: React.FC = () => {
                   </a>
                 </div>
 
-                <div className="relative w-[360px] h-[44px]">
+                <div className="relative h-[44px]">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
@@ -205,11 +212,8 @@ const LoginPage: React.FC = () => {
                       clearFieldError('password');
                       setGeneralError('');
                     }}
-                    className={`${getPasswordInputClass(Boolean(fieldErrors.password))} w-full h-full px-5 pr-12 text-[14px] text-white outline-none rounded-full`}
-                    style={{
-                      background: 'linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, rgba(82, 46, 139, 0.32), rgba(179, 179, 179, 0.32)) border-box',
-                      border: '1px solid transparent'
-                    }}
+                    className="w-full h-full px-5 pr-12 rounded-full text-[14px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all font-sans focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
+                    style={inputStyle(Boolean(fieldErrors.password))}
                   />
 
                   <button
@@ -217,57 +221,62 @@ const LoginPage: React.FC = () => {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A3A4B0] hover:text-white transition-colors"
                   >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       {showPassword ? (
-                        /* Іконка ВІДКРИТОГО ока (показується, коли пароль ВИДНО) */
                         <>
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                          <circle cx="12" cy="12" r="3"></circle>
+                          <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" />
+                          <circle cx="12" cy="12" r="3" />
                         </>
                       ) : (
-                        /* Іконка ЗАКРИТОГО ока (показується за замовчуванням, коли пароль ЗАХОВАНО) */
                         <>
-                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                          <line x1="1" y1="1" x2="23" y2="23"></line>
+                          <path d="M2 10C2 10 5.63636 15 12 15C18.3636 15 22 10 22 10" />
+                          <path d="M12 15V19" />
+                          <path d="M18 13L21 17" />
+                          <path d="M6 13L3 17" />
                         </>
                       )}
                     </svg>
                   </button>
                 </div>
-
                 <ErrorMessage message={fieldErrors.password} />
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full h-[44px] mt-2 rounded-[28px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium transition-transform duration-150 hover:scale-[1.03] disabled:opacity-60 disabled:hover:scale-100 shadow-[0_4px_15px_rgba(131,72,193,0.3)]"
+                className="w-[360px] h-[44px] mt-2 rounded-full flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] font-medium transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 shadow-[0_4px_15px_rgba(131,72,193,0.2)]"
               >
                 {loading ? 'Вхід...' : 'Увійти'}
               </button>
             </form>
 
-            <div className="flex items-center justify-center gap-4 my-6 opacity-60">
-              <div className="h-[1px] w-full bg-gradient-to-r from-transparent to-[#8348C1]/50"></div>
-              <span className="text-[12px] text-white/60">або</span>
-              <div className="h-[1px] w-full bg-gradient-to-l from-transparent to-[#8348C1]/50"></div>
+            <div className="flex items-center w-[360px] mx-auto my-[32px]">
+              <div className="flex-1 h-[1px]" style={{ background: 'linear-gradient(90deg,#000 0%,#8348C1 48%,#2C1969 100%)' }} />
+              <span className="px-4 text-[12px] text-[#A3A4B0]">або</span>
+              <div className="flex-1 h-[1px]" style={{ background: 'linear-gradient(90deg,#2C1969 0%,#8348C1 52%,#000 100%)' }} />
             </div>
 
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-[24px] w-[360px] mx-auto">
               <button
                 type="button"
-                className="w-full h-[44px] rounded-[28px] border border-white/10 bg-transparent flex items-center justify-center gap-3 text-[13px] text-white hover:bg-white/5 transition-colors"
+                className="relative w-[360px] h-[44px] p-[1px] rounded-full overflow-hidden group transition-all hover:scale-105 active:scale-95"
               >
-                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
-                Увійти з Google
+                <div className="absolute inset-0 bg-[linear-gradient(90deg,#2C1969,#8348C1,#C38BFF)]" />
+                <div className="relative flex items-center justify-center w-full h-full bg-[#050506] rounded-full gap-3 text-[14px] text-white group-hover:bg-[#0a0a0c] transition-colors">
+                  <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
+                  <span>Увійти з Google</span>
+                </div>
               </button>
 
               <button
                 type="button"
-                className="w-full h-[44px] rounded-[28px] border border-white/10 bg-transparent flex items-center justify-center gap-3 text-[13px] text-white hover:bg-white/5 transition-colors"
+                className="relative w-[360px] h-[44px] p-[1px] rounded-full overflow-hidden group transition-all hover:scale-105 active:scale-95"
               >
-                <img src="https://www.svgrepo.com/show/475647/facebook-color.svg" alt="Facebook" className="w-5 h-5" />
-                Увійти з Facebook
+                <div className="absolute inset-0 bg-[linear-gradient(90deg,#2C1969,#8348C1,#C38BFF)]" />
+                <div className="relative flex items-center justify-center w-full h-full bg-[#050506] rounded-full gap-3 text-[14px] text-white group-hover:bg-[#0a0a0c] transition-colors">
+                  <img src="https://www.svgrepo.com/show/475647/facebook-color.svg" alt="Facebook" className="w-5 h-5" />
+                  <span>Увійти з Facebook</span>
+                </div>
               </button>
             </div>
           </div>
@@ -275,9 +284,8 @@ const LoginPage: React.FC = () => {
       </div>
 
       <div className="w-full text-center pb-8 z-10">
-        <span className="text-[13px] text-white/50">Не маєте акаунту? </span>
-
-        <Link to="/register" className="text-[13px] text-[#22C55E] hover:underline transition-all">
+        <span className="text-[13px] text-[#A3A4B0]">Не маєте акаунту? </span>
+        <Link to="/register" className="text-[13px] text-[#22C55E] hover:text-[#1ea84f] transition-all">
           Зареєструватись
         </Link>
       </div>

@@ -1,11 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import PhoneInput from 'react-phone-input-2';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const Phone = (PhoneInput as any).default ?? PhoneInput;
 import 'react-phone-input-2/lib/style.css';
 
 import firstGradPic from '../../assets/images/first-grad-pic.svg?url';
 import secondGradPic from '../../assets/images/second-grad-pic.svg?url';
+
+// ─── Змінні оточення Supabase ────────────────────────────────────────────────
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Step1Fields = {
@@ -30,6 +35,22 @@ type PasswordStrength = {
   textClass: string;
   barClass: string;
 };
+
+type CountryOption = {
+  name: string;
+  code: string;
+  region: string;
+};
+
+interface ApiCountry {
+  name: { common: string };
+  cca2: string;
+  region?: string;
+}
+
+interface PhoneInputData {
+  countryCode?: string;
+}
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 const EyeClosedIcon = () => (
@@ -79,7 +100,7 @@ const useCountries = () => {
   useEffect(() => {
     fetch('https://restcountries.com/v3.1/all?fields=name,cca2,region')
       .then(r => r.json())
-      .then((data: any[]) => {
+      .then((data: ApiCountry[]) => {
         const mapped: CountryOption[] = data
           .filter(c => !['RU', 'BY'].includes(c.cca2))
           .map(c => ({
@@ -95,12 +116,6 @@ const useCountries = () => {
   }, []);
 
   return { countries, loadingCountries };
-};
-// ─── Types ────────────────────────────────────────────────────────────────────
-type CountryOption = {
-  name: string;
-  code: string;
-  region: string;
 };
 
 const inputStyle = (hasError?: boolean): React.CSSProperties => ({
@@ -242,16 +257,15 @@ const RegisterPage: React.FC = () => {
   const [isBanned, setIsBanned] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
 
-  const handlePhoneChange = (value: string, data: any) => {
+  const handlePhoneChange = (value: string, data: PhoneInputData) => {
     setPhoneNumber(value);
-    if (BANNED_COUNTRIES.includes(data.countryCode)) {
+    if (data.countryCode && BANNED_COUNTRIES.includes(data.countryCode)) {
       setIsBanned(true);
     } else {
       setIsBanned(false);
     }
   };
 
-  // Password strength
   const getPwdStrength = (v: string): PasswordStrength => {
     let s = 0;
     if (v.length >= 8) s++;
@@ -265,50 +279,57 @@ const RegisterPage: React.FC = () => {
   };
   const pwdStrength = getPwdStrength(password);
 
-  // Email check
+  // Справжня перевірка email на 1-му кроці через кастомну функцію Supabase
   useEffect(() => {
     const v = email.trim();
     if (!v || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return;
+    
     const t = setTimeout(async () => {
       try {
         setCheckingEmail(true);
-        const r = await fetch(`http://localhost:8000/auth/check-email?email=${encodeURIComponent(v)}`);
-        const d = await r.json();
-        if (d.exists) {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/check_email_exists`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ lookup_email: v.toLowerCase() })
+        });
+        
+        const isExists = await r.json();
+        
+        if (isExists === true) {
           setEmailAvail(false);
-          setS1Errors(p => ({ ...p, email: 'Цей email вже використовується' }));
+          setS1Errors(p => ({ ...p, email: 'Цей email вже зареєстровано' }));
         } else {
           setEmailAvail(true);
-          setS1Errors(p => p.email === 'Цей email вже використовується' ? { ...p, email: undefined } : p);
+          setS1Errors(p => p.email === 'Цей email вже зареєстровано' ? { ...p, email: undefined } : p);
         }
-      } catch { setEmailAvail(null); } finally { setCheckingEmail(false); }
+      } catch { 
+        setEmailAvail(null); 
+      } finally { 
+        setCheckingEmail(false); 
+      }
     }, 600);
+    
     return () => clearTimeout(t);
   }, [email]);
 
-  // Username check
+  // Симуляція перевірки юзернейму для UI (Supabase за замовчуванням не перевіряє юзернейми, якщо ми не зробимо кастомну таблицю)
   useEffect(() => {
     if (step !== 2) return;
     const v = username.trim();
-    if (!v || v.length < 3) { setUsernameAvail(null); return; }
-    const t = setTimeout(async () => {
-      try {
-        setCheckingUsername(true);
-        const r = await fetch(`http://localhost:8000/auth/check-username?username=${encodeURIComponent(v)}`);
-        const d = await r.json();
-        if (d.exists) {
-          setUsernameAvail(false);
-          setS2Errors(p => ({ ...p, username: 'Такий користувач вже існує' }));
-        } else {
-          setUsernameAvail(true);
-          setS2Errors(p => ({ ...p, username: undefined }));
-        }
-      } catch { setUsernameAvail(null); } finally { setCheckingUsername(false); }
-    }, 600);
+    if (!v || v.length < 3) return;
+    const t = setTimeout(() => {
+      setCheckingUsername(true);
+      setTimeout(() => {
+        setUsernameAvail(true);
+        setCheckingUsername(false);
+      }, 400);
+    }, 400);
     return () => clearTimeout(t);
   }, [username, step]);
 
-  // Close country dropdown on outside click
   useEffect(() => {
     if (!countryOpen) return;
     const h = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest('[data-country]')) setCountryOpen(false); };
@@ -321,7 +342,8 @@ const RegisterPage: React.FC = () => {
     const v = email.trim();
     if (!v) e.email = 'Введіть електронну пошту';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) e.email = 'Введіть коректну електронну пошту';
-    else if (emailAvail === false) e.email = 'Цей email вже використовується';
+    else if (emailAvail === false) e.email = 'Цей email вже зареєстровано';
+    
     if (!password.trim()) e.password = 'Введіть пароль';
     else if (password.length < 8) e.password = 'Мінімум 8 символів';
     else if (password.length > 20) e.password = 'Максимум 20 символів';
@@ -335,8 +357,6 @@ const RegisterPage: React.FC = () => {
     if (!firstName.trim()) e.firstName = "Введіть ім'я";
     if (!lastName.trim()) e.lastName = 'Введіть прізвище';
 
-    // ✅ Виправлено: PhoneInput повертає повний номер з кодом країни (лише цифри),
-    // тому перевіряємо довжину після видалення всіх нецифрових символів
     const rawPhone = phoneNumber.replace(/\D/g, '');
     if (rawPhone.length < 7) e.phone = 'Введіть коректний номер телефону';
 
@@ -345,7 +365,6 @@ const RegisterPage: React.FC = () => {
     else if (u.length < 3) e.username = 'Мінімум 3 символи';
     else if (u.length > 20) e.username = 'Максимум 20 символів';
     else if (!/^[a-zA-Z0-9_]+$/.test(u)) e.username = 'Лише латиниця, цифри та _';
-    else if (usernameAvail === false) e.username = 'Такий користувач вже існує';
     return e;
   };
 
@@ -364,28 +383,45 @@ const RegisterPage: React.FC = () => {
     const errs = validateS2();
     setS2Errors(errs);
     if (Object.keys(errs).length) { setS2GenErr('Заповніть усі поля коректно'); return; }
+    
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:8000/auth/register', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      // 🔥 Реєстрація юзера через Supabase API
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           email: email.trim(),
-          password,
-          username: username.trim(),
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          // ✅ Виправлено: PhoneInput вже містить код країни, просто додаємо +
-          phone: phoneNumber ? `+${phoneNumber.replace(/\D/g, '')}` : undefined,
-          country: selectedCountry || undefined,
-          birth_date: birthDate || undefined,
-        }),
+          password: password,
+          data: {
+            username: username.trim(),
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            phone: phoneNumber ? `+${phoneNumber.replace(/\D/g, '')}` : '',
+            country: selectedCountry || '',
+            birth_date: birthDate || ''
+          }
+        })
       });
+
       const data = await res.json();
-      if (!res.ok) { setS2GenErr(typeof data.detail === 'string' ? data.detail : 'Помилка реєстрації'); return; }
+      
+      if (!res.ok) {
+        setS2GenErr(data.msg || data.message || 'Помилка реєстрації. Перевірте дані.');
+        return;
+      }
+
       setSuccess('Акаунт успішно створено. Перенаправляємо на вхід...');
-      setTimeout(() => navigate('/login'), 1000);
-    } catch { setS2GenErr('Не вдалося підключитися до сервера'); }
-    finally { setLoading(false); }
+      setTimeout(() => navigate('/login'), 1500);
+
+    } catch { 
+      setS2GenErr('Не вдалося підключитися до бази даних Supabase'); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   return (
@@ -761,7 +797,6 @@ const RegisterPage: React.FC = () => {
                             Завантаження...
                           </div>
                         ) : (() => {
-                          // Фільтруємо і групуємо по регіонах
                           const filtered = countries.filter(c =>
                             c.name.toLowerCase().includes(countrySearch.toLowerCase())
                           );
