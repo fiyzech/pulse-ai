@@ -135,17 +135,17 @@ const LoginPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="absolute top-1/4 -left-[200px] w-[500px] h-[500px] bg-[#522E8B]/30 blur-[150px] rounded-full pointer-events-none"></div>
+      <div className="absolute top-1/4 -left-[200px] w-[480px] h-[680px] bg-[#522E8B]/30 blur-[150px] rounded-full pointer-events-none"></div>
       <div className="absolute bottom-1/4 -right-[200px] w-[600px] h-[600px] bg-[#522E8B]/20 blur-[150px] rounded-full pointer-events-none"></div>
 
       <div className="flex-1 flex items-center justify-center z-10 p-4">
-        <div className="p-[1px] rounded-[30px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] w-full max-w-[480px]">
-          <div className="relative h-full rounded-[29px] bg-[#050506] px-10 py-12 text-center shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] overflow-hidden">
-            <h1 className="font-bold text-[32px] text-white mb-2 leading-[40px]">
+        <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]  w-[480px] h-[680px]">
+          <div className="relative h-full rounded-[28px] bg-[#050506] px-[60px] py-[60px] text-center shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] overflow-hidden">
+            <h1 className="text-white text-[32px] font-bold font-montserrat text-center">
               Вітаємо
             </h1>
 
-            <p className="font-light text-[18px] text-[#A3A4B0] mb-8 leading-[24px]">
+            <p className="w-[200px] h-[24px] mx-auto font-light text-[16px] text-[#A3A4B0] mt-[4px] mb-[48px] flex items-center justify-center font-light font-montserrat">
               Увійдіть у свій акаунт
             </p>
 
@@ -169,68 +169,71 @@ const LoginPage: React.FC = () => {
             )}
 
             <form onSubmit={handleLogin} noValidate className="flex flex-col gap-4 text-left">
-              <div className="flex flex-col gap-1">
-                <label className="text-[12px] text-[#A3A4B0] font-normal leading-[16px]">
+              {/* Email: 360x16 label, 360x44 input, 12px gap */}
+              <div className="flex flex-col mb-[24px] items-start">
+                <label className="w-[360px] h-[16px] text-[12px] text-[#A3A4B0] text-left pl-[1px] mb-[12px] font-montserrat">
                   Електронна пошта
                 </label>
 
-                <input
-                  type="email"
-                  placeholder="Введіть електронну пошту"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    clearFieldError('email');
-                    setGeneralError('');
-                  }}
-                  className={getInputClass(Boolean(fieldErrors.email))}
-                />
-
-                <ErrorMessage message={fieldErrors.email} />
+                {/* Контейнер для градієнтної обводки */}
+                <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] w-[360px]">
+                  <input
+                    type="email"
+                    placeholder="Введіть електронну пошту"
+                    className="w-full h-[44px] px-5 bg-[#050506] rounded-full text-[14px] text-white outline-none transition-shadow focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
+                  />
+                </div>
               </div>
 
-              <div className="flex flex-col gap-1 relative mb-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-[12px] text-[#A3A4B0] font-normal leading-[16px]">
+              <div className="flex flex-col mb-[24px]">
+                <div className="flex justify-between items-center mb-[12px]">
+                  <label className="text-[12px] text-[#A3A4B0] text-left pl-[1px]">
                     Пароль
                   </label>
-
-                  <a href="#" className="text-[11px] text-white/50 hover:text-white transition-colors">
+                  <a href="#" className="text-[12px] text-[#A3A4B0] hover:text-white transition-colors">
                     Забули пароль?
                   </a>
                 </div>
 
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    clearFieldError('password');
-                    setGeneralError('');
-                  }}
-                  className={getPasswordInputClass(Boolean(fieldErrors.password))}
-                />
+                <div className="relative w-[360px] h-[44px]">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      clearFieldError('password');
+                      setGeneralError('');
+                    }}
+                    className={`${getPasswordInputClass(Boolean(fieldErrors.password))} w-full h-full px-5 pr-12 text-[14px] text-white outline-none rounded-full`}
+                    style={{
+                      background: 'linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, rgba(82, 46, 139, 0.32), rgba(179, 179, 179, 0.32)) border-box',
+                      border: '1px solid transparent'
+                    }}
+                  />
 
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-[26px] text-white/50 hover:text-white transition-colors"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    {showPassword ? (
-                      <>
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                        <line x1="1" y1="1" x2="23" y2="23"></line>
-                      </>
-                    ) : (
-                      <>
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                      </>
-                    )}
-                  </svg>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A3A4B0] hover:text-white transition-colors"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      {showPassword ? (
+                        /* Іконка ВІДКРИТОГО ока (показується, коли пароль ВИДНО) */
+                        <>
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </>
+                      ) : (
+                        /* Іконка ЗАКРИТОГО ока (показується за замовчуванням, коли пароль ЗАХОВАНО) */
+                        <>
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                          <line x1="1" y1="1" x2="23" y2="23"></line>
+                        </>
+                      )}
+                    </svg>
+                  </button>
+                </div>
 
                 <ErrorMessage message={fieldErrors.password} />
               </div>
