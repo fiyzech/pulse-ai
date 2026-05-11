@@ -1,14 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import PhoneInput from 'react-phone-input-2';
+const Phone = (PhoneInput as any).default ?? PhoneInput;
+import 'react-phone-input-2/lib/style.css';
 
-import firstGradPic from '../../assets/images/first-grad-pic.svg';
-import secondGradPic from '../../assets/images/second-grad-pic.svg';
+import firstGradPic from '../../assets/images/first-grad-pic.svg?url';
+import secondGradPic from '../../assets/images/second-grad-pic.svg?url';
 
-type FieldErrors = {
+// ─── Types ────────────────────────────────────────────────────────────────────
+type Step1Fields = {
   email?: string;
   password?: string;
   confirmPassword?: string;
-  terms?: string;
+};
+
+type Step2Fields = {
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  phone?: string;
+  country?: string;
+  birthDate?: string;
 };
 
 type PasswordStrength = {
@@ -19,21 +31,9 @@ type PasswordStrength = {
   barClass: string;
 };
 
-const ErrorMessage = ({ message }: { message?: string }) => {
-  if (!message) return null;
-
-  return (
-    <div className="mt-1 ml-3 flex items-center gap-2 text-[11px] leading-[16px] text-red-300">
-      <span className="flex h-[14px] w-[14px] items-center justify-center rounded-full border border-red-400/40 bg-red-500/10 text-[9px] text-red-300">
-        !
-      </span>
-      <span>{message}</span>
-    </div>
-  );
-};
-
+// ─── Icons ────────────────────────────────────────────────────────────────────
 const EyeClosedIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
     <path d="M2 10C2 10 5.63636 15 12 15C18.3636 15 22 10 22 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M12 15V19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M18 13L21 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -42,187 +42,355 @@ const EyeClosedIcon = () => (
 );
 
 const EyeOpenIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
     <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5" />
   </svg>
 );
 
+const ChevronDownIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+    <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const CalendarIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+    <rect x="3" y="4" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M3 9H21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <path d="M8 2V6M16 2V6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);
+
+const CheckIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <circle cx="8" cy="8" r="7" stroke="#22C55E" strokeWidth="1.2" />
+    <path d="M5 8L7 10L11 6" stroke="#22C55E" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const BANNED_COUNTRIES = ['ru', 'by'];
+
+const useCountries = () => {
+  const [countries, setCountries] = useState<CountryOption[]>([]);
+  const [loadingCountries, setLoadingCountries] = useState(true);
+
+  useEffect(() => {
+    fetch('https://restcountries.com/v3.1/all?fields=name,cca2,region')
+      .then(r => r.json())
+      .then((data: any[]) => {
+        const mapped: CountryOption[] = data
+          .filter(c => !['RU', 'BY'].includes(c.cca2))
+          .map(c => ({
+            name: c.name.common,
+            code: c.cca2,
+            region: c.region || 'Інше',
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        setCountries(mapped);
+      })
+      .catch(() => setCountries([]))
+      .finally(() => setLoadingCountries(false));
+  }, []);
+
+  return { countries, loadingCountries };
+};
+// ─── Types ────────────────────────────────────────────────────────────────────
+type CountryOption = {
+  name: string;
+  code: string;
+  region: string;
+};
+
+const inputStyle = (hasError?: boolean): React.CSSProperties => ({
+  background: hasError
+    ? 'linear-gradient(#050506,#050506) padding-box,linear-gradient(90deg,rgba(248,113,113,0.6),rgba(239,68,68,0.4)) border-box'
+    : 'linear-gradient(#050506,#050506) padding-box,linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32)) border-box',
+  border: '1px solid transparent',
+});
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+const ErrorMsg = ({ msg }: { msg?: string }) =>
+  msg ? (
+    <div className="mt-1 ml-3 flex items-center gap-1.5 text-[11px] leading-[16px] text-red-300">
+      <span className="flex h-[14px] w-[14px] flex-shrink-0 items-center justify-center rounded-full border border-red-400/40 bg-red-500/10 text-[9px]">!</span>
+      {msg}
+    </div>
+  ) : null;
+
+const Card = ({ children }: { children: React.ReactNode }) => (
+  <div className="p-[1px] rounded-[28px] w-[480px]"
+    style={{ background: 'linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))' }}>
+    <div className="relative rounded-[28px] bg-[#050506] text-center overflow-hidden"
+      style={{ boxShadow: '0 20px 70px rgba(131,72,193,0.10),0 8px 25px rgba(0,0,0,0.35)' }}>
+      <div className="absolute top-[-50px] left-[-20px] w-[200px] h-[200px] bg-[#8348C1]/28 blur-[20px] rounded-full pointer-events-none z-0" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[70%] bg-[#522E8B]/10 blur-[80px] rounded-full pointer-events-none z-0" />
+      <div className="relative z-10">{children}</div>
+    </div>
+  </div>
+);
+
+const ErrBanner = ({ msg }: { msg: string }) => (
+  <div className="mb-[20px] rounded-[18px] border border-red-400/30 bg-[linear-gradient(135deg,rgba(239,68,68,0.14),rgba(131,72,193,0.08))] px-4 py-3 text-left">
+    <div className="flex items-start gap-3">
+      <div className="mt-[1px] flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border border-red-400/40 bg-red-500/15 text-[13px] text-red-200">!</div>
+      <div>
+        <p className="text-[12px] font-medium text-red-200 leading-[18px]">Перевірте дані</p>
+        <p className="text-[12px] text-red-300/90 leading-[18px]">{msg}</p>
+      </div>
+    </div>
+  </div>
+);
+
+const Lbl = ({ children }: { children: React.ReactNode }) => (
+  <label className="text-[12px] text-[#A3A4B0] text-left pl-[1px] mb-[10px] block font-montserrat">{children}</label>
+);
+
+const Stepper = ({ step }: { step: number }) => (
+  <div className="flex items-center justify-center pt-[60px] mb-[40px] px-[140px]">
+    <div
+      className="flex-shrink-0 w-[40px] h-[40px] rounded-full flex items-center justify-center text-[16px] font-medium"
+      style={{
+        background: step === 1
+          ? 'linear-gradient(#000,#000) padding-box,linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32)) border-box'
+          : 'linear-gradient(135deg,#2C1969,#8348C1)',
+        border: step === 1 ? '1px solid transparent' : 'none',
+        color: step === 1 ? '#8348C1' : '#fff',
+        boxShadow: step === 1 ? '0 0 15px rgba(131,72,193,0.15)' : '0 0 20px rgba(131,72,193,0.3)',
+      }}
+    >
+      {step > 1
+        ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12L10 17L19 7" stroke="#22C55E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        : '1'}
+    </div>
+    <div
+      className="flex-1 h-[1px] min-w-[80px]"
+      style={{ background: step > 1 ? 'linear-gradient(90deg,#8348C1,#C38BFF,#8348C1)' : 'linear-gradient(90deg,#2C1969,#8348C1,#2C1969)' }}
+    />
+    <div
+      className="flex-shrink-0 w-[40px] h-[40px] rounded-full flex items-center justify-center text-[16px] font-medium"
+      style={{
+        background: step === 2
+          ? 'linear-gradient(#000,#000) padding-box,linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32)) border-box'
+          : '#050506',
+        border: step === 2 ? '1px solid transparent' : '1px solid rgba(82,46,139,0.5)',
+        color: step === 2 ? '#8348C1' : '#A3A4B0',
+        boxShadow: step === 2 ? '0 0 15px rgba(131,72,193,0.15)' : 'none',
+      }}
+    >2</div>
+  </div>
+);
+
+const UsernameIndicator = ({
+  username,
+  checkingUsername,
+  usernameAvail,
+  hasError,
+}: {
+  username: string;
+  checkingUsername: boolean;
+  usernameAvail: boolean | null;
+  hasError: boolean;
+}) => {
+  if (username.trim().length < 3) return null;
+  if (checkingUsername) {
+    return <div className="w-4 h-4 rounded-full border-2 border-[#8348C1] border-t-transparent animate-spin" />;
+  }
+  if (usernameAvail === true && !hasError) {
+    return <CheckIcon />;
+  }
+  if (usernameAvail === false) {
+    return (
+      <span className="flex h-4 w-4 items-center justify-center rounded-full border border-red-400/60 bg-red-500/10 text-[9px] text-red-300">!</span>
+    );
+  }
+  return null;
+};
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
+  const { countries, loadingCountries } = useCountries();
+  const [step, setStep] = useState(1);
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
+  // Step 1
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
+  const [s1Errors, setS1Errors] = useState<Step1Fields>({});
+  const [s1GenErr, setS1GenErr] = useState('');
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const [emailAvail, setEmailAvail] = useState<boolean | null>(null);
 
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [generalError, setGeneralError] = useState('');
+  // Step 2
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [username, setUsername] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [countryOpen, setCountryOpen] = useState(false);
+  const [birthDate, setBirthDate] = useState('');
+  const [s2Errors, setS2Errors] = useState<Step2Fields>({});
+  const [s2GenErr, setS2GenErr] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const [usernameAvail, setUsernameAvail] = useState<boolean | null>(null);
+  const [isBanned, setIsBanned] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
 
-  const [checkingEmail, setCheckingEmail] = useState(false);
-  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
-
-  const getPasswordStrength = (value: string): PasswordStrength => {
-    let score = 0;
-    if (value.length >= 8) score++;
-    if (/[A-ZА-ЯІЇЄҐ]/.test(value)) score++;
-    if (/[0-9]/.test(value)) score++;
-    if (/[^A-Za-zА-Яа-яІіЇїЄєҐґ0-9]/.test(value)) score++;
-
-    if (!value) {
-      return { label: '', hint: '', percent: '0%', textClass: 'text-[#A3A4B0]', barClass: 'bg-transparent' };
+  const handlePhoneChange = (value: string, data: any) => {
+    setPhoneNumber(value);
+    if (BANNED_COUNTRIES.includes(data.countryCode)) {
+      setIsBanned(true);
+    } else {
+      setIsBanned(false);
     }
-    if (score <= 1) {
-      return {
-        label: 'Слабкий пароль',
-        hint: 'Додайте цифри, великі літери або символи',
-        percent: '33%',
-        textClass: 'text-red-300',
-        barClass: 'bg-gradient-to-r from-red-500 to-red-300',
-      };
-    }
-    if (score <= 3) {
-      return {
-        label: 'Середній пароль',
-        hint: 'Можна зробити ще надійніше',
-        percent: '66%',
-        textClass: 'text-yellow-200',
-        barClass: 'bg-gradient-to-r from-yellow-500 to-[#C38BFF]',
-      };
-    }
-    return {
-      label: 'Надійний пароль',
-      hint: 'Гарний рівень захисту',
-      percent: '100%',
-      textClass: 'text-[#86EFAC]',
-      barClass: 'bg-gradient-to-r from-[#22C55E] to-[#C38BFF]',
-    };
   };
 
-  const passwordStrength = getPasswordStrength(password);
-
-  const clearFieldError = (field: keyof FieldErrors) => {
-    setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
+  // Password strength
+  const getPwdStrength = (v: string): PasswordStrength => {
+    let s = 0;
+    if (v.length >= 8) s++;
+    if (/[A-ZА-ЯІЇЄҐ]/.test(v)) s++;
+    if (/[0-9]/.test(v)) s++;
+    if (/[^A-Za-zА-Яа-яІіЇїЄєҐґ0-9]/.test(v)) s++;
+    if (!v) return { label: '', hint: '', percent: '0%', textClass: 'text-[#A3A4B0]', barClass: 'bg-transparent' };
+    if (s <= 1) return { label: 'Слабкий пароль', hint: 'Додайте цифри, великі літери або символи', percent: '33%', textClass: 'text-red-300', barClass: 'bg-gradient-to-r from-red-500 to-red-300' };
+    if (s <= 3) return { label: 'Середній пароль', hint: 'Можна зробити ще надійніше', percent: '66%', textClass: 'text-yellow-200', barClass: 'bg-gradient-to-r from-yellow-500 to-[#C38BFF]' };
+    return { label: 'Надійний пароль', hint: 'Гарний рівень захисту', percent: '100%', textClass: 'text-[#86EFAC]', barClass: 'bg-gradient-to-r from-[#22C55E] to-[#C38BFF]' };
   };
+  const pwdStrength = getPwdStrength(password);
 
+  // Email check
   useEffect(() => {
-    const emailValue = email.trim();
-    if (!emailValue || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) return;
-
-    const timer = setTimeout(async () => {
+    const v = email.trim();
+    if (!v || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return;
+    const t = setTimeout(async () => {
       try {
         setCheckingEmail(true);
-        const response = await fetch(`http://localhost:8000/auth/check-email?email=${encodeURIComponent(emailValue)}`);
-        const data = await response.json();
-        if (data.exists) {
-          setEmailAvailable(false);
-          setFieldErrors((prev) => ({ ...prev, email: 'Цей email вже використовується' }));
+        const r = await fetch(`http://localhost:8000/auth/check-email?email=${encodeURIComponent(v)}`);
+        const d = await r.json();
+        if (d.exists) {
+          setEmailAvail(false);
+          setS1Errors(p => ({ ...p, email: 'Цей email вже використовується' }));
         } else {
-          setEmailAvailable(true);
-          setFieldErrors((prev) => (prev.email === 'Цей email вже використовується' ? { ...prev, email: undefined } : prev));
+          setEmailAvail(true);
+          setS1Errors(p => p.email === 'Цей email вже використовується' ? { ...p, email: undefined } : p);
         }
-      } catch {
-        setEmailAvailable(null);
-      } finally {
-        setCheckingEmail(false);
-      }
+      } catch { setEmailAvail(null); } finally { setCheckingEmail(false); }
     }, 600);
-    return () => clearTimeout(timer);
+    return () => clearTimeout(t);
   }, [email]);
 
-  const validateForm = () => {
-    const errors: FieldErrors = {};
-    const emailValue = email.trim();
+  // Username check
+  useEffect(() => {
+    if (step !== 2) return;
+    const v = username.trim();
+    if (!v || v.length < 3) { setUsernameAvail(null); return; }
+    const t = setTimeout(async () => {
+      try {
+        setCheckingUsername(true);
+        const r = await fetch(`http://localhost:8000/auth/check-username?username=${encodeURIComponent(v)}`);
+        const d = await r.json();
+        if (d.exists) {
+          setUsernameAvail(false);
+          setS2Errors(p => ({ ...p, username: 'Такий користувач вже існує' }));
+        } else {
+          setUsernameAvail(true);
+          setS2Errors(p => ({ ...p, username: undefined }));
+        }
+      } catch { setUsernameAvail(null); } finally { setCheckingUsername(false); }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [username, step]);
 
-    if (!emailValue) {
-      errors.email = 'Введіть електронну пошту';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
-      errors.email = 'Введіть коректну електронну пошту';
-    } else if (emailAvailable === false) {
-      errors.email = 'Цей email вже використовується';
-    }
+  // Close country dropdown on outside click
+  useEffect(() => {
+    if (!countryOpen) return;
+    const h = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest('[data-country]')) setCountryOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [countryOpen]);
 
-    if (!password.trim()) {
-      errors.password = 'Введіть пароль';
-    } else if (password.length < 8) {
-      errors.password = 'Пароль має містити мінімум 8 символів';
-    } else if (password.length > 20) {
-      errors.password = 'Пароль має містити максимум 20 символів';
-    }
-
-    if (!confirmPassword.trim()) {
-      errors.confirmPassword = 'Підтвердіть пароль';
-    } else if (password !== confirmPassword) {
-      errors.confirmPassword = 'Паролі не збігаються';
-    }
-
-    return errors;
+  const validateS1 = () => {
+    const e: Step1Fields = {};
+    const v = email.trim();
+    if (!v) e.email = 'Введіть електронну пошту';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) e.email = 'Введіть коректну електронну пошту';
+    else if (emailAvail === false) e.email = 'Цей email вже використовується';
+    if (!password.trim()) e.password = 'Введіть пароль';
+    else if (password.length < 8) e.password = 'Мінімум 8 символів';
+    else if (password.length > 20) e.password = 'Максимум 20 символів';
+    if (!confirmPassword.trim()) e.confirmPassword = 'Підтвердіть пароль';
+    else if (password !== confirmPassword) e.confirmPassword = 'Паролі не збігаються';
+    return e;
   };
 
-  const getInputClass = (hasError?: boolean) => {
-    return [
-      'w-[360px] h-[44px] px-5 bg-transparent rounded-full text-[13px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all duration-200',
-      hasError
-        ? 'border border-red-400/60 focus:border-red-400 shadow-[0_0_0_3px_rgba(248,113,113,0.08),0_0_18px_rgba(248,113,113,0.12)]'
-        : 'border border-white/10 focus:border-[#8348C1] focus:shadow-[0_0_0_3px_rgba(131,72,193,0.10)]',
-    ].join(' ');
+  const validateS2 = () => {
+    const e: Step2Fields = {};
+    if (!firstName.trim()) e.firstName = "Введіть ім'я";
+    if (!lastName.trim()) e.lastName = 'Введіть прізвище';
+
+    // ✅ Виправлено: PhoneInput повертає повний номер з кодом країни (лише цифри),
+    // тому перевіряємо довжину після видалення всіх нецифрових символів
+    const rawPhone = phoneNumber.replace(/\D/g, '');
+    if (rawPhone.length < 7) e.phone = 'Введіть коректний номер телефону';
+
+    const u = username.trim();
+    if (!u) e.username = "Введіть ім'я користувача";
+    else if (u.length < 3) e.username = 'Мінімум 3 символи';
+    else if (u.length > 20) e.username = 'Максимум 20 символів';
+    else if (!/^[a-zA-Z0-9_]+$/.test(u)) e.username = 'Лише латиниця, цифри та _';
+    else if (usernameAvail === false) e.username = 'Такий користувач вже існує';
+    return e;
   };
 
-  const getPasswordInputClass = (hasError?: boolean) => {
-    return [
-      'w-[360px] h-[44px] px-5 pr-12 bg-transparent rounded-full text-[13px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all duration-200 font-sans',
-      hasError
-        ? 'border border-red-400/60 focus:border-red-400 shadow-[0_0_0_3px_rgba(248,113,113,0.08),0_0_18px_rgba(248,113,113,0.12)]'
-        : 'border border-white/10 focus:border-[#8348C1] focus:shadow-[0_0_0_3px_rgba(131,72,193,0.10)]',
-    ].join(' ');
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleS1Submit = (e: React.FormEvent) => {
     e.preventDefault();
-    setGeneralError('');
-    setSuccess('');
+    setS1GenErr('');
+    const errs = validateS1();
+    setS1Errors(errs);
+    if (Object.keys(errs).length) { setS1GenErr('Заповніть усі поля коректно'); return; }
+    setStep(2); setS1Errors({}); setS1GenErr('');
+  };
 
-    const errors = validateForm();
-    setFieldErrors(errors);
-
-    if (Object.keys(errors).length > 0) {
-      setGeneralError('Заповніть усі поля коректно');
-      return;
-    }
-
+  const handleS2Submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setS2GenErr(''); setSuccess('');
+    const errs = validateS2();
+    setS2Errors(errs);
+    if (Object.keys(errs).length) { setS2GenErr('Заповніть усі поля коректно'); return; }
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8000/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+      const res = await fetch('http://localhost:8000/auth/register', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
         body: JSON.stringify({
           email: email.trim(),
           password,
+          username: username.trim(),
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          // ✅ Виправлено: PhoneInput вже містить код країни, просто додаємо +
+          phone: phoneNumber ? `+${phoneNumber.replace(/\D/g, '')}` : undefined,
+          country: selectedCountry || undefined,
+          birth_date: birthDate || undefined,
         }),
       });
-
-      const data = await response.json();
-      if (!response.ok) {
-        setGeneralError(typeof data.detail === 'string' ? data.detail : 'Помилка реєстрації');
-        return;
-      }
-
-      setSuccess('Акаунт успішно створено. Зараз перенаправимо вас на сторінку входу');
+      const data = await res.json();
+      if (!res.ok) { setS2GenErr(typeof data.detail === 'string' ? data.detail : 'Помилка реєстрації'); return; }
+      setSuccess('Акаунт успішно створено. Перенаправляємо на вхід...');
       setTimeout(() => navigate('/login'), 1000);
-    } catch {
-      setGeneralError('Не вдалося підключитися до сервера');
-    } finally {
-      setLoading(false);
-    }
+    } catch { setS2GenErr('Не вдалося підключитися до сервера'); }
+    finally { setLoading(false); }
   };
 
   return (
     <div className="min-h-screen bg-[#010004] flex flex-col relative overflow-hidden font-montserrat">
+      {/* Logo */}
       <div className="absolute top-6 left-6 md:top-8 md:left-8 flex items-center gap-3 cursor-pointer z-30" onClick={() => navigate('/')}>
         <img src="/logo-crypro-pulse.svg" alt="CryptoPulse" className="w-6 h-6 md:w-7 md:h-7 object-contain" />
         <div className="text-[16px] md:text-[18px] tracking-wide">
@@ -231,196 +399,479 @@ const RegisterPage: React.FC = () => {
         </div>
       </div>
 
-      <img src={firstGradPic} alt="" className="absolute top-[-10%] -left-[10%] w-[500px] md:w-[600px] opacity-60 pointer-events-none mix-blend-screen z-0" />
-      <img src={secondGradPic} alt="" className="absolute bottom-[0%] -right-[5%] w-[400px] md:w-[500px] opacity-50 pointer-events-none mix-blend-screen z-0" />
+      <img src={firstGradPic} alt="" className="absolute top-[-10%] -left-[10%] w-[600px] opacity-60 pointer-events-none mix-blend-screen z-0" />
+      <img src={secondGradPic} alt="" className="absolute bottom-0 -right-[5%] w-[500px] opacity-50 pointer-events-none mix-blend-screen z-0" />
 
-      <div className="flex-1 flex flex-col items-center justify-center z-10 p-4">
-        {/* РОЗМІР КАРТКИ 480x856 */}
-        <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] w-[480px] h-[856px] ">
-          <div className="relative h-full rounded-[28px] px-[60px] bg-[#050506]  px-0 text-center shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] overflow-hidden">
-            <div className="absolute top-[-50px] left-[-20px] w-[200px] h-[200px] bg-[#8348C1]/28 blur-[20px] rounded-full pointer-events-none z-0"></div>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[70%] bg-[#522E8B]/10 blur-[80px] rounded-full pointer-events-none z-0"></div>
+      <div className="flex-1 flex flex-col items-center justify-center z-10 p-4 py-12">
 
-            <div className="relative z-10">
-              {/* СТЕППЕР: 140px до країв, 120px між ними */}
-              <div className="flex items-center justify-center pt-[60px] mb-[40px] px-[140px]">
-                {/* Цифра 1 */}
-                <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] flex-shrink-0">
-                  <div className="w-[38px] h-[38px] rounded-full bg-[#000000] flex items-center justify-center text-[#8348C1] text-[16px] font-medium font-montserrat shadow-[0_0_15px_rgba(131,72,193,0.15)]">
-                    1
-                  </div>
+        {/* ══════════════════════════════════════════════════════ STEP 1 */}
+        {step === 1 && (
+          <Card>
+            <Stepper step={step} />
+            <h1 className="text-white text-[32px] font-bold">Вітаємо</h1>
+            <p className="font-light text-[16px] text-[#A3A4B0] mt-[4px] mb-[48px]">Створіть свій акаунт</p>
+
+            <div className="px-[60px] pb-[60px]">
+              {s1GenErr && <ErrBanner msg={s1GenErr} />}
+
+              <form onSubmit={handleS1Submit} noValidate className="flex flex-col items-center">
+                {/* Email */}
+                <div className="w-[360px] mb-[24px] text-left">
+                  <Lbl>Електронна пошта</Lbl>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={e => {
+                      setEmail(e.target.value);
+                      if (s1Errors.email) setS1Errors(p => ({ ...p, email: undefined }));
+                      setEmailAvail(null);
+                    }}
+                    placeholder="Введіть електронну пошту"
+                    className="w-full h-[44px] px-5 rounded-full text-[14px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
+                    style={inputStyle(Boolean(s1Errors.email))}
+                  />
+                  <ErrorMsg msg={s1Errors.email} />
                 </div>
 
-                {/* Лінія: Градієнт 2C1969 -> 8348C1 -> 2C1969 */}
-                <div
-                  className="flex-1 h-[1px] min-w-[120px]"
-                  style={{
-                    background: 'linear-gradient(90deg, #2C1969 0%, #8348C1 48%, #2C1969 100%)'
-                  }}
-                />
-
-                {/* Цифра 2: Додано обгортку для градієнтного контуру */}
-                <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] flex-shrink-0">
-                  <div className="w-[38px] h-[38px] rounded-full bg-[#050506] flex items-center justify-center text-[#A3A4B0] text-[16px] font-medium font-montserrat">
-                    2
+                {/* Password */}
+                <div className="w-[360px] mb-[8px] text-left">
+                  <Lbl>Пароль</Lbl>
+                  <div className="relative h-[44px]">
+                    <input
+                      type={showPwd ? 'text' : 'password'}
+                      value={password}
+                      onChange={e => {
+                        setPassword(e.target.value);
+                        if (s1Errors.password) setS1Errors(p => ({ ...p, password: undefined }));
+                      }}
+                      placeholder="••••••••"
+                      className="w-full h-full px-5 pr-12 rounded-full text-[14px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all font-sans focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
+                      style={inputStyle(Boolean(s1Errors.password))}
+                    />
+                    <button type="button" onClick={() => setShowPwd(v => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A3A4B0]">
+                      {showPwd ? <EyeOpenIcon /> : <EyeClosedIcon />}
+                    </button>
                   </div>
+                  <ErrorMsg msg={s1Errors.password} />
                 </div>
-              </div>
 
-
-
-              {/* Вітаємо: 172px до боків */}
-              <h1 className="text-white text-[32px] font-bold font-montserrat text-center">
-                Вітаємо
-              </h1>
-
-              {/* Підзаголовок: 4px від Вітаємо, 48px до інпутів */}
-              <p className="w-[189px] h-[24px] mx-auto font-light text-[16px] text-[#A3A4B0] mt-[4px] mb-[48px] flex items-center justify-center font-light font-montserrat">
-                Створіть свій акаунт
-              </p>
-
-              <div className="px-[60px]">
-                {generalError && (
-                  <div className="mb-4 rounded-[18px] border border-red-400/30 bg-[linear-gradient(135deg,rgba(239,68,68,0.14),rgba(131,72,193,0.08))] px-4 py-3 text-left shadow-[0_0_24px_rgba(239,68,68,0.08)]">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-[1px] flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border border-red-400/40 bg-red-500/15 text-[13px] text-red-200">!</div>
-                      <div>
-                        <p className="text-[12px] font-medium text-red-200 leading-[18px]">Перевірте дані</p>
-                        <p className="text-[12px] text-red-300/90 leading-[18px]">{generalError}</p>
-                      </div>
+                {/* Strength bar */}
+                {password && (
+                  <div className="w-[360px] mb-[16px]">
+                    <div className="w-full h-[3px] rounded-full bg-white/5 mb-[6px]">
+                      <div className={`h-full rounded-full transition-all duration-500 ${pwdStrength.barClass}`} style={{ width: pwdStrength.percent }} />
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={`text-[11px] font-medium ${pwdStrength.textClass}`}>{pwdStrength.label}</span>
+                      <span className="text-[11px] text-[#A3A4B0]/60">{pwdStrength.hint}</span>
                     </div>
                   </div>
                 )}
 
-                {success && (
-                  <div className="mb-4 rounded-[18px] border border-[#22C55E]/30 bg-[linear-gradient(135deg,rgba(34,197,94,0.13),rgba(131,72,193,0.08))] px-4 py-3 text-left shadow-[0_0_24px_rgba(34,197,94,0.08)]">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-[1px] flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border border-[#22C55E]/40 bg-[#22C55E]/15 text-[12px] text-[#86EFAC]">✓</div>
-                      <div>
-                        <p className="text-[12px] font-medium text-[#BBF7D0] leading-[18px]">Готово</p>
-                        <p className="text-[12px] text-[#86EFAC]/90 leading-[18px]">{success}</p>
+                {/* Confirm */}
+                <div className={`w-[360px] text-left ${password ? 'mb-[40px]' : 'mb-[40px] mt-[16px]'}`}>
+                  <Lbl>Підтвердження паролю</Lbl>
+                  <div className="relative h-[44px]">
+                    <input
+                      type={showConfirmPwd ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={e => {
+                        setConfirmPassword(e.target.value);
+                        if (s1Errors.confirmPassword) setS1Errors(p => ({ ...p, confirmPassword: undefined }));
+                      }}
+                      placeholder="••••••••"
+                      className="w-full h-full px-5 pr-12 rounded-full text-[14px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all font-sans focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
+                      style={inputStyle(Boolean(s1Errors.confirmPassword))}
+                    />
+                    <button type="button" onClick={() => setShowConfirmPwd(v => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A3A4B0]">
+                      {showConfirmPwd ? <EyeOpenIcon /> : <EyeClosedIcon />}
+                    </button>
+                  </div>
+                  <ErrorMsg msg={s1Errors.confirmPassword} />
+                </div>
+
+                {/* Далі */}
+                <button
+                  type="submit"
+                  disabled={loading || checkingEmail}
+                  className="w-[360px] h-[44px] rounded-full flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] font-medium transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 shadow-[0_4px_15px_rgba(131,72,193,0.2)]"
+                >
+                  {checkingEmail ? 'Перевірка...' : 'Далі'}
+                </button>
+
+                {/* OR */}
+                <div className="flex items-center w-[360px] my-[32px]">
+                  <div className="flex-1 h-[1px]" style={{ background: 'linear-gradient(90deg,#000 0%,#8348C1 48%,#2C1969 100%)' }} />
+                  <span className="px-4 text-[12px] text-[#A3A4B0]">або</span>
+                  <div className="flex-1 h-[1px]" style={{ background: 'linear-gradient(90deg,#2C1969 0%,#8348C1 52%,#000 100%)' }} />
+                </div>
+
+                <div className="flex flex-col gap-[24px] w-full">
+                  {[
+                    { src: 'https://www.svgrepo.com/show/475656/google-color.svg', label: 'Увійти з Google' },
+                    { src: 'https://www.svgrepo.com/show/475647/facebook-color.svg', label: 'Увійти з Facebook' },
+                  ].map(({ src, label }) => (
+                    <button key={label} type="button" className="relative w-[360px] h-[44px] p-[1px] rounded-full overflow-hidden group transition-all hover:scale-105 active:scale-95">
+                      <div className="absolute inset-0 bg-[linear-gradient(90deg,#2C1969,#8348C1,#C38BFF)]" />
+                      <div className="relative flex items-center justify-center w-full h-full bg-[#050506] rounded-full gap-3 text-[14px] text-white group-hover:bg-[#0a0a0c] transition-colors">
+                        <img src={src} alt="" className="w-5 h-5" /><span>{label}</span>
                       </div>
+                    </button>
+                  ))}
+                </div>
+              </form>
+            </div>
+          </Card>
+        )}
+
+        {/* ══════════════════════════════════════════════════════ STEP 2 */}
+        {step === 2 && (
+          <Card>
+            <Stepper step={step} />
+            <h1 className="text-white text-[32px] font-bold">Майже готово</h1>
+            <p className="font-light text-[16px] text-[#A3A4B0] mt-[4px] mb-[40px]">Завершіть налаштування профілю</p>
+
+            <div className="px-[60px] pb-[60px]">
+              {s2GenErr && !success && <ErrBanner msg={s2GenErr} />}
+              {success && (
+                <div className="mb-[20px] rounded-[18px] border border-[#22C55E]/30 bg-[linear-gradient(135deg,rgba(34,197,94,0.13),rgba(131,72,193,0.08))] px-4 py-3 text-left">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-[1px] flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border border-[#22C55E]/40 bg-[#22C55E]/15 text-[12px] text-[#86EFAC]">✓</div>
+                    <div>
+                      <p className="text-[12px] font-medium text-[#BBF7D0] leading-[18px]">Готово</p>
+                      <p className="text-[12px] text-[#86EFAC]/90 leading-[18px]">{success}</p>
                     </div>
                   </div>
-                )}
+                </div>
+              )}
 
-                <form onSubmit={handleSubmit} noValidate className="flex flex-col items-center px-[60px]">
+              <form onSubmit={handleS2Submit} noValidate className="flex flex-col items-center gap-[20px]">
 
-                  {/* Email: 360x16 label, 360x44 input, 12px gap */}
-                  <div className="flex flex-col mb-[24px] items-start">
-                    <label className="w-[360px] h-[16px] text-[12px] text-[#A3A4B0] text-left pl-[1px] mb-[12px] font-montserrat">
-                      Електронна пошта
-                    </label>
+                {/* Ім'я + Прізвище */}
+                <div className="w-[360px] flex gap-[12px]">
+                  <div className="flex-1 text-left">
+                    <Lbl>Ім'я</Lbl>
+                    <input
+                      type="text"
+                      value={firstName}
+                      onChange={e => {
+                        setFirstName(e.target.value);
+                        if (s2Errors.firstName) setS2Errors(p => ({ ...p, firstName: undefined }));
+                      }}
+                      placeholder="Вкажіть ім'я"
+                      maxLength={50}
+                      className="w-full h-[44px] px-4 rounded-full text-[13px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
+                      style={inputStyle(Boolean(s2Errors.firstName))}
+                    />
+                    <ErrorMsg msg={s2Errors.firstName} />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <Lbl>Прізвище</Lbl>
+                    <input
+                      type="text"
+                      value={lastName}
+                      onChange={e => {
+                        setLastName(e.target.value);
+                        if (s2Errors.lastName) setS2Errors(p => ({ ...p, lastName: undefined }));
+                      }}
+                      placeholder="Вкажіть прізвище"
+                      maxLength={50}
+                      className="w-full h-[44px] px-4 rounded-full text-[13px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
+                      style={inputStyle(Boolean(s2Errors.lastName))}
+                    />
+                    <ErrorMsg msg={s2Errors.lastName} />
+                  </div>
+                </div>
 
-                    {/* Контейнер для градієнтної обводки */}
-                    <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] w-[360px]">
-                      <input
-                        type="email"
-                        placeholder="Введіть електронну пошту"
-                        className="w-full h-[44px] px-5 bg-[#050506] rounded-full text-[14px] text-white outline-none transition-shadow focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
+                {/* Ім'я користувача */}
+                <div className="w-[360px] text-left">
+                  <Lbl>Ім'я користувача</Lbl>
+                  <div className="relative h-[44px]">
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={e => {
+                        setUsername(e.target.value);
+                        if (s2Errors.username) setS2Errors(p => ({ ...p, username: undefined }));
+                        setUsernameAvail(null);
+                      }}
+                      placeholder="Вкажіть ім'я користувача"
+                      maxLength={20}
+                      className="w-full h-full px-5 pr-12 rounded-full text-[14px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
+                      style={inputStyle(Boolean(s2Errors.username))}
+                    />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                      <UsernameIndicator
+                        username={username}
+                        checkingUsername={checkingUsername}
+                        usernameAvail={usernameAvail}
+                        hasError={Boolean(s2Errors.username)}
                       />
                     </div>
                   </div>
-                  <div className="flex flex-col mb-[24px]">
-                    <label className="w-[360px] h-[16px] text-[12px] text-[#A3A4B0] text-left pl-[1px] mb-[12px]">
-                      Пароль
-                    </label>
-                    <div className="relative w-[360px] h-[44px]">
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="••••••••"
-                        className={`${getPasswordInputClass(Boolean(fieldErrors.password))} w-full h-full px-5 text-[14px] text-white outline-none rounded-full`}
-                        style={{
-                          /* Магія контуру: перший градієнт замальовує середину чорним, другий — малює лінію рамки */
-                          background: 'linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, rgba(82, 46, 139, 0.32), rgba(179, 179, 179, 0.32)) border-box',
-                          border: '1px solid transparent' /* Прозора рамка, щоб було видно градієнт під нею */
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A3A4B0]"
-                      >
-                        {showPassword ? <EyeOpenIcon /> : <EyeClosedIcon />}
-                      </button>
-                    </div>
+                  <ErrorMsg msg={s2Errors.username} />
+                  {!s2Errors.username && usernameAvail === true && !checkingUsername && (
+                    <div className="mt-1 ml-3 text-[11px] text-[#86EFAC]">Ім'я користувача доступне</div>
+                  )}
+                </div>
+
+                {/* Номер телефону */}
+                <div className="w-[360px] text-left phone-register-wrapper">
+                  <Lbl>Номер телефону</Lbl>
+                  <style>{`
+                    .phone-register-wrapper .react-tel-input .form-control {
+                      width: 100% !important;
+                      height: 44px !important;
+                      background: #050506 !important;
+                      border-radius: 28px !important;
+                      border: 1px solid transparent !important;
+                      color: white !important;
+                      font-family: 'Montserrat', sans-serif !important;
+                      font-size: 14px !important;
+                      padding-left: 58px !important;
+                      background-image: linear-gradient(#050506,#050506), linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32)) !important;
+                      background-origin: padding-box, border-box !important;
+                      background-clip: padding-box, border-box !important;
+                      outline: none !important;
+                      box-shadow: none !important;
+                    }
+                    .phone-register-wrapper .react-tel-input .form-control:focus {
+                      box-shadow: 0 0 15px rgba(131,72,193,0.15) !important;
+                    }
+                    .phone-register-wrapper .react-tel-input .flag-dropdown {
+                      background: transparent !important;
+                      border: none !important;
+                      border-radius: 28px 0 0 28px !important;
+                    }
+                    .phone-register-wrapper .react-tel-input .selected-flag {
+                      background: transparent !important;
+                      padding-left: 15px !important;
+                      border-radius: 28px 0 0 28px !important;
+                    }
+                    .phone-register-wrapper .react-tel-input .selected-flag:hover,
+                    .phone-register-wrapper .react-tel-input .selected-flag:focus {
+                      background: transparent !important;
+                    }
+                    .phone-register-wrapper .react-tel-input .country-list {
+                      background: #0d0d10 !important;
+                      color: #A3A4B0 !important;
+                      border: 1px solid rgba(82,46,139,0.4) !important;
+                      border-radius: 16px !important;
+                      margin-top: 4px !important;
+                      box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
+                    }
+                    .phone-register-wrapper .react-tel-input .country-list .country {
+                      padding: 10px 16px !important;
+                    }
+                    .phone-register-wrapper .react-tel-input .country-list .country:hover {
+                      background: rgba(131,72,193,0.2) !important;
+                    }
+                    .phone-register-wrapper .react-tel-input .country-list .country.highlight {
+                      background: rgba(131,72,193,0.15) !important;
+                    }
+                    .phone-register-wrapper .react-tel-input .country-list .country-name {
+                      color: #A3A4B0 !important;
+                    }
+                    .phone-register-wrapper .react-tel-input .country-list .dial-code {
+                      color: #8348C1 !important;
+                    }
+                    .phone-register-wrapper .react-tel-input .search-box {
+                      background: #0d0d10 !important;
+                      border: 1px solid rgba(82,46,139,0.4) !important;
+                      color: white !important;
+                      border-radius: 8px !important;
+                      padding: 6px 10px !important;
+                      margin: 8px !important;
+                      width: calc(100% - 16px) !important;
+                    }
+                    .phone-register-wrapper .react-tel-input .search-box:focus {
+                      outline: none !important;
+                      border-color: rgba(131,72,193,0.6) !important;
+                    }
+                  `}</style>
+
+                  <div style={{
+                    padding: '1px',
+                    borderRadius: '28px',
+                    background: isBanned
+                      ? 'linear-gradient(90deg, #ef4444, #b91c1c)'
+                      : s2Errors.phone
+                        ? 'linear-gradient(90deg,rgba(248,113,113,0.6),rgba(239,68,68,0.4))'
+                        : 'transparent',
+                  }}>
+                    <Phone
+                      country={'ua'}
+                      value={phoneNumber}
+                      onChange={handlePhoneChange}
+                      enableSearch={true}
+                      placeholder="Введіть номер"
+                      searchPlaceholder="Пошук країни..."
+                      excludeCountries={['ru', 'by']}
+                    />
                   </div>
 
-                  {/* Confirm Password */}
-                  <div className="flex flex-col mb-[40px]"> {/* 40px до кнопки Далі */}
-                    <label className="w-[360px] h-[16px] text-[12px] text-[#A3A4B0] text-left pl-[1px] mb-[12px]">
-                      Підтвердження паролю
-                    </label>
-                    <div className="relative w-[360px] h-[44px]">
-                      <input
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        placeholder="••••••••"
-                        className={`${getPasswordInputClass(Boolean(fieldErrors.confirmPassword))} w-full h-full px-5 text-[14px] text-white outline-none rounded-full`}
-                        style={{
-                          /* Перший градієнт — це колір фону всередині, другий — градієнт самої рамки */
-                          background: 'linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, rgba(82, 46, 139, 0.32), rgba(179, 179, 179, 0.32)) border-box',
-                          border: '1px solid transparent' /* Робимо стандартну рамку прозорою */
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A3A4B0]"
-                      >
-                        {showConfirmPassword ? <EyeOpenIcon /> : <EyeClosedIcon />}
-                      </button>
+                  {isBanned ? (
+                    <div className="mt-2 ml-3 text-[11px] text-red-500 font-bold animate-pulse">
+                      🚨 Виявлено спробу реєстрації з країни-агресора. Доступ заборонено.
                     </div>
-                  </div>
+                  ) : (
+                    <ErrorMsg msg={s2Errors.phone} />
+                  )}
+                </div>
+
+                {/* Країна */}
+              <div className="w-[360px] text-left">
+                <Lbl>Країна проживання</Lbl>
+                <div className="relative" data-country>
                   <button
-                    type="submit"
-                    disabled={loading || checkingEmail}
-                    className="w-[360px] h-[44px]  rounded-[28px] rounded-full flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] font-medium font-montserrat transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 shadow-[0_4px_15px_rgba(131,72,193,0.2)]"
+                    type="button"
+                    onClick={() => setCountryOpen(v => !v)}
+                    className="w-full h-[44px] px-5 rounded-full flex items-center justify-between text-[14px] transition-all"
+                    style={inputStyle(Boolean(s2Errors.country))}
                   >
-                    {loading || checkingEmail ? 'Зачекайте...' : 'Далі'}
+                    <span className={selectedCountry ? 'text-white' : 'text-[#A3A4B0]/50'}>
+                      {selectedCountry || 'Оберіть країну'}
+                    </span>
+                    <span className={`text-[#A3A4B0] transition-transform duration-200 ${countryOpen ? 'rotate-180' : ''}`}>
+                      <ChevronDownIcon />
+                    </span>
                   </button>
 
-
-                  {/* OR Line */}
-                  <div className="flex items-center justify-center w-[360px] my-[32px]">
-                    <div className="flex-1 h-[1px]" style={{ background: 'linear-gradient(90deg, #000000 0%, #8348C1 48%, #2C1969 100%)' }}></div>
-                    <span className="px-4 text-[12px] text-[#A3A4B0] font-montserrat">або</span>
-                    <div className="flex-1 h-[1px]" style={{ background: 'linear-gradient(90deg, #2C1969 0%, #8348C1 52%, #000000 100%)' }}></div>
-                  </div>
-
-                  <div className="flex flex-col items-center">
-                    {/* Кнопка Google */}
-                    <button
-                      type="button"
-                      className="relative w-[360px] h-[44px] mb-[24px] p-[1px] rounded-full overflow-hidden group transition-all duration-200 hover:scale-105 active:scale-95"
+                  {countryOpen && (
+                    <div
+                      className="absolute top-[calc(100%+6px)] left-0 right-0 z-50 rounded-[16px] overflow-hidden"
+                      style={{ background: '#0d0d10', border: '1px solid rgba(82,46,139,0.4)', boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}
                     >
-                      <div className="absolute inset-0 bg-[linear-gradient(90deg,#2C1969_0%,#8348C1_50%,#C38BFF_100%)]"></div>
-                      <div className="relative flex items-center justify-center w-full h-full bg-[#050506] rounded-full gap-3 text-[14px] text-white group-hover:bg-[#0a0a0c] transition-colors">
-                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
-                        <span className="font-montserrat">Увійти з Google</span>
+                      {/* Пошук */}
+                      <div className="p-2 border-b border-[rgba(82,46,139,0.3)]">
+                        <input
+                          type="text"
+                          value={countrySearch}
+                          onChange={e => setCountrySearch(e.target.value)}
+                          placeholder="Пошук країни..."
+                          autoFocus
+                          className="w-full bg-[#0a0a0d] rounded-lg px-3 py-2 text-[13px] text-white placeholder:text-[#A3A4B0]/50 outline-none border border-[rgba(82,46,139,0.4)] focus:border-[rgba(131,72,193,0.6)]"
+                        />
                       </div>
-                    </button>
 
-                    {/* Кнопка Facebook */}
-                    <button
-                      type="button"
-                      className="relative w-[360px] h-[44px] p-[1px] rounded-full overflow-hidden group transition-all duration-200 hover:scale-105 active:scale-95"
-                    >
-                      <div className="absolute inset-0 bg-[linear-gradient(90deg,#2C1969_0%,#8348C1_50%,#C38BFF_100%)]"></div>
-                      <div className="relative flex items-center justify-center w-full h-full bg-[#050506] rounded-full gap-3 text-[14px] text-white group-hover:bg-[#0a0a0c] transition-colors">
-                        <img src="https://www.svgrepo.com/show/475647/facebook-color.svg" alt="Facebook" className="w-5 h-5" />
-                        <span className="font-montserrat">Увійти з Facebook</span>
+                      <div className="max-h-[220px] overflow-y-auto">
+                        {loadingCountries ? (
+                          <div className="flex items-center justify-center py-6 gap-2 text-[13px] text-[#A3A4B0]">
+                            <div className="w-4 h-4 rounded-full border-2 border-[#8348C1] border-t-transparent animate-spin" />
+                            Завантаження...
+                          </div>
+                        ) : (() => {
+                          // Фільтруємо і групуємо по регіонах
+                          const filtered = countries.filter(c =>
+                            c.name.toLowerCase().includes(countrySearch.toLowerCase())
+                          );
+                          const grouped = filtered.reduce<Record<string, CountryOption[]>>((acc, c) => {
+                            const r = c.region;
+                            if (!acc[r]) acc[r] = [];
+                            acc[r].push(c);
+                            return acc;
+                          }, {});
+                          const regionOrder = ['Europe', 'Asia', 'Americas', 'Africa', 'Oceania', 'Antarctic', 'Інше'];
+                          const sorted = Object.entries(grouped).sort(
+                            ([a], [b]) => regionOrder.indexOf(a) - regionOrder.indexOf(b)
+                          );
+                          const regionLabels: Record<string, string> = {
+                            Europe: 'Європа', Asia: 'Азія', Americas: 'Америка',
+                            Africa: 'Африка', Oceania: 'Океанія', Antarctic: 'Антарктика', Інше: 'Інше',
+                          };
+                          if (sorted.length === 0) {
+                            return (
+                              <div className="py-4 text-center text-[13px] text-[#A3A4B0]/60">
+                                Країну не знайдено
+                              </div>
+                            );
+                          }
+                          return sorted.map(([region, items]) => (
+                            <div key={region}>
+                              <div className="px-4 py-[6px] text-[10px] font-semibold text-[#8348C1] uppercase tracking-wider bg-[rgba(82,46,139,0.08)] sticky top-0">
+                                {regionLabels[region] ?? region}
+                              </div>
+                              {items.map(c => (
+                                <button
+                                  key={c.code}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedCountry(c.name);
+                                    setCountryOpen(false);
+                                    setCountrySearch('');
+                                    if (s2Errors.country) setS2Errors(p => ({ ...p, country: undefined }));
+                                  }}
+                                  className={`w-full px-5 py-[9px] text-left text-[13px] transition-colors hover:bg-[#8348C1]/20 flex items-center gap-2 ${selectedCountry === c.name ? 'text-[#C38BFF]' : 'text-[#A3A4B0]'}`}
+                                >
+                                  {c.name}
+                                </button>
+                              ))}
+                            </div>
+                          ));
+                        })()}
                       </div>
-                    </button>
-                  </div>
-                </form>
+                    </div>
+                  )}
+                </div>
+                <ErrorMsg msg={s2Errors.country} />
               </div>
+
+                {/* Дата народження */}
+                <div className="w-[360px] text-left">
+                  <Lbl>Дата народження</Lbl>
+                  <div className="relative h-[44px]">
+                    <input
+                      type="text"
+                      value={birthDate}
+                      onChange={e => {
+                        let v = e.target.value.replace(/[^0-9]/g, '');
+                        if (v.length > 2) v = v.slice(0, 2) + '/' + v.slice(2);
+                        if (v.length > 5) v = v.slice(0, 5) + '/' + v.slice(5);
+                        if (v.length > 10) v = v.slice(0, 10);
+                        setBirthDate(v);
+                      }}
+                      placeholder="ДД/ММ/РРРР"
+                      maxLength={10}
+                      className="w-full h-full px-5 pr-12 rounded-full text-[14px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
+                      style={inputStyle(false)}
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A3A4B0]/60 pointer-events-none">
+                      <CalendarIcon />
+                    </span>
+                  </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="w-[360px] mt-[4px] flex flex-col gap-[16px]">
+                  <button
+                    type="submit"
+                    disabled={loading || isBanned}
+                    className={`w-full h-[44px] rounded-full flex items-center justify-center text-white text-[14px] font-medium transition-all duration-200
+                      ${isBanned
+                        ? 'bg-red-900/50 cursor-not-allowed grayscale'
+                        : 'bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] hover:scale-[1.02] active:scale-[0.98] shadow-[0_4px_15px_rgba(131,72,193,0.2)]'
+                      } disabled:opacity-60`}
+                  >
+                    {loading ? 'Завантаження...' : isBanned ? 'Вхід заблоковано' : 'Зареєструватися'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setStep(1); setS2Errors({}); setS2GenErr(''); setUsernameAvail(null); }}
+                    className="w-full h-[44px] rounded-full flex items-center justify-center text-[14px] text-[#A3A4B0] transition-all hover:text-white"
+                    style={{ background: 'linear-gradient(#050506,#050506) padding-box,linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32)) border-box', border: '1px solid transparent' }}
+                  >
+                    ← Повернутись назад
+                  </button>
+                </div>
+              </form>
             </div>
-          </div>
-        </div>
+          </Card>
+        )}
 
         <div className="w-full text-center py-6 z-10 relative">
-          <span className="text-[12px] md:text-[13px] text-[#A3A4B0]">Вже зареєсторвані? </span>
-          <Link to="/login" className="text-[12px] md:text-[13px] text-[#22C55E] hover:text-[#1ea84f] transition-all">Увійти</Link>
+          <span className="text-[13px] text-[#A3A4B0]">Вже зареєстровані? </span>
+          <Link to="/login" className="text-[13px] text-[#22C55E] hover:text-[#1ea84f] transition-all">Увійти</Link>
         </div>
       </div>
     </div>
