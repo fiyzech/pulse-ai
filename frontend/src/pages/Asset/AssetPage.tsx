@@ -68,11 +68,89 @@ export default function AssetPage(props: AssetPageProps) {
     maxSupply: passedCoin?.rawMaxSupply || 0,
     totalSupply: passedCoin?.rawTotalSupply || 0,
   });
+
+  const [aiData, setAiData] = useState({
+    longPercent: 50,
+    shortPercent: 50,
+    signal: 'NO TRADE',
+    isLoading: true
+  });
   
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | ISeriesApi<"Candlestick"> | null>(null);
   const prevPriceRef = useRef<number>(0);
+
+  useEffect(() => {
+    const fetchAiSignal = async () => {
+      const noisyTimeframes = ['1 сек', '1 хв', '5 хв', '15 хв', '1 год'];
+      
+      if (noisyTimeframes.includes(timeframe)) {
+        setAiData({
+          longPercent: 50,
+          shortPercent: 50,
+          signal: 'NOISY',
+          isLoading: false
+        });
+        return;
+      }
+
+      setAiData(prev => ({ ...prev, isLoading: true }));
+      try {
+        const SUPABASE_URL = "https://nqqsjxuztuvvsmopkxqj.supabase.co"; 
+        const SUPABASE_ANON_KEY = "sb_publishable_qwJ7LAhkS-jsjMKNLtGARA_Ky_WWbek"; 
+
+        const dbIntervalMap: Record<string, string> = {
+          '4 год': '4h', '1 день': '1d', '1 тиж': '1w', '1 міс': '1M'
+        };
+        const dbInterval = dbIntervalMap[timeframe] || '4h';
+
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/model_predictions?symbol=eq.${coinShort}&interval=eq.${dbInterval}&order=created_at.desc&limit=1`, {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          }
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) {
+            const latest = data[0];
+            const conf = latest.confidence || 50;
+            const isLong = latest.signal.includes('LONG');
+            const isShort = latest.signal.includes('SHORT');
+
+            let longP = 50;
+            let shortP = 50;
+
+            if (isLong) {
+              longP = conf;
+              shortP = 100 - conf;
+            } else if (isShort) {
+              shortP = conf;
+              longP = 100 - conf;
+            }
+
+            setAiData({
+              longPercent: longP,
+              shortPercent: shortP,
+              signal: latest.signal,
+              isLoading: false
+            });
+          } else {
+            setAiData({ longPercent: 50, shortPercent: 50, signal: 'NO TRADE', isLoading: false });
+          }
+        } else {
+          setAiData({ longPercent: 50, shortPercent: 50, signal: 'NO TRADE', isLoading: false });
+        }
+      } catch (error) {
+        console.error("Помилка завантаження AI сигналу:", error);
+        setAiData({ longPercent: 50, shortPercent: 50, signal: 'NO TRADE', isLoading: false });
+      }
+    };
+
+    fetchAiSignal();
+  }, [coinShort, timeframe]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -153,12 +231,13 @@ export default function AssetPage(props: AssetPageProps) {
   }, [coinSymbol, coinShort, cgId, passedCoin]);
 
   useEffect(() => {
-    if (!isBinanceAvailable) {
-      setIsLoading(false);
-      return; 
-    }
-
+    // ВИПРАВЛЕННЯ 1: Ховаємо setState всередину асинхронної функції
     const fetchChartData = async () => {
+      if (!isBinanceAvailable) {
+        setIsLoading(false);
+        return; 
+      }
+
       setIsLoading(true);
       try {
         const tfConfig: Record<string, { interval: string; limit: number }> = {
@@ -214,6 +293,7 @@ export default function AssetPage(props: AssetPageProps) {
         setIsLoading(false);
       }
     };
+
     fetchChartData();
   }, [timeframe, chartType, coinSymbol, isBinanceAvailable]);
 
@@ -258,6 +338,18 @@ export default function AssetPage(props: AssetPageProps) {
     ? (stats.volume24h / fundamentals.mcap).toFixed(4) 
     : '---';
 
+  // ВИПРАВЛЕННЯ 2: Задаємо змінні і реально їх використовуємо в JSX
+  let signalText = "Недостатньо даних у БД\nдля цього таймфрейму";
+  let signalColorClass = "text-[#8E8E8E]";
+  
+  if (aiData.signal.includes("LONG")) {
+    signalText = "Ймовірне зростання ціни\nна цьому таймфреймі";
+    signalColorClass = "text-[#00E676]";
+  } else if (aiData.signal.includes("SHORT")) {
+    signalText = "Ймовірне зниження ціни\nна цьому таймфреймі";
+    signalColorClass = "text-[#E53232]";
+  }
+
   return (
     <section className="w-full max-w-[1600px] mx-auto px-10 pt-7 pb-12 font-montserrat">
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_261px] gap-[24px] items-start">
@@ -268,7 +360,6 @@ export default function AssetPage(props: AssetPageProps) {
             <div className="flex justify-between items-start relative z-20 flex-wrap gap-4">
               
               <div className="flex-1 min-w-0 pr-4">
-                {/* === МАГІЯ КАСТОМНОЇ ПІДКАЗКИ (TOOLTIP) === */}
                 <div className="flex items-center gap-3 mb-2 w-full group relative">
                   <img src={coinIcon} alt={coinShort} className="w-[32px] h-[32px] rounded-full shrink-0" />
                   
@@ -277,7 +368,6 @@ export default function AssetPage(props: AssetPageProps) {
                     <span className="text-white/50 text-[18px] shrink-0">({coinShort})</span>
                   </h2>
 
-                  {/* Оця чорна стильна плашка з'являється моментально при наведенні */}
                   <div className="absolute left-10 -bottom-9 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 bg-[#1A1A1D] border border-white/10 text-white text-[14px] py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap pointer-events-none">
                     {coinName} ({coinShort})
                   </div>
@@ -496,8 +586,15 @@ export default function AssetPage(props: AssetPageProps) {
 
         {/* ВІДЖЕТ PulseAI */}
         <div className="w-full h-[352px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10)]">
-          <div className="w-full h-full rounded-[27px] bg-[#050506] p-6 flex flex-col">
-            <div className="flex items-center justify-between mb-8">
+          <div className="w-full h-full rounded-[27px] bg-[#050506] p-6 flex flex-col relative overflow-hidden">
+            
+            {aiData.isLoading && (
+               <div className="absolute inset-0 bg-[#050506]/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-[27px]">
+                  <div className="w-6 h-6 border-2 border-[#8348C1] border-t-transparent rounded-full animate-spin"></div>
+               </div>
+            )}
+
+            <div className="flex items-center justify-between mb-8 relative z-0">
               <div className="flex items-center gap-2">
                 <img src="/logo-crypro-pulse.svg" alt="PulseAI" className="w-5 h-5 object-contain" />
                 <div className="text-[16px] tracking-wide font-montserrat">
@@ -512,31 +609,71 @@ export default function AssetPage(props: AssetPageProps) {
                   </div>
               </div>
             </div>
-            <div className="flex justify-between items-center px-1 mb-4">
-              <div className="flex flex-col items-center gap-1 w-1/2">
-                <span className="text-[32px] font-medium text-[#E53232] leading-none font-montserrat">68%</span>
-                <span className="text-[14px] font-medium text-[#E53232] font-montserrat">Short</span>
+            
+            {/* ЯКЩО ТАЙМФРЕЙМ ШУМНИЙ (<4 ГОДИН) */}
+            {aiData.signal === 'NOISY' ? (
+              <div className="flex flex-col items-center justify-center flex-grow mb-6 text-center px-2 relative z-0">
+                <div className="w-12 h-12 rounded-full bg-[#fbbf24]/10 flex items-center justify-center mb-4">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                  </svg>
+                </div>
+                <p className="text-[14px] text-[#fbbf24] font-medium font-montserrat leading-relaxed mb-1">
+                  AI-прогноз недоступний
+                </p>
+                <p className="text-[11px] text-white/50 font-montserrat">
+                  Таймфрейми менше 4 годин містять надто багато ринкового шуму. Оберіть більший період.
+                </p>
               </div>
-              <div className="w-[1px] h-[36px] bg-white/10"></div>
-              <div className="flex flex-col items-center gap-1 w-1/2">
-                <span className="text-[32px] font-medium text-[#00E676] leading-none font-montserrat">32%</span>
-                <span className="text-[14px] font-medium text-[#00E676] font-montserrat">Long</span>
-              </div>
-            </div>
-            <div className="w-full h-[6px] rounded-full bg-gradient-to-r from-[#E53232] to-[#00E676] mb-6"></div>
-            <div className="flex items-start gap-3 mb-6">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0 mt-0.5">
-                <path d="M2 20H22" stroke="#E53232" strokeWidth="1.5" strokeLinecap="round"/>
-                <rect x="5" y="6" width="4" height="14" stroke="#E53232" strokeWidth="1.5" strokeLinejoin="round"/>
-                <rect x="13" y="12" width="4" height="8" stroke="#E53232" strokeWidth="1.5" strokeLinejoin="round"/>
-              </svg>
-              <p className="text-[12px] font-normal text-white/70 font-montserrat leading-[1.4]">
-                Ймовірне зниження ціни<br />в найближчі 24 год
-              </p>
-            </div>
-            <div className="flex flex-col gap-3 mt-auto">
+            ) : (
+              // ЯКЩО ТАЙМФРЕЙМ ОК (4 ГОД або БІЛЬШЕ)
+              <>
+                <div className="flex justify-between items-center px-1 mb-4 relative z-0">
+                  <div className="flex flex-col items-center gap-1 w-1/2">
+                    <span className="text-[32px] font-medium text-[#E53232] leading-none font-montserrat">
+                      {aiData.shortPercent.toFixed(0)}%
+                    </span>
+                    <span className="text-[14px] font-medium text-[#E53232] font-montserrat">Short</span>
+                  </div>
+                  <div className="w-[1px] h-[36px] bg-white/10"></div>
+                  <div className="flex flex-col items-center gap-1 w-1/2">
+                    <span className="text-[32px] font-medium text-[#00E676] leading-none font-montserrat">
+                      {aiData.longPercent.toFixed(0)}%
+                    </span>
+                    <span className="text-[14px] font-medium text-[#00E676] font-montserrat">Long</span>
+                  </div>
+                </div>
+                
+                <div className="w-full h-[6px] rounded-full bg-[#E53232] mb-6 relative overflow-hidden z-0">
+                   <div 
+                     className="absolute top-0 right-0 h-full bg-[#00E676] transition-all duration-1000 ease-out"
+                     style={{ width: `${aiData.longPercent}%` }}
+                   ></div>
+                </div>
+                
+                <div className="flex items-start gap-3 mb-6 relative z-0">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0 mt-0.5">
+                    {aiData.signal.includes("LONG") ? (
+                      <path d="M2 20L8 14L12 18L22 4" stroke="#00E676" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    ) : aiData.signal.includes("SHORT") ? (
+                      <path d="M2 4L8 10L12 6L22 20" stroke="#E53232" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    ) : (
+                      <path d="M2 12H22" stroke="#A3A4B0" strokeWidth="1.5" strokeLinecap="round"/>
+                    )}
+                  </svg>
+                  {/* ВИПРАВЛЕННЯ 3: Вставляємо змінні прямо сюди */}
+                  <p className={`text-[12px] font-medium font-montserrat leading-[1.4] ${signalColorClass}`}>
+                    {signalText}
+                  </p>
+                </div>
+              </>
+            )}
+
+            <div className="flex flex-col gap-3 mt-auto relative z-0">
               <button 
-                onClick={() => window.open('https://cryptomisha-ai-agent-c2fa3q367soa93m2cjyfrw.streamlit.app/', '_blank', 'noopener,noreferrer')}
+                onClick={() => window.open(`https://cryptomisha-ai-agent-c2fa3q367soa93m2cjyfrw.streamlit.app/`, '_blank', 'noopener,noreferrer')}
                 className="w-full h-[44px] rounded-[28px] font-montserrat font-medium text-[14px] text-[#FFF9F9] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] shadow-[0_4px_15px_rgba(131,72,193,0.3)] hover:scale-[1.02] transition-transform"
               >
                 Запитати AI
