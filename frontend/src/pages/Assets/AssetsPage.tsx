@@ -288,7 +288,8 @@ export default function FavoritesContent() {
         <p className="w-[546px] pl-[40px] font-montserrat text-[16px] font-normal leading-[28px] text-[#FFFFFF]">
           Зберігайте криптовалюти в обране, щоб швидко відстежувати ціни, зміни ринку та створювати алерти
         </p>
-        <button className="mr-[40px] flex h-[44px] w-[208px] items-center justify-center rounded-[28px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-[13px] font-medium text-white transition-all duration-300 hover:scale-105 hover:shadow-[0_0_20px_rgba(131,72,193,0.5)] active:scale-95">
+
+        <button className="min-w-[208px] h-[44px] px-6 rounded-full flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium transition-all duration-300 ease-out hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-[0.98] cursor-pointer">
           Підключити Telegram
         </button>
       </div>
@@ -305,13 +306,22 @@ export default function FavoritesContent() {
             key={idx} 
             className="h-[108px] w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] transition-all duration-500 ease-out hover:shadow-[0_10px_40px_rgba(131,72,193,0.25),0_4px_15px_rgba(0,0,0,0.4)] hover:-translate-y-1"
           >
-            <div className="flex h-full w-full flex-col items-center justify-center rounded-[28px] bg-[#050506] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
-              <p className="mb-1.5 text-[12px] font-medium text-[#A3A4B0]">{stat.title}</p>
-              <div className="flex items-center gap-2">
-                <span className={stat.valueClass || "text-[22px] font-semibold text-[#FFFFFF]"}>
+            <div className="relative h-full rounded-[28px] bg-[#050506] p-5 text-center overflow-hidden flex flex-col items-center justify-center">
+              <p className="text-white text-[14px] font-normal">
+                {stat.title}
+              </p>
+
+              <div className="flex items-center justify-center gap-1 mt-2">
+                <h2
+                  className={
+                    stat.valueClass ||
+                    "text-[28px] leading-none font-medium text-white"
+                  }
+                >
                   {stat.value}
-                </span>
-                {stat.icon && <span>{stat.icon}</span>}
+                </h2>
+
+                {stat.icon && <img src={stat.icon} alt="" className="w-5 h-5" />}
               </div>
             </div>
           </div>
