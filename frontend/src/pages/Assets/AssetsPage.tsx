@@ -321,7 +321,12 @@ export default function FavoritesContent() {
                   {stat.value}
                 </h2>
 
-                {stat.icon && <img src={stat.icon} alt="" className="w-5 h-5" />}
+                {stat.icon && (
+                  <span className="flex h-5 w-5 items-center justify-center">
+                    {stat.icon}
+                  </span>
+                )}
+
               </div>
             </div>
           </div>
