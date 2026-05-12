@@ -1,50 +1,88 @@
-import React from "react"
+import React from "react";
+
+import bookmarkPlusIcon from "../../assets/icons/bookmark-plus.svg";
+import arrowUpOutlineIcon from "../../assets/icons/arrow-up-outline.svg";
+import arrowDownOutlineIcon from "../../assets/icons/arrow-down-outline.svg";
+import trashIcon from "../../assets/icons/trash.svg";
+import eyeIcon from "../../assets/icons/eye.svg";
+
+const tableGrid =
+  "grid grid-cols-[1.2fr_0.9fr_0.85fr_1fr_0.75fr_88px]";
 
 export default function FavoritesContent() {
-  // Дані для блоку статистики
   const stats = [
     {
       title: "Усього в обраному",
       value: "6",
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="#F59E0B" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-        </svg>
-      ),
+      icon: bookmarkPlusIcon,
     },
     {
       title: "Зростають сьогодні",
       value: "4",
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#36D399" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 19V5M5 12l7-7 7 7" />
-        </svg>
-      ),
+      icon: arrowUpOutlineIcon,
     },
     {
       title: "Падають сьогодні",
       value: "2",
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F87272" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 5v14M19 12l-7 7-7-7" />
-        </svg>
-      ),
+      icon: arrowDownOutlineIcon,
     },
     {
       title: "Найкраща динаміка",
       value: "SOL +6.2%",
       icon: null,
-      valueClass: "text-[22px] font-semibold text-[#36D399]", 
+      valueClass: "text-[30px] leading-none font-normal text-white",
     },
   ];
 
   const favoriteAssets = [
-    { name: "Bitcoin", symbol: "BTC", price: "$68,420", change: "+2.4%", marketCap: "$1.35T", volume: "$32.51B", color: "bg-[#F7931A]" },
-    { name: "Ethereum", symbol: "ETH", price: "$3,260", change: "-1.2%", marketCap: "$395.80B", volume: "$20.97B", color: "bg-[#627EEA]" },
-    { name: "Solana", symbol: "SOL", price: "$188", change: "+6.2%", marketCap: "$81.78B", volume: "$4.12B", color: "bg-[#14F195]" },
-    { name: "XRP", symbol: "XRP", price: "$0.63", change: "+1.8%", marketCap: "$36.20B", volume: "$1.98B", color: "bg-[#23292F]" },
-    { name: "Dogecoin", symbol: "DOGE", price: "$0.18", change: "-0.9%", marketCap: "$25.66B", volume: "$1.42B", color: "bg-[#F3C623]" },
-    { name: "Cardano", symbol: "ADA", price: "$0.71", change: "+3.1%", marketCap: "$25.10B", volume: "$880M", color: "bg-[#0033AD]" },
+    {
+      symbol: "BTC",
+      price: "$68,420",
+      change: "+2.4%",
+      marketCap: "$1.35T",
+      volume: "$32.51B",
+      color: "bg-[#F7931A]",
+    },
+    {
+      symbol: "ETH",
+      price: "$3,260",
+      change: "-1.2%",
+      marketCap: "$395.80B",
+      volume: "$20.97B",
+      color: "bg-[#627EEA]",
+    },
+    {
+      symbol: "SOL",
+      price: "$188",
+      change: "+6.2%",
+      marketCap: "$81.78B",
+      volume: "$4.12B",
+      color: "bg-[#14F195]",
+    },
+    {
+      symbol: "XRP",
+      price: "$0.63",
+      change: "+1.8%",
+      marketCap: "$36.20B",
+      volume: "$1.98B",
+      color: "bg-[#23292F]",
+    },
+    {
+      symbol: "DOGE",
+      price: "$0.18",
+      change: "-0.9%",
+      marketCap: "$25.66B",
+      volume: "$1.42B",
+      color: "bg-[#F3C623]",
+    },
+    {
+      symbol: "ADA",
+      price: "$0.71",
+      change: "+3.1%",
+      marketCap: "$25.10B",
+      volume: "$880M",
+      color: "bg-[#0033AD]",
+    },
   ];
 
   const recommendedAssets = [
@@ -57,141 +95,226 @@ export default function FavoritesContent() {
   ];
 
   return (
-    <div className="w-full font-montserrat">
-      
-      {/* 1. ВЕРХНІЙ БЛОК */}
-      <div className="mb-6 flex items-start justify-between mt-[23px]">
-        <p className="w-[546px] pl-[40px] font-montserrat text-[16px] font-normal leading-[28px] text-[#FFFFFF]">
-          Зберігайте криптовалюти в обране, щоб швидко відстежувати ціни, зміни ринку та створювати алерти
+    <div className="w-full px-[40px] pt-[24px] pb-8 text-white font-montserrat">
+      {/* TOP */}
+      <div className="flex justify-between items-start mb-[24px]">
+        <p className="text-white text-[16px] leading-[28px] max-w-[546px] font-normal">
+          Зберігайте криптовалюти в обране, щоб швидко відстежувати ціни,
+          зміни ринку та створювати алерти
         </p>
-        <button className="mr-[40px] flex h-[44px] w-[208px] items-center justify-center rounded-[28px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-[13px] font-medium text-white transition-all duration-300 hover:scale-105 hover:shadow-[0_0_20px_rgba(131,72,193,0.5)] active:scale-95">
+
+        <button className="min-w-[208px] h-[44px] px-6 rounded-full flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium transition-all duration-300 ease-out hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-[0.98] cursor-pointer">
           Підключити Telegram
         </button>
       </div>
 
-     {/* 2. БЛОК СТАТИСТИКИ (Заокруглення 28px + анімація) */}
-      <div className="ml-[40px] mr-[40px] grid grid-cols-1 gap-[24px] lg:grid-cols-4">
-        {stats.map((stat, idx) => (
-          <div 
-            key={idx} 
-            className="h-[108px] w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] transition-all duration-500 ease-out hover:shadow-[0_10px_40px_rgba(131,72,193,0.25),0_4px_15px_rgba(0,0,0,0.4)] hover:-translate-y-1"
+      {/* CARDS */}
+      <div className="grid grid-cols-4 gap-[24px] mb-[24px] w-full">
+        {stats.map((stat, index) => (
+          <div
+            key={index}
+            className="h-[110px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all "
           >
-            <div className="flex h-full w-full flex-col items-center justify-center rounded-[28px] bg-[#050506] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
-              <p className="mb-1.5 text-[12px] font-medium text-[#A3A4B0]">{stat.title}</p>
-              <div className="flex items-center gap-2">
-                <span className={stat.valueClass || "text-[22px] font-semibold text-[#FFFFFF]"}>
+            <div className="relative h-full rounded-[28px] bg-[#050506] p-5 text-center overflow-hidden flex flex-col items-center justify-center">
+              <p className="text-white text-[14px] font-normal">
+                {stat.title}
+              </p>
+
+              <div className="flex items-center justify-center gap-1 mt-2">
+                <h2
+                  className={
+                    stat.valueClass ||
+                    "text-[28px] leading-none font-medium text-white"
+                  }
+                >
                   {stat.value}
-                </span>
-                {stat.icon && <span>{stat.icon}</span>}
+                </h2>
+
+                {stat.icon && <img src={stat.icon} alt="" className="w-5 h-5" />}
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* 3. Головний контент */}
-      <div className="ml-[40px] mr-[40px] mt-[26px] flex flex-col lg:flex-row gap-[24px]">
-        
-        <div className="flex w-full flex-col lg:w-[calc(75%-6px)]">
-          <h2 className="mb-[24px] text-[20px] font-semibold leading-none text-white/95">
+      {/* CONTENT */}
+      <div className="grid grid-cols-4 gap-[24px] w-full">
+        {/* LEFT */}
+        <div className="col-span-3">
+          <h2 className="mb-[24px] text-[24px] leading-[28px] font-semibold text-white">
             Вибрані активи
           </h2>
-          
-          <div className="w-full p-[1px] rounded-[24px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-            <div className="w-full overflow-hidden rounded-[24px] bg-[#050506] pb-6 shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
-              
-              <table className="w-full whitespace-nowrap text-left border-collapse">
-                <thead className="bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)]">
-                  <tr className="border-b border-white/5 text-[14px] font-semibold text-[#A3A4B0]">
-                    <th className="py-5 pl-6 w-[18%]">Монета</th>
-                    <th className="py-5 w-[15%]">Ціна</th>
-                    <th className="py-5 w-[15%]">24год</th>
-                    <th className="py-5 w-[22%]">Ринкова капіталізація</th>
-                    <th className="py-5 w-[18%]">Обсяг</th>
-                    <th className="py-5 pr-6 w-[12%] text-left">Дії</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {favoriteAssets.map((asset, index) => {
-                    const isPositive = asset.change.startsWith('+');
-                    return (
-                      <React.Fragment key={asset.symbol}>
-                        <tr className="text-[15px] font-medium text-[#FFFFFF] transition-colors hover:bg-white/[0.02]">
-                          <td className="py-[14px] pl-6">
-                            <div className="flex items-center gap-3">
-                              <div className={`flex h-[32px] w-[32px] items-center justify-center rounded-full ${asset.color} text-[12px] font-bold text-white shadow-sm`}>
-                                {asset.symbol.charAt(0)}
-                              </div>
-                              <span className="font-semibold">{asset.symbol}</span>
-                            </div>
-                          </td>
-                          <td className="py-[14px]">{asset.price}</td>
-                          <td className={`py-[14px] ${isPositive ? 'text-[#36D399]' : 'text-[#F87272]'}`}>
-                            {asset.change}
-                          </td>
-                          <td className="py-[14px]">{asset.marketCap}</td>
-                          <td className="py-[14px]">{asset.volume}</td>
-                          <td className="py-[14px] pr-6 text-center">
-                            {/* КНОПКА ПЕРЕГЛЯНУТИ З АНІМАЦІЄЮ */}
-                            <button className="group relative inline-flex h-[38px] w-[130px] items-center justify-center rounded-full p-[1px] bg-gradient-to-r from-[#4C2475] via-[#7A40B5] to-[#B57AFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-95">
-                              <div className="flex h-full w-full items-center justify-center rounded-full bg-[#000000] group-hover:bg-opacity-80 transition-all">
-                                <span className="text-[14px] font-normal text-[#A3A4B0] group-hover:text-white transition-colors">
-                                  Переглянути
-                                </span>
-                              </div>
-                            </button>
-                          </td>
-                        </tr>
-                        {index !== favoriteAssets.length - 1 && (
-                          <tr>
-                            <td colSpan={6} className="p-0">
-                              <div className="mx-auto h-[1px] w-[calc(100%-48px)] bg-white/5"></div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
+
+          {/* TABLE */}
+          <div className="w-full h-[519px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
+          <div className="h-full rounded-[28px] bg-[#050506] overflow-hidden">
+              {/* HEADER */}
+              <div
+                className={`relative ${tableGrid} items-center px-[24px] h-[57px] text-[#A3A4B0] text-[14px] font-normal bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)]`}
+              >
+                <div className="absolute bottom-0 left-0 w-full h-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))]" />
+
+                <span>Монета</span>
+                <span>Ціна</span>
+                <span>24год</span>
+
+                <span className="block leading-[18px]">
+                  Ринкова <br />
+                  капіталізація
+                </span>
+
+                <span>Обсяг</span>
+                <span>Дії</span>
+              </div>
+
+              {favoriteAssets.map((asset, index) => {
+                const isPositive = asset.change.startsWith("+");
+
+                return (
+                  <React.Fragment key={asset.symbol}>
+                    {/* ROW */}
+                    <div
+                      className={`${tableGrid} items-center px-[24px] h-[76px] transition-all duration-300 ease-out`}
+                    >
+                      {/* MONETA */}
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-8 h-8 rounded-full ${asset.color} flex items-center justify-center text-[12px] font-bold text-white`}
+                        >
+                          {asset.symbol.charAt(0)}
+                        </div>
+
+                        <p className="text-[14px] font-medium text-white">
+                          {asset.symbol}
+                        </p>
+                      </div>
+
+                      {/* PRICE */}
+                      <p className="text-[14px] font-normal text-white">
+                        {asset.price}
+                      </p>
+
+                      {/* CHANGE */}
+                      <p
+                        className={`text-[14px] font-medium ${
+                          isPositive ? "text-[#25DE28]" : "text-[#F40000]"
+                        }`}
+                      >
+                        {asset.change}
+                      </p>
+
+                      {/* MARKET CAP */}
+                      <p className="text-[14px] font-normal text-white">
+                        {asset.marketCap}
+                      </p>
+
+                      {/* VOLUME */}
+                      <p className="text-[14px] font-normal text-white">
+                        {asset.volume}
+                      </p>
+                      {/* ACTIONS */}
+                      <div className="flex items-center justify-end gap-[16px] pr-[8px]">
+
+                        {/* VIEW */}
+                        <button
+                          className="
+                          group relative inline-flex w-8 h-8 items-center justify-center rounded-full p-[1px] 
+                          bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-110
+                          hover:shadow-[0_0_12px_rgba(131,72,193,0.28)] active:scale-95 cursor-pointer"
+                        >
+                          <div
+                            className="
+                              flex h-full w-full items-center justify-center rounded-full
+                              bg-[#050506] transition-all duration-300 group-hover:bg-[#0B0B0D]"
+                             >
+                          <img
+                            src={eyeIcon}
+                            alt=""
+                            className="
+                              w-4 h-4
+                              transition-all duration-300
+                              group-hover:scale-110
+                              group-hover:brightness-125"
+                          />
+                        </div>
+                      </button>
+
+                      {/* DELETE */}
+                      <button
+                        className="
+                          group relative inline-flex w-8 h-8 items-center justify-center rounded-full p-[1px]
+                          bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))]
+                          hover:bg-[linear-gradient(90deg,#1C102F_0%,#FF4444_100%)] transition-all duration-300
+                          hover:scale-110 hover:shadow-[0_0_15px_rgba(255,68,68,0.35)] active:scale-95 cursor-pointer"
+                      >
+                        <div
+                          className="
+                            flex h-full w-full items-center justify-center rounded-full
+                            bg-[#050506] transition-all duration-300 group-hover:bg-[#140707]"
+                        >
+                          <img
+                            src={trashIcon}
+                            alt=""
+                            className="
+                              w-4 h-4 transition-all duration-300
+                              group-hover:scale-110 group-hover:brightness-125"
+                          />
+                        </div>
+                      </button>
+                     </div>
+                    </div>
+
+                  {index !== favoriteAssets.length - 1 && (
+                    <div className="px-[24px]">
+                        <div className="h-[1px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32)_0%,rgba(179,179,179,0.032)_100%)]" />
+                      </div>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* ПРАВА КОЛОНКА */}
-        <div className="flex w-full flex-col lg:w-[calc(25%-18px)]">
-          <h2 className="mb-[24px] text-[20px] font-semibold leading-none text-white/95">
-            Рекомендовано 
+        {/* RIGHT */}
+        <div className="col-span-1">
+          <h2 className="mb-[24px] text-[24px] leading-[28px] font-semibold text-white">
+            Рекомендовано
           </h2>
-          <div className="w-full p-[1px] rounded-[24px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-            <div className="w-full rounded-[24px] bg-[#050506] py-2 shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
-              <div className="flex flex-col">
-                {recommendedAssets.map((asset, index) => (
-                  <React.Fragment key={asset.symbol}>
-                    <div className="flex items-center justify-between px-6 py-[14px] transition-colors hover:bg-white/[0.02]">
-                      <div className="flex items-center gap-3">
-                        <div className={`flex h-[32px] w-[32px] items-center justify-center rounded-full ${asset.color} text-[12px] font-bold text-white shadow-sm`}>
-                          {asset.symbol.charAt(0)}
-                        </div>
-                        <span className="text-[15px] font-semibold text-[#FFFFFF]">{asset.symbol}</span>
-                      </div>
-                      
-                      {/* КНОПКА ДОДАТИ З АНІМАЦІЄЮ */}
-                      <button className="group relative inline-flex h-[38px] w-[90px] items-center justify-center rounded-full p-[1px] bg-gradient-to-r from-[#4C2475] via-[#7A40B5] to-[#B57AFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-95">
-                        <div className="flex h-full w-full items-center justify-center rounded-full bg-[#000000] group-hover:bg-opacity-80 transition-all">
-                          <span className="text-[14px] font-normal text-[#A3A4B0] group-hover:text-white transition-colors">
-                            Додати
-                          </span>
-                        </div>
-                      </button>
 
+          <div className="w-[279px] h-[462px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]]">
+            <div className="h-full rounded-[28px] bg-[#050506] overflow-hidden">
+              {recommendedAssets.map((asset, index) => (
+                <React.Fragment key={asset.symbol}>
+                  <div className="flex items-center justify-between px-6 h-[76px] transition-all duration-300 ease-out">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-8 h-8 rounded-full ${asset.color} flex items-center justify-center text-[12px] font-bold text-white`}
+                      >
+                        {asset.symbol.charAt(0)}
+                      </div>
+
+                      <p className="text-[14px] font-medium text-white">
+                        {asset.symbol}
+                      </p>
                     </div>
-                    {index !== recommendedAssets.length - 1 && (
-                      <div className="mx-auto h-[1px] w-[calc(100%-48px)] bg-white/5"></div>
-                    )}
-                  </React.Fragment>
-                ))}
-              </div>
+
+                    <button className="group relative inline-flex h-[36px] w-[86px] items-center justify-center rounded-full p-[1px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-95 cursor-pointer">
+                      <div className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all group-hover:bg-[#0B0B0D]">
+                        <span className="text-[14px] font-normal text-white">
+                          Додати
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+
+                  {index !== recommendedAssets.length - 1 && (
+                    <div className="px-[24px]">
+                      <div className="h-[1px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32)_0%,rgba(179,179,179,0.032)_100%)]" />
+                    </div>
+                  )}
+                </React.Fragment>
+              ))}
             </div>
           </div>
         </div>
