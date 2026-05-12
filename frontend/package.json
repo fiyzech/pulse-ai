@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.105.4",
     "@tailwindcss/vite": "^4.2.2",
     "lightweight-charts": "^5.2.0",
     "lucide-react": "^1.8.0",

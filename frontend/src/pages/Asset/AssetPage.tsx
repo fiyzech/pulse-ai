@@ -2,6 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { createChart, ColorType, CrosshairMode, AreaSeries, CandlestickSeries } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, Time } from 'lightweight-charts';
+import {
+  addFavoriteAsset,
+  getAuthenticatedUserId,
+  getFavoriteAsset,
+  removeFavoriteAsset,
+} from '../../utils/favoriteAssets';
 
 const COINGECKO_IDS: Record<string, string> = {
   'BTC': 'bitcoin', 'ETH': 'ethereum', 'SOL': 'solana', 'BNB': 'binancecoin',
@@ -25,6 +31,26 @@ const formatSupply = (value: number, isMax: boolean = false) => {
   return value.toLocaleString('en-US', { maximumFractionDigits: 0 });
 };
 
+type ModelPrediction = {
+  signal?: string;
+  confidence?: number | null;
+};
+
+const buildPredictionSymbolVariants = (coinShort: string, coinSymbol: string, cgId: string) => {
+  const cleanShort = coinShort.toUpperCase();
+  const cleanSymbol = coinSymbol.toUpperCase();
+  const cleanCgId = cgId.toLowerCase();
+
+  return Array.from(new Set([
+    cleanShort,
+    cleanShort.toLowerCase(),
+    cleanSymbol,
+    cleanSymbol.toLowerCase(),
+    cleanCgId,
+    cleanCgId.toUpperCase(),
+  ].filter(Boolean)));
+};
+
 interface AssetPageProps {
   coinSymbol?: string; 
   coinName?: string;   
@@ -34,18 +60,25 @@ interface AssetPageProps {
 
 export default function AssetPage(props: AssetPageProps) {
   const location = useLocation();
-  const { id } = useParams<{ id: string }>();
+  const { symbol: routeAsset } = useParams<{ symbol: string }>();
   const passedCoin = location.state?.coin;
+  const routeAssetValue = routeAsset || '';
+  const routeSymbolFromCgId = Object.entries(COINGECKO_IDS).find(([, value]) => value === routeAssetValue)?.[0];
+  const routeSymbol = routeAssetValue.length <= 6 ? routeAssetValue.toUpperCase() : routeSymbolFromCgId;
 
-  const coinShort = passedCoin?.symbol || props.coinShort || 'BTC';
+  const coinShort = (passedCoin?.symbol || props.coinShort || routeSymbol || 'BTC').toUpperCase();
   const coinSymbol = `${coinShort}USDT`; 
   
-  const coinName = passedCoin?.id 
-    ? passedCoin.id.charAt(0).toUpperCase() + passedCoin.id.slice(1).replace(/-/g, ' ') 
-    : props.coinName || 'Bitcoin';
+  const routeName = routeAssetValue && routeAssetValue.length > 6
+    ? routeAssetValue.charAt(0).toUpperCase() + routeAssetValue.slice(1).replace(/-/g, ' ')
+    : coinShort;
+
+  const coinName = passedCoin?.id
+    ? passedCoin.id.charAt(0).toUpperCase() + passedCoin.id.slice(1).replace(/-/g, ' ')
+    : props.coinName || routeName || 'Bitcoin';
     
   const coinIcon = passedCoin?.imgUrl || props.coinIcon || '/Bitcoin.svg';
-  const cgId = passedCoin?.id || id || COINGECKO_IDS[coinShort] || 'bitcoin';
+  const cgId = passedCoin?.id || (routeSymbol ? COINGECKO_IDS[routeSymbol] : routeAssetValue) || COINGECKO_IDS[coinShort] || 'bitcoin';
   
   const [timeframe, setTimeframe] = useState('15 хв');
   const [chartType, setChartType] = useState<'area' | 'candle'>('area');
@@ -56,6 +89,9 @@ export default function AssetPage(props: AssetPageProps) {
   
   const [isLoading, setIsLoading] = useState(true);
   const [isBinanceAvailable, setIsBinanceAvailable] = useState(true); 
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [favoriteNotice, setFavoriteNotice] = useState('');
 
   const [stats, setStats] = useState({
     priceChange1h: 0, priceChange24h: 0, high24h: 0, low24h: 0, volume24h: 0,
@@ -82,6 +118,70 @@ export default function AssetPage(props: AssetPageProps) {
   const prevPriceRef = useRef<number>(0);
 
   useEffect(() => {
+    let active = true;
+
+    const syncFavoriteState = async () => {
+      setFavoriteLoading(true);
+      try {
+        const userId = await getAuthenticatedUserId();
+        if (!active) return;
+
+        if (!userId) {
+          setIsFavorite(false);
+          return;
+        }
+
+        const favorite = await getFavoriteAsset(userId, coinShort);
+        if (active) setIsFavorite(Boolean(favorite));
+      } catch (error) {
+        console.error('Помилка перевірки обраного:', error);
+      } finally {
+        if (active) setFavoriteLoading(false);
+      }
+    };
+
+    syncFavoriteState();
+    return () => {
+      active = false;
+    };
+  }, [coinShort]);
+
+  const handleFavoriteToggle = async () => {
+    setFavoriteNotice('');
+    setFavoriteLoading(true);
+
+    try {
+      const userId = await getAuthenticatedUserId();
+      if (!userId) {
+        setFavoriteNotice('Увійдіть в акаунт, щоб зберігати активи.');
+        return;
+      }
+
+      if (isFavorite) {
+        await removeFavoriteAsset(userId, coinShort);
+        setIsFavorite(false);
+        setFavoriteNotice('Актив видалено з обраного.');
+      } else {
+        await addFavoriteAsset(userId, {
+          coinId: cgId,
+          symbol: coinShort,
+          name: coinName,
+          imageUrl: coinIcon,
+        });
+        setIsFavorite(true);
+        setFavoriteNotice('Актив додано в обране.');
+      }
+
+      sessionStorage.removeItem('pulse_user_favorites');
+    } catch (error) {
+      console.error('Помилка оновлення обраного:', error);
+      setFavoriteNotice('Не вдалося оновити обране. Перевірте таблицю user_favorites.');
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
+
+  useEffect(() => {
     const fetchAiSignal = async () => {
       const noisyTimeframes = ['1 сек', '1 хв', '5 хв', '15 хв', '1 год'];
       
@@ -105,7 +205,16 @@ export default function AssetPage(props: AssetPageProps) {
         };
         const dbInterval = dbIntervalMap[timeframe] || '4h';
 
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/model_predictions?symbol=eq.${coinShort}&interval=eq.${dbInterval}&order=created_at.desc&limit=1`, {
+        const predictionSymbols = buildPredictionSymbolVariants(coinShort, coinSymbol, cgId);
+        const params = new URLSearchParams({
+          select: '*',
+          symbol: `in.(${predictionSymbols.join(',')})`,
+          interval: `eq.${dbInterval}`,
+          order: 'created_at.desc',
+          limit: '1',
+        });
+
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/model_predictions?${params.toString()}`, {
           headers: {
             'apikey': SUPABASE_ANON_KEY,
             'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
@@ -113,12 +222,14 @@ export default function AssetPage(props: AssetPageProps) {
         });
 
         if (res.ok) {
-          const data = await res.json();
+          const data = await res.json() as ModelPrediction[];
           if (data && data.length > 0) {
             const latest = data[0];
             const conf = latest.confidence || 50;
-            const isLong = latest.signal.includes('LONG');
-            const isShort = latest.signal.includes('SHORT');
+            const signal = latest.signal || 'NO TRADE';
+            const normalizedSignal = signal.toUpperCase();
+            const isLong = normalizedSignal.includes('LONG');
+            const isShort = normalizedSignal.includes('SHORT');
 
             let longP = 50;
             let shortP = 50;
@@ -134,7 +245,7 @@ export default function AssetPage(props: AssetPageProps) {
             setAiData({
               longPercent: longP,
               shortPercent: shortP,
-              signal: latest.signal,
+              signal,
               isLoading: false
             });
           } else {
@@ -150,7 +261,7 @@ export default function AssetPage(props: AssetPageProps) {
     };
 
     fetchAiSignal();
-  }, [coinShort, timeframe]);
+  }, [coinShort, coinSymbol, cgId, timeframe]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -183,7 +294,7 @@ export default function AssetPage(props: AssetPageProps) {
               maxSupply: coinData.max_supply, totalSupply: coinData.total_supply,
             });
           } else {
-            const cgRes = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${cgId}`);
+            const cgRes = await fetch(`/api/coingecko/coins/markets?vs_currency=usd&ids=${cgId}`);
             if(cgRes.ok) {
               const cgData = await cgRes.json();
               if (cgData && cgData.length > 0) {
@@ -199,11 +310,11 @@ export default function AssetPage(props: AssetPageProps) {
           }
         }
 
-        const tickerRes = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${coinSymbol}`);
+        const tickerRes = await fetch(`/api/binance/ticker/24hr?symbol=${coinSymbol}`);
         if(tickerRes.ok) {
           setIsBinanceAvailable(true);
           const tickerData = await tickerRes.json();
-          const kline1hRes = await fetch(`https://api.binance.com/api/v3/klines?symbol=${coinSymbol}&interval=1h&limit=2`);
+          const kline1hRes = await fetch(`/api/binance/klines?symbol=${coinSymbol}&interval=1h&limit=2`);
           const kline1hData = await kline1hRes.json();
           
           let change1h = 0;
@@ -251,7 +362,7 @@ export default function AssetPage(props: AssetPageProps) {
           chartRef.current.applyOptions({ timeScale: { secondsVisible: timeframe === '1 сек' || timeframe === '1 хв' || timeframe === '5 хв' } });
         }
 
-        const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${coinSymbol}&interval=${config.interval}&limit=${config.limit}`);
+        const res = await fetch(`/api/binance/klines?symbol=${coinSymbol}&interval=${config.interval}&limit=${config.limit}`);
         if(!res.ok) throw new Error("Binance API Error");
         
         const data = await res.json() as (string | number)[][];
@@ -393,6 +504,30 @@ export default function AssetPage(props: AssetPageProps) {
               </div>
 
               <div className="flex flex-col items-end gap-4 mt-1 shrink-0">
+                <div className="flex flex-col items-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleFavoriteToggle}
+                    disabled={favoriteLoading}
+                    className={`group relative inline-flex h-[38px] min-w-[164px] items-center justify-center gap-2 rounded-full p-[1px] transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-60 ${
+                      isFavorite
+                        ? 'bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] shadow-[0_0_18px_rgba(131,72,193,0.35)]'
+                        : 'bg-[linear-gradient(90deg,rgba(82,46,139,0.95),rgba(195,139,255,0.95))]'
+                    }`}
+                  >
+                    <span className="flex h-full w-full items-center justify-center gap-2 rounded-full bg-[#050506] px-5 text-[13px] font-medium text-[#FFF9F9] transition-colors group-hover:bg-[#09090B]">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill={isFavorite ? '#C38BFF' : 'none'} stroke="#C38BFF" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                      </svg>
+                      {favoriteLoading ? 'Оновлення...' : isFavorite ? 'В обраному' : 'Додати в обране'}
+                    </span>
+                  </button>
+                  {favoriteNotice && (
+                    <span className="max-w-[240px] text-right text-[11px] leading-[16px] text-[#A3A4B0]">
+                      {favoriteNotice}
+                    </span>
+                  )}
+                </div>
                 <div className="flex gap-4 items-center">
                   <button onClick={() => setChartType('area')} className={`text-[14px] font-medium pb-1 transition-all duration-300 border-b-2 ${chartType === 'area' ? 'text-[#FFF9F9] border-[#8348C1]' : 'text-[#FFF9F9]/50 border-transparent hover:text-[#FFF9F9]'}`}>Лінія</button>
                   <button onClick={() => setChartType('candle')} className={`text-[14px] font-medium pb-1 transition-all duration-300 border-b-2 ${chartType === 'candle' ? 'text-[#FFF9F9] border-[#8348C1]' : 'text-[#FFF9F9]/50 border-transparent hover:text-[#FFF9F9]'}`}>Свічки</button>

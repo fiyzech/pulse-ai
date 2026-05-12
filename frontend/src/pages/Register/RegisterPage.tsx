@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import PhoneInput from 'react-phone-input-2';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const Phone = (PhoneInput as any).default ?? PhoneInput;
 import 'react-phone-input-2/lib/style.css';
+import { supabase } from '../../supabaseClient';
+import { mergeAccountCache } from '../../utils/accountCache';
+
 
 import firstGradPic from '../../assets/images/first-grad-pic.svg?url';
 import secondGradPic from '../../assets/images/second-grad-pic.svg?url';
@@ -224,7 +227,7 @@ const UsernameIndicator = ({
 };
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
-const RegisterPage: React.FC = () => {
+const RegisterPage = () => {
   const navigate = useNavigate();
   const { countries, loadingCountries } = useCountries();
   const [step, setStep] = useState(1);
@@ -279,7 +282,6 @@ const RegisterPage: React.FC = () => {
   };
   const pwdStrength = getPwdStrength(password);
 
-  // Справжня перевірка email на 1-му кроці через кастомну функцію Supabase
   useEffect(() => {
     const v = email.trim();
     if (!v || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return;
@@ -315,7 +317,6 @@ const RegisterPage: React.FC = () => {
     return () => clearTimeout(t);
   }, [email]);
 
-  // Симуляція перевірки юзернейму для UI (Supabase за замовчуванням не перевіряє юзернейми, якщо ми не зробимо кастомну таблицю)
   useEffect(() => {
     if (step !== 2) return;
     const v = username.trim();
@@ -386,36 +387,88 @@ const RegisterPage: React.FC = () => {
     
     try {
       setLoading(true);
-      // 🔥 Реєстрація юзера через Supabase API
-      const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_ANON_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email: email.trim(),
-          password: password,
-          data: {
-            username: username.trim(),
-            first_name: firstName.trim(),
-            last_name: lastName.trim(),
-            phone: phoneNumber ? `+${phoneNumber.replace(/\D/g, '')}` : '',
-            country: selectedCountry || '',
-            birth_date: birthDate || ''
-          }
-        })
-      });
 
-      const data = await res.json();
-      
-      if (!res.ok) {
-        setS2GenErr(data.msg || data.message || 'Помилка реєстрації. Перевірте дані.');
-        return;
+      let formattedDate = null;
+      if (birthDate) {
+        const parts = birthDate.split('/'); 
+        if (parts.length === 3) {
+          formattedDate = `${parts[2]}-${parts[0]}-${parts[1]}`;
+        }
       }
 
-      setSuccess('Акаунт успішно створено. Перенаправляємо на вхід...');
-      setTimeout(() => navigate('/login'), 1500);
+      const profileData = {
+  username: username.trim(),
+  first_name: firstName.trim(),
+  last_name: lastName.trim(),
+  phone_number: phoneNumber ? `+${phoneNumber.replace(/\D/g, '')}` : null,
+  region: selectedCountry || null,
+  birth_date: formattedDate,
+};
+
+const { data, error } = await supabase.auth.signUp({
+  email: email.trim(),
+  password,
+  options: {
+    data: profileData,
+  },
+});
+
+if (error) {
+  setS2GenErr(error.message || 'Помилка реєстрації. Перевірте дані.');
+  return;
+}
+
+if (!data.user) {
+  setS2GenErr('Не вдалося створити акаунт.');
+  return;
+}
+
+if (!data.session) {
+  setS2GenErr('Акаунт створено, але сесія не активна. Вимкніть Confirm email у Supabase або увійдіть після підтвердження пошти.');
+  return;
+}
+
+const { error: profileError } = await supabase.from('users').upsert(
+  {
+    id: data.user.id,
+    email: data.user.email,
+    hashed_password: 'managed_by_supabase',
+    is_active: true,
+    username: profileData.username,
+    subscription: 'free',
+    first_name: profileData.first_name,
+    last_name: profileData.last_name,
+    phone_number: profileData.phone_number,
+    birth_date: profileData.birth_date,
+    region: profileData.region,
+    active_plan: 'free',
+    billing_cycle: 'monthly',
+  },
+  { onConflict: 'id' }
+);
+
+if (profileError) {
+  console.error('Profile upsert error:', profileError);
+  setS2GenErr('Акаунт створено, але профіль не записався в таблицю users.');
+  return;
+}
+
+mergeAccountCache({
+  userId: data.user.id,
+  email: data.user.email || email.trim(),
+  firstName: profileData.first_name,
+  lastName: profileData.last_name,
+  username: profileData.username,
+  phoneNumber: profileData.phone_number || '',
+  birthDate: profileData.birth_date || '',
+  region: profileData.region || '',
+  planKey: 'free',
+  billingCycle: 'monthly',
+  cardLast4: null,
+});
+
+setSuccess('Акаунт успішно створено. Оберіть план підписки...');
+setTimeout(() => navigate('/select-plan'), 1500);
 
     } catch { 
       setS2GenErr('Не вдалося підключитися до бази даних Supabase'); 
@@ -426,7 +479,6 @@ const RegisterPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#010004] flex flex-col relative overflow-hidden font-montserrat">
-      {/* Logo */}
       <div className="absolute top-6 left-6 md:top-8 md:left-8 flex items-center gap-3 cursor-pointer z-30" onClick={() => navigate('/')}>
         <img src="/logo-crypro-pulse.svg" alt="CryptoPulse" className="w-6 h-6 md:w-7 md:h-7 object-contain" />
         <div className="text-[16px] md:text-[18px] tracking-wide">
@@ -440,7 +492,6 @@ const RegisterPage: React.FC = () => {
 
       <div className="flex-1 flex flex-col items-center justify-center z-10 p-4 py-12">
 
-        {/* ══════════════════════════════════════════════════════ STEP 1 */}
         {step === 1 && (
           <Card>
             <Stepper step={step} />
@@ -451,7 +502,6 @@ const RegisterPage: React.FC = () => {
               {s1GenErr && <ErrBanner msg={s1GenErr} />}
 
               <form onSubmit={handleS1Submit} noValidate className="flex flex-col items-center">
-                {/* Email */}
                 <div className="w-[360px] mb-[24px] text-left">
                   <Lbl>Електронна пошта</Lbl>
                   <input
@@ -469,7 +519,6 @@ const RegisterPage: React.FC = () => {
                   <ErrorMsg msg={s1Errors.email} />
                 </div>
 
-                {/* Password */}
                 <div className="w-[360px] mb-[8px] text-left">
                   <Lbl>Пароль</Lbl>
                   <div className="relative h-[44px]">
@@ -491,7 +540,6 @@ const RegisterPage: React.FC = () => {
                   <ErrorMsg msg={s1Errors.password} />
                 </div>
 
-                {/* Strength bar */}
                 {password && (
                   <div className="w-[360px] mb-[16px]">
                     <div className="w-full h-[3px] rounded-full bg-white/5 mb-[6px]">
@@ -504,7 +552,6 @@ const RegisterPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Confirm */}
                 <div className={`w-[360px] text-left ${password ? 'mb-[40px]' : 'mb-[40px] mt-[16px]'}`}>
                   <Lbl>Підтвердження паролю</Lbl>
                   <div className="relative h-[44px]">
@@ -526,7 +573,6 @@ const RegisterPage: React.FC = () => {
                   <ErrorMsg msg={s1Errors.confirmPassword} />
                 </div>
 
-                {/* Далі */}
                 <button
                   type="submit"
                   disabled={loading || checkingEmail}
@@ -535,7 +581,6 @@ const RegisterPage: React.FC = () => {
                   {checkingEmail ? 'Перевірка...' : 'Далі'}
                 </button>
 
-                {/* OR */}
                 <div className="flex items-center w-[360px] my-[32px]">
                   <div className="flex-1 h-[1px]" style={{ background: 'linear-gradient(90deg,#000 0%,#8348C1 48%,#2C1969 100%)' }} />
                   <span className="px-4 text-[12px] text-[#A3A4B0]">або</span>
@@ -560,7 +605,6 @@ const RegisterPage: React.FC = () => {
           </Card>
         )}
 
-        {/* ══════════════════════════════════════════════════════ STEP 2 */}
         {step === 2 && (
           <Card>
             <Stepper step={step} />
@@ -583,7 +627,6 @@ const RegisterPage: React.FC = () => {
 
               <form onSubmit={handleS2Submit} noValidate className="flex flex-col items-center gap-[20px]">
 
-                {/* Ім'я + Прізвище */}
                 <div className="w-[360px] flex gap-[12px]">
                   <div className="flex-1 text-left">
                     <Lbl>Ім'я</Lbl>
@@ -619,7 +662,6 @@ const RegisterPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Ім'я користувача */}
                 <div className="w-[360px] text-left">
                   <Lbl>Ім'я користувача</Lbl>
                   <div className="relative h-[44px]">
@@ -651,7 +693,6 @@ const RegisterPage: React.FC = () => {
                   )}
                 </div>
 
-                {/* Номер телефону */}
                 <div className="w-[360px] text-left phone-register-wrapper">
                   <Lbl>Номер телефону</Lbl>
                   <style>{`
@@ -755,7 +796,6 @@ const RegisterPage: React.FC = () => {
                   )}
                 </div>
 
-                {/* Країна */}
               <div className="w-[360px] text-left">
                 <Lbl>Країна проживання</Lbl>
                 <div className="relative" data-country>
@@ -778,7 +818,6 @@ const RegisterPage: React.FC = () => {
                       className="absolute top-[calc(100%+6px)] left-0 right-0 z-50 rounded-[16px] overflow-hidden"
                       style={{ background: '#0d0d10', border: '1px solid rgba(82,46,139,0.4)', boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}
                     >
-                      {/* Пошук */}
                       <div className="p-2 border-b border-[rgba(82,46,139,0.3)]">
                         <input
                           type="text"
@@ -851,7 +890,6 @@ const RegisterPage: React.FC = () => {
                 <ErrorMsg msg={s2Errors.country} />
               </div>
 
-                {/* Дата народження */}
                 <div className="w-[360px] text-left">
                   <Lbl>Дата народження</Lbl>
                   <div className="relative h-[44px]">
@@ -876,7 +914,6 @@ const RegisterPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Buttons */}
                 <div className="w-[360px] mt-[4px] flex flex-col gap-[16px]">
                   <button
                     type="submit"

@@ -4,9 +4,10 @@ import LandingPage from "../pages/Landing/LandingPage";
 import AuthPage from "../pages/Auth/AuthPage";
 import LoginPage from "../pages/Login/LoginPage";
 import RegisterPage from "../pages/Register/RegisterPage";
+// Додаємо імпорт нової сторінки
+import SelectPlanPage from "../pages/Select/SelectPlanPage"; 
 import PricingPage from "../pages/Pricing/PricingPage";
-import MarketsPage from "../pages/Markets/MarketsPage";
-import SupportPage from "../pages/Support/SupportPage";
+
 import MainLayout from "../layouts/MainLayout";
 import DashboardPage from "../pages/Dashboard/DashboardPage";
 import AssetsPage from "../pages/Assets/AssetsPage";
@@ -15,6 +16,8 @@ import TelegramPage from "../pages/Telegram/TelegramPage";
 import SettingsPage from "../pages/Settings/SettingsPage";
 import ProfilePage from "../pages/Profile/ProfilePage";
 import AssetPage from "../pages/Asset/AssetPage";
+import MarketsPage from "../pages/Markets/MarketsPage";
+import SupportPage from "../pages/Support/SupportPage";
 import NewsPage from "../pages/News/NewsPage";
 
 export const router = createBrowserRouter([
@@ -29,6 +32,11 @@ export const router = createBrowserRouter([
   {
     path: "/register",
     element: <RegisterPage />,
+  },
+  {
+    // Підключаємо роут для вибору плану
+    path: "/select-plan",
+    element: <SelectPlanPage />,
   },
   {
     path: "/auth",

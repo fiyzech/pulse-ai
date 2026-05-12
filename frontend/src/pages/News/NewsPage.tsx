@@ -1,7 +1,12 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { fetchCryptoNews, formatNewsTime } from "../../utils/news";
+import {
+  fetchCryptoNews,
+  formatNewsTime,
+  readCryptoNewsCache,
+  translateCryptoNewsItems,
+} from "../../utils/news";
 import type { CryptoNewsItem } from "../../utils/news";
 
 const categories = [
@@ -18,33 +23,55 @@ const categories = [
 
 export default function NewsPage() {
   const navigate = useNavigate();
+  const cachedNews = readCryptoNewsCache(60 * 60 * 1000);
 
-  const [news, setNews] = useState<CryptoNewsItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [news, setNews] = useState<CryptoNewsItem[]>(() => cachedNews || []);
+  const [loading, setLoading] = useState<boolean>(() => !cachedNews);
+  const [hasInitialCache] = useState<boolean>(() => Boolean(cachedNews));
   const [error, setError] = useState<string | null>(null);
 
   const [activeCategory, setActiveCategory] = useState<string>("Усі");
   const [searchValue, setSearchValue] = useState<string>("");
 
   useEffect(() => {
+    let isActive = true;
+    const timer = window.setTimeout(() => {
     const loadNews = async () => {
       try {
-        setLoading(true);
+          if (!hasInitialCache) setLoading(true);
         setError(null);
 
-        const result = await fetchCryptoNews(40, 100);
+          const result = await fetchCryptoNews(40, 100, { translate: false });
+          if (!isActive) return;
 
         setNews(result);
+          setLoading(false);
+
+          void translateCryptoNewsItems(result)
+            .then((translated) => {
+              if (isActive) setNews(translated);
+            })
+            .catch((error) => {
+              console.warn("Переклад новин пропущено:", error);
+            });
       } catch (error) {
         console.error("Помилка завантаження сторінки новин:", error);
-        setError("Не вдалося завантажити новини");
+          if (!hasInitialCache) {
+            setError("Не вдалося завантажити новини");
+          }
       } finally {
-        setLoading(false);
+          if (isActive && !hasInitialCache) setLoading(false);
       }
     };
 
-    loadNews();
-  }, []);
+      void loadNews();
+    }, 0);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timer);
+    };
+  }, [hasInitialCache]);
 
   const filteredNews = useMemo(() => {
     return news.filter((item) => {
