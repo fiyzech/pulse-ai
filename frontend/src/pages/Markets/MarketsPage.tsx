@@ -27,6 +27,31 @@ interface TableMarketItem {
   rawMaxSupply: number;
 }
 
+type BinanceTicker = {
+  symbol: string;
+};
+
+type BinanceTicker24h = {
+  symbol: string;
+  lastPrice: string;
+  priceChangePercent: string;
+  quoteVolume: string;
+};
+
+type CoinGeckoMarketCoin = {
+  id: string;
+  symbol: string;
+  current_price: number | null;
+  price_change_percentage_24h: number | null;
+  market_cap: number | null;
+  total_volume: number | null;
+  image: string;
+  ath: number | null;
+  circulating_supply: number | null;
+  total_supply: number | null;
+  max_supply: number | null;
+};
+
 const initialTopCardsData: Record<string, MarketItem[]> = {
   popular: [
     { symbol: "BTC", price: "...", change: "...", isPositive: true, imgUrl: "https://cryptologos.cc/logos/bitcoin-btc-logo.png" },
@@ -49,6 +74,27 @@ const topCardsIds: Record<string, string> = {
   BTC: 'bitcoin', ETH: 'ethereum', SOL: 'solana',
   BNB: 'binancecoin', ARB: 'arbitrum', AVAX: 'avalanche-2',
   SUI: 'sui', PEPE: 'pepe', TIA: 'celestia'
+};
+
+const COINGECKO_COOLDOWN_MS = 10 * 60 * 1000;
+const coingeckoCooldownKey = 'pulse_coingecko_cooldown_until';
+
+const isCoinGeckoCoolingDown = () => {
+  const until = Number(sessionStorage.getItem(coingeckoCooldownKey) || 0);
+  return Date.now() < until;
+};
+
+const startCoinGeckoCooldown = () => {
+  sessionStorage.setItem(coingeckoCooldownKey, String(Date.now() + COINGECKO_COOLDOWN_MS));
+};
+
+const parseJsonCache = <T,>(value: string | null): T | null => {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
 };
 
 export default function MarketsPage() {
@@ -84,16 +130,26 @@ export default function MarketsPage() {
       try {
         const cachedTopData = sessionStorage.getItem('pulse_top_cards');
         const cachedTopTime = sessionStorage.getItem('pulse_top_time');
+        const staleTopData = parseJsonCache<Record<string, { price: number; change: number }>>(cachedTopData);
 
-        if (cachedTopData && cachedTopTime && Date.now() - Number(cachedTopTime) < 60000) {
-          setLiveTopData(JSON.parse(cachedTopData));
+        if (staleTopData && cachedTopTime && Date.now() - Number(cachedTopTime) < 60000) {
+          setLiveTopData(staleTopData);
           return; 
         }
 
+        if (isCoinGeckoCoolingDown()) {
+          if (staleTopData) setLiveTopData(staleTopData);
+          return;
+        }
+
         const topIds = Object.values(topCardsIds).join(',');
-        const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${topIds}&vs_currencies=usd&include_24hr_change=true`);
+        const res = await fetch(`/api/coingecko/simple/price?ids=${topIds}&vs_currencies=usd&include_24hr_change=true`);
         
-        if (res.status === 429) return;
+        if (res.status === 429) {
+          startCoinGeckoCooldown();
+          if (staleTopData) setLiveTopData(staleTopData);
+          return;
+        }
 
         if (res.ok) {
           const topData = await res.json();
@@ -124,35 +180,84 @@ export default function MarketsPage() {
 
         const cachedTableData = sessionStorage.getItem('pulse_table_cards');
         const cachedTableTime = sessionStorage.getItem('pulse_table_time');
+        const staleTableData = parseJsonCache<TableMarketItem[]>(cachedTableData);
 
-        if (cachedTableData && cachedTableTime && Date.now() - Number(cachedTableTime) < 120000) {
-          setAllTableMarkets(JSON.parse(cachedTableData));
+        if (staleTableData && cachedTableTime && Date.now() - Number(cachedTableTime) < 120000) {
+          setAllTableMarkets(staleTableData);
           return; 
         }
 
+        if (isCoinGeckoCoolingDown() && staleTableData) {
+          setAllTableMarkets(staleTableData);
+          setApiError(null);
+          return;
+        }
+
         const [binanceRes, cgRes] = await Promise.all([
-          fetch('https://api.binance.com/api/v3/ticker/price'),
-          fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=false')
+          fetch('/api/binance/ticker/24hr'),
+          fetch('/api/coingecko/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=false')
         ]);
 
         if (cgRes.status === 429) {
-          setApiError("Забагато запитів. Зачекайте хвилинку...");
+          startCoinGeckoCooldown();
+          if (staleTableData) {
+            setAllTableMarkets(staleTableData);
+            setApiError(null);
+            return;
+          }
+
+          if (binanceRes.ok) {
+            const binanceData = await binanceRes.json() as BinanceTicker24h[];
+            const ignoredStablecoins = ['USDT', 'USDC', 'DAI', 'FDUSD', 'TUSD', 'USDD', 'USDS'];
+            const fallbackTable = binanceData
+              .filter((item) => item.symbol.endsWith('USDT'))
+              .map((item) => item.symbol.replace(/USDT$/, ''))
+              .filter((symbol) => !ignoredStablecoins.includes(symbol))
+              .slice(0, 125)
+              .map((symbol) => {
+                const ticker = binanceData.find((item) => item.symbol === `${symbol}USDT`);
+                const change = Number(ticker?.priceChangePercent || 0);
+                return {
+                  id: topCardsIds[symbol] || symbol.toLowerCase(),
+                  symbol,
+                  price: formatPrice(Number(ticker?.lastPrice || 0)),
+                  change: formatChange(change),
+                  isPositive: change > 0,
+                  cap: '---',
+                  vol: formatCompactNumber(Number(ticker?.quoteVolume || 0)),
+                  imgUrl: `https://cryptologos.cc/logos/${symbol.toLowerCase()}-${symbol.toLowerCase()}-logo.png`,
+                  rawMcap: 0,
+                  rawAth: 0,
+                  rawCircSupply: 0,
+                  rawTotalSupply: 0,
+                  rawMaxSupply: 0,
+                };
+              });
+
+            setAllTableMarkets(fallbackTable);
+            sessionStorage.setItem('pulse_table_cards', JSON.stringify(fallbackTable));
+            sessionStorage.setItem('pulse_table_time', Date.now().toString());
+            setApiError(null);
+            return;
+          }
+
+          setApiError("CoinGecko тимчасово обмежив запити. Показуємо останні доступні дані.");
           return;
         }
 
         if (binanceRes.ok && cgRes.ok) {
-          const binanceData = await binanceRes.json();
-          const cgData = await cgRes.json();
+          const binanceData = await binanceRes.json() as BinanceTicker[];
+          const cgData = await cgRes.json() as CoinGeckoMarketCoin[];
 
           const validBinancePairs = new Set(
             binanceData
-              .filter((item: any) => item.symbol.endsWith('USDT'))
-              .map((item: any) => item.symbol)
+              .filter((item) => item.symbol.endsWith('USDT'))
+              .map((item) => item.symbol)
           );
 
           const ignoredStablecoins = ['USDT', 'USDC', 'DAI', 'FDUSD', 'TUSD', 'USDD', 'USDS'];
 
-          const validBinanceCoins = cgData.filter((coin: any) => {
+          const validBinanceCoins = cgData.filter((coin) => {
             const symbolUpper = coin.symbol.toUpperCase();
             if (ignoredStablecoins.includes(symbolUpper)) return false;
             return validBinancePairs.has(`${symbolUpper}USDT`);
@@ -160,7 +265,7 @@ export default function MarketsPage() {
 
           const final125Coins = validBinanceCoins.slice(0, 125);
 
-          const formattedTable = final125Coins.map((coin: any) => ({
+          const formattedTable = final125Coins.map((coin) => ({
             id: coin.id,
             symbol: coin.symbol.toUpperCase(),
             price: formatPrice(coin.current_price),
@@ -169,7 +274,6 @@ export default function MarketsPage() {
             cap: formatCompactNumber(coin.market_cap),
             vol: formatCompactNumber(coin.total_volume),
             imgUrl: coin.image,
-            // ПАКУЄМО СИРІ ДАНІ ДЛЯ АКТИВУ (ЦЕ ВАЖЛИВО ДЛЯ ЕФІРУ!)
             rawMcap: coin.market_cap || 0,
             rawAth: coin.ath || 0,
             rawCircSupply: coin.circulating_supply || 0,

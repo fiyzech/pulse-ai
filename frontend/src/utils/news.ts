@@ -26,6 +26,45 @@ export interface CryptoNewsItem {
 }
 
 const TRANSLATION_CACHE_KEY = "cryptopulse_news_translations_v2";
+const NEWS_CACHE_KEY = "cryptopulse_crypto_news_feed_v3";
+const NEWS_CACHE_TTL_MS = 15 * 60 * 1000;
+const TRANSLATE_TIMEOUT_MS = 2800;
+const TRANSLATE_BATCH_SIZE = 8;
+
+type NewsCachePayload = {
+  savedAt: number;
+  items: CryptoNewsItem[];
+};
+
+type FetchCryptoNewsOptions = {
+  translate?: boolean;
+};
+
+export const readCryptoNewsCache = (maxAgeMs = NEWS_CACHE_TTL_MS): CryptoNewsItem[] | null => {
+  try {
+    const raw = sessionStorage.getItem(NEWS_CACHE_KEY) || localStorage.getItem(NEWS_CACHE_KEY);
+    if (!raw) return null;
+
+    const payload = JSON.parse(raw) as NewsCachePayload;
+    if (!payload?.savedAt || !Array.isArray(payload.items)) return null;
+    if (Date.now() - payload.savedAt > maxAgeMs) return null;
+
+    return payload.items;
+  } catch {
+    return null;
+  }
+};
+
+const saveCryptoNewsCache = (items: CryptoNewsItem[]) => {
+  try {
+    const payload: NewsCachePayload = { savedAt: Date.now(), items };
+    const serialized = JSON.stringify(payload);
+    sessionStorage.setItem(NEWS_CACHE_KEY, serialized);
+    localStorage.setItem(NEWS_CACHE_KEY, serialized);
+  } catch {
+    // ignore
+  }
+};
 
 const getTranslationCache = (): Record<string, string> => {
   try {
@@ -222,16 +261,22 @@ const googleTranslateOne = async (text: string): Promise<string> => {
     cleanText
   )}`;
 
-  const res = await fetch(url);
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), TRANSLATE_TIMEOUT_MS);
+
+  const res = await fetch(url, { signal: controller.signal }).finally(() => {
+    window.clearTimeout(timeoutId);
+  });
 
   if (!res.ok) {
     return cleanText;
   }
 
-  const data = await res.json();
+  const data = await res.json() as unknown;
+  const translationRoot = Array.isArray(data) ? data[0] : null;
 
-  const translated = Array.isArray(data?.[0])
-    ? data[0].map((part: any[]) => part?.[0]).join("")
+  const translated = Array.isArray(translationRoot)
+    ? translationRoot.map((part) => Array.isArray(part) ? String(part[0] || "") : "").join("")
     : "";
 
   return translated || cleanText;
@@ -270,21 +315,28 @@ const translateTextsToUkrainian = async (
     }
   });
 
-  for (let i = 0; i < indexesToTranslate.length; i++) {
-    const { text, index } = indexesToTranslate[i];
+  for (let i = 0; i < indexesToTranslate.length; i += TRANSLATE_BATCH_SIZE) {
+    const batch = indexesToTranslate.slice(i, i + TRANSLATE_BATCH_SIZE);
+    const translatedBatch = await Promise.all(
+      batch.map(async ({ text, index }) => {
+        try {
+          const translated = await googleTranslateOne(text);
+          return { text, index, translated };
+        } catch {
+          return { text, index, translated: text };
+        }
+      })
+    );
 
-    try {
-      const translated = await googleTranslateOne(text);
-
+    translatedBatch.forEach(({ text, index, translated }) => {
       result[index] = translated;
       cache[text] = translated;
+    });
 
-      if (i > 0 && i % 8 === 0) {
-        saveTranslationCache(cache);
-        await sleep(350);
-      }
-    } catch {
-      result[index] = text;
+    saveTranslationCache(cache);
+
+    if (i + TRANSLATE_BATCH_SIZE < indexesToTranslate.length) {
+      await sleep(80);
     }
   }
 
@@ -293,10 +345,31 @@ const translateTextsToUkrainian = async (
   return result;
 };
 
+export const translateCryptoNewsItems = async (items: CryptoNewsItem[]): Promise<CryptoNewsItem[]> => {
+  const titles = items.map((item) => item.title);
+  const descriptions = items.map((item) => item.description || "");
+
+  const [translatedTitles, translatedDescriptions] = await Promise.all([
+    translateTextsToUkrainian(titles),
+    translateTextsToUkrainian(descriptions),
+  ]);
+
+  const translatedItems = items.map((item, index) => ({
+    ...item,
+    title: translatedTitles[index] || item.title,
+    description: translatedDescriptions[index] || item.description || "",
+  }));
+
+  saveCryptoNewsCache(translatedItems);
+  return translatedItems;
+};
+
 export const fetchCryptoNews = async (
   finalCount = 6,
-  rawCount = 100
+  rawCount = 100,
+  options: FetchCryptoNewsOptions = {},
 ): Promise<CryptoNewsItem[]> => {
+  const shouldTranslate = options.translate ?? true;
   const apiKey = import.meta.env.VITE_NEWS_API_KEY;
 
   if (!apiKey) {
@@ -325,19 +398,21 @@ export const fetchCryptoNews = async (
     .filter(isRelevantCryptoArticle)
     .slice(0, finalCount);
 
-  const titles = articles.map((article) => article.title);
-  const descriptions = articles.map((article) => article.description || "");
-
-  const translatedTitles = await translateTextsToUkrainian(titles);
-  const translatedDescriptions = await translateTextsToUkrainian(descriptions);
-
-  return articles.map((article, index) => ({
-    title: translatedTitles[index] || article.title,
-    description: translatedDescriptions[index] || "",
+  const items = articles.map((article) => ({
+    title: article.title,
+    description: article.description || "",
     url: article.url,
     source: article.source.name,
     publishedAt: article.publishedAt,
     icon: getNewsIcon(article.title, article.description || ""),
     tag: getNewsTag(article.title, article.description || ""),
   }));
+
+  saveCryptoNewsCache(items);
+
+  if (!shouldTranslate) {
+    return items;
+  }
+
+  return translateCryptoNewsItems(items);
 };
