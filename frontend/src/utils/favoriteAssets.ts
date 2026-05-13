@@ -23,6 +23,12 @@ export const normalizeFavoriteSymbol = (symbol: string) => symbol.trim().toUpper
 
 export const getAuthenticatedUserId = async () => {
   const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (session?.user) return session.user.id;
+
+  const {
     data: { user },
     error,
   } = await supabase.auth.getUser();
