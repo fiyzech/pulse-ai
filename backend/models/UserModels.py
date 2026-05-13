@@ -72,13 +72,15 @@ class Alerts_Model(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)    
     symbol: Mapped[str] = mapped_column(String(20), index=True, nullable=False)
 
-    condition: Mapped[AlertCondition] = mapped_column(
+    condition_type: Mapped[AlertCondition] = mapped_column(
         SAEnum(AlertCondition, native_enum=False, length=10), 
         nullable=False
     )
 
-    target_price: Mapped[float] = mapped_column(Float, nullable=False)
+    target_value: Mapped[float] = mapped_column(Float, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_recurring: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now()) 
-
+    trigered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    
     user: Mapped["User_Model"] = relationship(back_populates="alerts")

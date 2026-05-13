@@ -24,6 +24,7 @@ class AlertResponse_Schema(BaseModel):
     symbol: str
     condition: AlertCondition
     target_price: float
+    current_price: float
     is_active: bool
     created_at: datetime
     
