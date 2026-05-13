@@ -46,7 +46,7 @@ export default function SupportPage() {
     const parts = text.split(/(CryptoPulse)/g);
     return parts.map((part, index) => 
       part === 'CryptoPulse' 
-        ? <span key={index} style={{ color: '#AA54F4' }}>{part}</span> 
+        ? <span key={index} style={{ color: '#AA65F4' }}>{part}</span> 
         : part
     );
   };
@@ -77,17 +77,27 @@ export default function SupportPage() {
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
+    
+    select {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+    }
+
+    select option {
+      background-color: #050506;
+      color: #9E9E9E;
+    }
   `;
 
   return (
-    <section className="text-[#F2F2F2] w-full mx-auto bg-transparent font-['Montserrat',sans-serif]">
+    <section className="text-[#FFFFFF] w-full mx-auto bg-transparent font-['Montserrat',sans-serif]">
       <style>{globalStyles}</style>
       
       <div className="pt-[24px] pl-[40px] pr-[40px] pb-[24px] flex justify-start gap-[24px]">
         
-        {/* Картка «Поширені запитання» — Додано свічення при наведенні */}
         <div 
-          className="gradient-border-box bg-[#050506] rounded-[32px] pt-8 pb-8 px-[24px] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] flex-shrink-0 overflow-y-auto no-scrollbar transition-all duration-500 ease-out hover:shadow-[0_20px_100px_rgba(131,72,193,0.3),0_8px_25px_rgba(0,0,0,0.4)]"
+          className="gradient-border-box bg-[#050506] rounded-[28px] pt-8 pb-8 px-[24px] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] flex-shrink-0 overflow-y-auto no-scrollbar"
           style={{ width: '546px', height: '685px' }}
         >
           <h2 className="text-[24px] font-medium mb-8 text-white tracking-tight leading-none px-4">Поширені запитання</h2>
@@ -116,7 +126,6 @@ export default function SupportPage() {
                   </div>
                   {isActive && (
                     <div className="px-6 pb-6 relative z-10">
-                      {/* Ефект плаваючого фону для тексту відповіді */}
                       <div className="cursor-pointer p-3 -mx-3 -my-2 rounded-[16px] transition-all duration-300 hover:bg-white/5 text-[14px] font-normal text-[#A5A5A5] leading-[1.6] font-['Montserrat',sans-serif]">
                         {formatAnswer(faq.answer)}
                       </div>
@@ -128,9 +137,8 @@ export default function SupportPage() {
           </div>
         </div>
 
-        {/* Картка «Зв'язатися з підтримкою» — Додано свічення при наведенні */}
         <div 
-          className="gradient-border-box bg-[#050506] rounded-[32px] pt-8 pb-8 shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] flex flex-col flex-shrink-0 no-scrollbar transition-all duration-500 ease-out hover:shadow-[0_20px_100px_rgba(131,72,193,0.3),0_8px_25px_rgba(0,0,0,0.4)]"
+          className="gradient-border-box bg-[#050506] rounded-[28px] pt-8 pb-8 shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25_rgba(0,0,0,0.35)] flex flex-col flex-shrink-0 no-scrollbar"
           style={{ width: '546px', height: '685px' }}
         >
           <h2 className="text-[24px] font-medium mb-[32px] text-[#FFFFFF] tracking-tight leading-none px-[24px]">
@@ -149,40 +157,60 @@ export default function SupportPage() {
             </h3>
             
             <div className="flex flex-col">
-              {/* Поля вводу (без змін за вашим проханням) */}
               <div className="px-[24px] mb-4">
                 <div className="flex mb-[8px]">
-                   <label className="text-[12px] font-normal text-[#8A8A8E] w-[235px]">Ім'я</label>
+                   <label className="text-[12px] font-normal text-[#A3A4B0] w-[235px]">Ім'я</label>
                    <div className="w-[26px]"></div>
-                   <label className="text-[12px] font-normal text-[#8A8A8E] w-[235px]">Прізвище</label>
+                   <label className="text-[12px] font-normal text-[#A3A4B0] w-[235px]">Прізвище</label>
                 </div>
                 <div className="flex gap-[24px]">
-                  <input type="text" placeholder="Введіть Ваше імʼя" className="w-[237px] h-[40px] bg-[#121214] border border-white/[0.05] rounded-full px-5 text-[13px] text-white focus:outline-none focus:border-[#8348C1]/50 placeholder:text-[#5E5E62]" />
-                  <input type="text" placeholder="Введіть Ваше прізвище" className="w-[237px] h-[40px] bg-[#121214] border border-white/[0.05] rounded-full px-5 text-[13px] text-white focus:outline-none focus:border-[#8348C1]/50 placeholder:text-[#5E5E62]" />
+                  <div className="gradient-border-box group w-[237px] h-[40px] rounded-[28px] overflow-hidden transition-colors hover:bg-white/[0.08]">
+                    <input 
+                      type="text" 
+                      placeholder="Введіть Ваше імʼя" 
+                      className="w-full h-full bg-transparent pl-[13px] py-[13px] text-[14px] text-[#9E9E9E] focus:outline-none placeholder:text-[#9E9E9E]" 
+                    />
+                  </div>
+                  <div className="gradient-border-box group w-[237px] h-[40px] rounded-[28px] overflow-hidden transition-colors hover:bg-white/[0.08]">
+                    <input 
+                      type="text" 
+                      placeholder="Введіть Ваше прізвище" 
+                      className="w-full h-full bg-transparent pl-[13px] py-[13px] text-[14px] text-[#9E9E9E] focus:outline-none placeholder:text-[#9E9E9E]" 
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="px-[24px] mb-4">
-                <label className="text-[12px] font-normal text-[#8A8A8E] block mb-[8px]">Тема</label>
-                <div className="relative w-[498px] h-[40px]">
-                  <select className="w-full h-full bg-[#121214] border border-white/[0.05] rounded-full px-5 text-[13px] text-[#5E5E62] appearance-none focus:outline-none focus:border-[#8348C1]/50">
-                    <option>Введіть тему звернення</option>
+              <div className="px-[24px] mb-[24px]">
+                <label className="text-[12px] font-normal text-[#A3A4B0] block mb-[8px]">Тема</label>
+                <div className="gradient-border-box group relative w-[498px] h-[40px] rounded-[28px] overflow-hidden transition-colors hover:bg-white/[0.08]">
+                  <select 
+                    className="w-full h-[44px] bg-transparent py-[13px] pl-[13px]  text-[14px] text-[#9E9E9E] focus:outline-none cursor-pointer"
+                    defaultValue=""
+                  >
+                    <option value="" disabled>Виберіть тему звернення</option>
+                    <option value="tech">Технічні питання</option>
+                    <option value="account">Акаунт та безпека</option>
+                    <option value="crypto">Криптоактиви та дані</option>
+                    <option value="other">Інше</option>
                   </select>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="absolute right-5 top-1/2 -translate-y-1/2 text-[#5E5E62] pointer-events-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="absolute right-5 top-1/2 -translate-y-1/2 text-[#9E9E9E] pointer-events-none transition-colors">
                     <path d="m6 9 6 6 6-6"/>
                   </svg>
                 </div>
               </div>
 
-              <div className="px-[24px] mb-[32px]">
+              <div className="px-[24px] mb-[24px]">
                 <label className="text-[12px] font-normal text-[#A3A4B0] block mb-[8px]">Опишіть проблему</label>
-                <textarea 
-                  placeholder="Повідомлення..." 
-                  className="w-[498px] h-[100px] bg-[#121214] border border-white/[0.05] rounded-[20px] py-3 px-5 text-[13px] text-white focus:outline-none focus:border-[#8348C1]/50 placeholder:text-[#5E5E62] resize-none"
-                ></textarea>
+                <div className="gradient-border-box group w-[498px] h-[100px] rounded-[20px] overflow-hidden transition-colors hover:bg-white/[0.08]">
+                  <textarea 
+                    placeholder="Повідомлення..." 
+                    className="w-full h-full bg-transparent pl-[13px] pt-[13px] text-[14px] text-[#9E9E9E] focus:outline-none placeholder:text-[#9E9E9E] resize-none"
+                  ></textarea>
+                </div>
               </div>
 
-              <div className="px-[24px] pb-[8px]">
+              <div className="px-[24px] pb-[24px]">
                 <button 
                   className="w-[498px] h-[44px] rounded-full text-[16px] font-medium text-[#FFFFFF] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] 
                   transition-all duration-500 ease-out 
