@@ -20,13 +20,9 @@ interface ChartDataPoint {
   value: number;
 }
 
-// --- ХЕЛПЕР ДЛЯ BINANCE API ---
+// --- ХЕЛПЕРИ ДЛЯ BINANCE API ---
 const getChartParams = (sel: string): { interval: string; limit: number } => {
   switch (sel) {
-    case "1 хв":
-      return { interval: "1s", limit: 60 };
-    case "5 хв":
-      return { interval: "1s", limit: 300 };
     case "15 хв":
       return { interval: "1m", limit: 15 };
     case "1 год":
@@ -40,48 +36,68 @@ const getChartParams = (sel: string): { interval: string; limit: number } => {
   }
 };
 
+// Хелпер спеціально для Секції 2
+const getSection2Params = (period: string): { interval: string; limit: number } => {
+  switch (period) {
+    case "15 хв": return { interval: "1m", limit: 15 };
+    case "1 год": return { interval: "1m", limit: 60 };
+    case "4 год": return { interval: "5m", limit: 48 };
+    case "1 день": return { interval: "1h", limit: 24 };
+    case "1 тиж": return { interval: "4h", limit: 42 };
+    case "1 міс": return { interval: "1d", limit: 30 };
+    default: return { interval: "1h", limit: 24 };
+  }
+};
+
 export default function DashboardPage() {
   const navigate = useNavigate();
 
+  // Стан для Секції 1
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [selected, setSelected] = useState<string>("1 год");
-
   const [cryptoData, setCryptoData] = useState<CryptoResponse | null>(null);
   const [chartsData, setChartsData] = useState<Record<string, ChartDataPoint[]>>({});
 
+  // Стан для Секції 2
   const [isPeriodOpen, setIsPeriodOpen] = useState<boolean>(false);
-  const [periodSelected, setPeriodSelected] = useState<string>("1 сек");
+  const [periodSelected, setPeriodSelected] = useState<string>("15 хв");
+  const [btcSection2Stats, setBtcSection2Stats] = useState({
+    price: 0,
+    changePercent: 0,
+    low: 0,
+    high: 0,
+    lastMove: 0,
+    lastUpdateTime: new Date(),
+  });
 
+  // Стан для Секції 3 (Новини)
   const [news, setNews] = useState<CryptoNewsItem[]>([]);
   const [newsLoading, setNewsLoading] = useState<boolean>(true);
   const [newsError, setNewsError] = useState<string | null>(null);
 
-  const timeOptions: string[] = ["1 хв", "5 хв", "15 хв", "1 год", "4 год", "1 д"];
-  const timeOptions1: string[] = ["1 сек", "15 хв", "1 год", "4 год", "1 день", "1 тиж", "1 міс"];
-  const timeline: string[] = ["1 сек", "15 хв", "1 год", "4 год", "1 день", "1 тиж", "1 міс"];
+  const timeOptions: string[] = ["15 хв", "1 год", "4 год", "1 д"];
+  const timeOptions1: string[] = ["15 хв", "1 год", "4 год", "1 день", "1 тиж", "1 міс"];
+  const timeline: string[] = ["15 хв", "1 год", "4 год", "1 день", "1 тиж", "1 міс"];
 
   const activeIndex = timeline.indexOf(periodSelected);
   const positionPercent =
     activeIndex >= 0 ? (activeIndex / (timeline.length - 1)) * 100 : 0;
 
   const timeLabelMap: Record<string, string> = {
-    "1 хв": "1 хвилина",
-    "5 хв": "5 хвилин",
     "15 хв": "15 хвилин",
     "1 год": "1 година",
     "4 год": "4 години",
     "1 д": "1 день",
   };
 
+  // 1. Отримання базових цін з CoinGecko
   useEffect(() => {
     const fetchPrices = async () => {
       try {
         const res = await fetch(
           "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether&vs_currencies=usd&include_24hr_change=true&include_1h_change=true&precision=2"
         );
-
         const data: CryptoResponse = await res.json();
-
         if (data && Object.keys(data).length > 0) {
           setCryptoData(data);
         }
@@ -91,16 +107,14 @@ export default function DashboardPage() {
     };
 
     fetchPrices();
-
     const interval = setInterval(fetchPrices, 30000);
-
     return () => clearInterval(interval);
   }, []);
 
+  // 2. Отримання даних графіків для Секції 1
   useEffect(() => {
     const fetchBinanceCharts = async () => {
       const { interval, limit } = getChartParams(selected);
-
       const symbols = [
         { id: "bitcoin", symbol: "BTCUSDT" },
         { id: "ethereum", symbol: "ETHUSDT" },
@@ -119,7 +133,6 @@ export default function DashboardPage() {
         );
 
         const newCharts: Record<string, ChartDataPoint[]> = {};
-
         results.forEach((res) => {
           if (Array.isArray(res.data)) {
             newCharts[res.id] = res.data.map((candle: any) => ({
@@ -127,7 +140,6 @@ export default function DashboardPage() {
             }));
           }
         });
-
         setChartsData(newCharts);
       } catch (error) {
         console.error("Помилка Binance API:", error);
@@ -135,35 +147,82 @@ export default function DashboardPage() {
     };
 
     fetchBinanceCharts();
-
     const intervalId = setInterval(fetchBinanceCharts, 15000);
-
     return () => clearInterval(intervalId);
   }, [selected]);
 
+  // 3. Отримання даних для Секції 2 в реальному часі (Binance)
   useEffect(() => {
-  const loadNews = async () => {
-    try {
-      setNewsLoading(true);
-      setNewsError(null);
+    const fetchSection2Data = async () => {
+      const { interval, limit } = getSection2Params(periodSelected);
+      try {
+        const res = await fetch(
+          `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=${limit}`
+        );
+        const data = await res.json();
 
-      const result = await fetchCryptoNews(6, 100);
+        if (Array.isArray(data) && data.length > 0) {
+          const currentPrice = parseFloat(data[data.length - 1][4]); // Закриття останньої свічки
+          const firstPrice = parseFloat(data[0][1]); // Відкриття першої свічки в періоді
 
-      setNews(result);
-    } catch (error) {
-      console.error("Помилка NewsAPI:", error);
-      setNewsError("Не вдалося завантажити новини");
-    } finally {
-      setNewsLoading(false);
-    }
-  };
+          let low = parseFloat(data[0][3]);
+          let high = parseFloat(data[0][2]);
 
-  loadNews();
+          // Знаходимо мінімум і максимум за обраний період
+          data.forEach((candle: any) => {
+            const cLow = parseFloat(candle[3]);
+            const cHigh = parseFloat(candle[2]);
+            if (cLow < low) low = cLow;
+            if (cHigh > high) high = cHigh;
+          });
 
-  const intervalId = setInterval(loadNews, 10 * 60 * 1000);
+          // Рахуємо відсоток зміни за період
+          const changePercent = ((currentPrice - firstPrice) / firstPrice) * 100;
 
-  return () => clearInterval(intervalId);
-}, []);
+          // Рахуємо останній рух (поточна свічка відносно попередньої)
+          const prevPrice = data.length > 1 ? parseFloat(data[data.length - 2][4]) : firstPrice;
+          const lastMove = ((currentPrice - prevPrice) / prevPrice) * 100;
+
+          setBtcSection2Stats({
+            price: currentPrice,
+            changePercent,
+            low,
+            high,
+            lastMove,
+            lastUpdateTime: new Date(),
+          });
+        }
+      } catch (error) {
+        console.error("Помилка Binance API (Секція 2):", error);
+      }
+    };
+
+    fetchSection2Data();
+    // Оновлюємо кожні 15 секунд
+    const intervalId = setInterval(fetchSection2Data, 15000);
+    return () => clearInterval(intervalId);
+  }, [periodSelected]);
+
+  // 4. Отримання новин
+  useEffect(() => {
+    const loadNews = async () => {
+      try {
+        setNewsLoading(true);
+        setNewsError(null);
+        const result = await fetchCryptoNews(6, 100);
+        setNews(result);
+      } catch (error) {
+        console.error("Помилка NewsAPI:", error);
+        setNewsError("Не вдалося завантажити новини");
+      } finally {
+        setNewsLoading(false);
+      }
+    };
+
+    loadNews();
+    const intervalId = setInterval(loadNews, 10 * 60 * 1000);
+    return () => clearInterval(intervalId);
+  }, []);
 
   const coins = [
     {
@@ -188,6 +247,61 @@ export default function DashboardPage() {
       id: "tether",
     },
   ];
+
+  // Форматування даних для Секції 2
+  const s2FormattedPrice =
+    btcSection2Stats.price > 0
+      ? btcSection2Stats.price.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }) + "$"
+      : "...";
+
+  const s2UpdateTime =
+    btcSection2Stats.price > 0
+      ? `Оновлено: ${btcSection2Stats.lastUpdateTime.toLocaleTimeString("uk-UA")}`
+      : "Оновлення даних...";
+
+  // Хелпер для скорочення чисел
+  const formatK = (num: number) => {
+    if (num >= 1000) {
+      let val = (num / 1000).toFixed(1);
+      // Якщо після коми нуль (наприклад 95.0), прибираємо його
+      if (val.endsWith(".0")) {
+        val = val.slice(0, -2);
+      }
+      return `$${val}K`;
+    }
+    // Якщо число менше 1000, показуємо повністю з копійками
+    return `$${num.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
+
+  const formatPercent = (num: number) =>
+    `${num > 0 ? "+" : ""}${num.toFixed(2)}%`;
+
+  // Оновлений хелпер для зменшення букви K з вирівнюванням по базовій лінії
+  const renderValueWithSmallK = (val: string) => {
+    if (!val.includes("K")) return val;
+
+    const parts = val.split("K");
+    return (
+      <>
+        {parts.map((part, index) => (
+          <React.Fragment key={index}>
+            {part}
+            {index < parts.length - 1 && (
+              <span className="inline-block align-baseline text-[22px] ml-[1px] font-medium text-white/90">
+                K
+              </span>
+            )}
+          </React.Fragment>
+        ))}
+      </>
+    );
+  };
 
   return (
     <section className="w-full max-w-[1600px] mx-auto px-10 pt-7 pb-8">
@@ -307,7 +421,7 @@ export default function DashboardPage() {
             return (
               <div
                 key={coin.symbol}
-                className="h-[305px] w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.4),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-1"
+                className="h-[305px] w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.01),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.2),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-1"
               >
                 <div
                   onClick={() => navigate(coin.path)}
@@ -516,7 +630,7 @@ export default function DashboardPage() {
           })}
 
           {/* TELEGRAM PROMO */}
-          <div className="w-full self-start translate-y-[-63px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.4),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-[67px]">
+          <div className="w-full self-start translate-y-[-63px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
             <div
               className="relative flex h-full min-h-[368px] w-full flex-col overflow-hidden rounded-[28px] bg-[#050506] p-[24px]"
               style={{
@@ -609,11 +723,11 @@ export default function DashboardPage() {
           Варто відстежувати
         </h2>
 
-        <div className="w-full max-w-[1116px] h-[354px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_100px_rgba(131,72,193,0.3),0_8px_25px_rgba(0,0,0,0.4)]">
+        <div className="w-full max-w-[1116px] h-[354px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
           <div className="relative flex h-full w-full items-start justify-center rounded-[28px] bg-[#050506]">
             <div className="absolute left-[24px] top-[24px] flex flex-col">
               <p className="h-[16px] text-[12px] leading-[16px] font-light text-white whitespace-nowrap">
-                Останнє оновлення ~ 2 хвилини тому
+                {s2UpdateTime}
               </p>
 
               <div className="h-[12px]" />
@@ -651,7 +765,7 @@ export default function DashboardPage() {
               <div className="h-[8px]" />
 
               <p className="h-[44px] text-[40px] leading-[44px] font-medium text-white">
-                98.432,32$
+                {s2FormattedPrice}
               </p>
             </div>
 
@@ -787,18 +901,18 @@ export default function DashboardPage() {
 
             <div className="absolute bottom-[24px] left-[24px] right-[24px] flex gap-[18px] z-0">
               {[
-                { title: "Зміна", value: "+2.45%", showPeriod: true },
-                { title: "Діапазон", value: "$95K – $99K", showPeriod: true },
+                { title: "Зміна", value: formatPercent(btcSection2Stats.changePercent), showPeriod: true },
+                { title: "Діапазон", value: `${formatK(btcSection2Stats.low)}-${formatK(btcSection2Stats.high)}`, showPeriod: true },
                 {
-                  title: "Останній рух (1 хв тому)",
-                  value: "+0.8%",
+                  title: "Останній рух",
+                  value: formatPercent(btcSection2Stats.lastMove),
                   showPeriod: false,
                 },
-                { title: "Максимум", value: "$99K", showPeriod: true },
+                { title: "Максимум", value: formatK(btcSection2Stats.high), showPeriod: true },
               ].map((card, index) => (
                 <div
                   key={index}
-                  className="h-[118px] w-[253px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_60px_rgba(131,72,193,0.4),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-1"
+                  className="h-[118px] w-[253px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]"
                 >
                   <div className="relative h-full w-full rounded-[28px] bg-[#050506]">
                     <p className="absolute left-[24px] top-[24px] font-montserrat text-[13px] leading-[16px] font-medium text-white">
@@ -815,8 +929,13 @@ export default function DashboardPage() {
                       </div>
                     )}
 
-                    <p className="absolute left-[24px] top-[52px] h-[38px] font-montserrat text-[32px] leading-[38px] font-medium text-white">
-                      {card.value}
+                    {/* ОНОВЛЕНО: прибрано flex, додано block та leading-[42px] для ідеального вирівнювання */}
+                    <p 
+                      className={`absolute left-[24px] top-[52px] block h-[42px] w-[206px] leading-[42px] font-montserrat text-[32px] font-medium text-white whitespace-nowrap ${
+                        card.title === "Діапазон" ? "tracking-tighter" : ""
+                      }`}
+                    >
+                      {renderValueWithSmallK(card.value)}
                     </p>
                   </div>
                 </div>
@@ -832,7 +951,7 @@ export default function DashboardPage() {
           Останні новини
         </h2>
 
-        <div className="w-full max-w-[1116px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_100px_rgba(131,72,193,0.3),0_8px_25px_rgba(0,0,0,0.4)]">
+        <div className="w-full max-w-[1116px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
           <div className="relative h-[439px] w-full overflow-hidden rounded-[28px] bg-[#050506] px-[24px] pt-[24px]">
             {newsLoading && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-[80px] gap-y-[24px]">
@@ -876,18 +995,17 @@ export default function DashboardPage() {
                     className="flex flex-col gap-[8px] min-h-[82px] cursor-pointer p-3 -mx-3 -my-2 rounded-[16px] transition-all duration-300 hover:bg-white/5"
                   >
                     <div className="flex items-center gap-[8px] h-[24px]">
-                      {item.icon && (
-                        <div className="flex h-[24px] w-[24px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10">
-                          <img
-                            src={item.icon}
-                            alt={item.tag}
-                            className="h-[18px] w-[18px] object-contain"
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none";
-                            }}
-                          />
-                        </div>
-                      )}
+                      <div className="flex h-[24px] w-[24px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10">
+                        <img
+                          src={item.icon || "/NewsDetails.svg"}
+                          alt={item.tag || "Новина"}
+                          className="h-[24px] w-[24px] object-contain"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = "/NewsDetails.svg";
+                          }}
+                        />
+                      </div>
 
                       <span className="font-montserrat text-[12px] text-white/80 leading-none">
                         {formatNewsTime(item.publishedAt)} · {item.source}
