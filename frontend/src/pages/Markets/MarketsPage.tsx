@@ -516,14 +516,16 @@ export default function MarketsPage() {
 
       <div 
         style={{ width: '1116px' }}
-        className="ml-10 p-[1px] rounded-[24px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] transition-all duration-500 ease-out hover:shadow-[0_20px_100px_rgba(131,72,193,0.3),0_8px_25px_rgba(0,0,0,0.4)]"
+        className="ml-10 p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] transition-all duration-500 ease-out"
       >
-        <div className="relative rounded-[24px] bg-[#050506] flex flex-col overflow-hidden">
+        <div className="relative rounded-[28px] bg-[#050506] flex flex-col overflow-hidden">
           
           <div 
             style={{ height: '57px' }}
-            className="grid grid-cols-[1.45fr_1fr_1fr_1.45fr_1fr_116px] gap-4 px-8 text-[14px] text-[#A3A4B0] font-semibold items-center bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)] min-h-[57px] rounded-t-[24px]"
+            className="relative grid grid-cols-[1.45fr_1fr_1fr_1.45fr_1fr_116px] gap-4 px-8 text-[14px] text-[#A3A4B0] font-semibold items-center bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)] min-h-[57px] rounded-t-[28px]"
           >
+            <div className="absolute bottom-0 left-0 w-full h-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))]" />
+
             <div>Монета</div>
             <div>Ціна</div>
             <div>24год</div>
@@ -623,7 +625,7 @@ function MarketStatsCard({ title, items }: { title: string, items: MarketItem[] 
   return (
     <div 
       style={{ width: '356px', height: '199px' }} 
-      className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.4),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-1"
+      className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.19),0_8px_25px_rgba(0,0,0,0.5)]"
     >
       <div className="relative h-full rounded-[28px] bg-[#050506] pt-[24px] px-[24px] pb-[29px] flex flex-col justify-between">
         <h3 className="text-[16px] font-medium text-[#FFFFFF] leading-none mb-[24px]">
