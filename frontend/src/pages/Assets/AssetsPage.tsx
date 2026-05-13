@@ -217,7 +217,7 @@ export default function FavoritesContent() {
         value: best ? `${best.symbol} ${best.change}` : "---",
         icon: null,
         valueClass: best?.isPositive
-          ? "text-[30px] leading-none font-normal text-[#36D399]"
+          ? "text-[30px] leading-none font-normal text-[#25DE28]"
           : "text-[30px] leading-none font-normal text-white",
       },
     ];
@@ -319,7 +319,7 @@ export default function FavoritesContent() {
         {stats.map((stat, index) => (
           <div
             key={index}
-            className="h-[110px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:scale-[1.025] hover:-translate-y-1 hover:shadow-[0_20px_90px_rgba(131,72,193,0.24),0_8px_25px_rgba(0,0,0,0.45)]"
+            className="h-[110px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.19),0_8px_25px_rgba(0,0,0,0.5)]"
           >
             <div className="relative h-full rounded-[28px] bg-[#050506] p-5 text-center overflow-hidden flex flex-col items-center justify-center">
               <p className="text-white text-[14px] font-normal">
@@ -379,7 +379,7 @@ export default function FavoritesContent() {
                   favoriteAssets.map((asset, index) => (
                     <React.Fragment key={asset.symbol}>
                       <div
-                        className={`${tableGrid} items-center px-[24px] h-[76px] transition-all duration-300 ease-out hover:bg-white/[0.035] hover:scale-[1.006] hover:shadow-[0_10px_30px_rgba(131,72,193,0.12)]`}
+                        className={`${tableGrid} items-center px-[24px] h-[76px] transition-all duration-300 ease-out `}
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center overflow-hidden">
@@ -469,7 +469,7 @@ export default function FavoritesContent() {
               ) : (
                 visibleRecommendedAssets.map((asset, index) => (
                   <React.Fragment key={asset.symbol}>
-                    <div className="flex items-center justify-between px-6 h-[76px] transition-all duration-300 ease-out hover:bg-white/[0.035] hover:scale-[1.018] hover:shadow-[0_10px_30px_rgba(131,72,193,0.10)]">
+                    <div className="flex items-center justify-between px-6 h-[76px] transition-all duration-300 ease-out">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center overflow-hidden">
                           <img
