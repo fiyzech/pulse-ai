@@ -1,274 +1,221 @@
+import React from "react";
+
 import editIcon from "../../assets/icons/pencil-edit.svg";
 import trashIcon from "../../assets/icons/trash.svg";
 import alarm from "../../assets/icons/alarm.svg";
+import question from "../../assets/icons/question-mark.svg";
+
+const tableGrid =
+  "grid grid-cols-[1.25fr_1.15fr_0.95fr_1fr_1fr_96px]";
 
 export default function AlertsPage() {
+  const stats = [
+    { title: "Активні алерти", value: "3", icon: alarm },
+    { title: "Спрацювали сьогодні", value: "1" },
+    { title: "Telegram підключено", value: "Так" },
+    { title: "Останнє сповіщення", value: "1 година тому" },
+  ];
+
+  const alerts = [
+    {
+      symbol: "BTC/USDT",
+      condition: "Вище $80,000",
+      price: "$76,889",
+      status: "Активний",
+      telegram: "Підключено",
+      color: "bg-orange-500",
+    },
+    {
+      symbol: "ETH/USDT",
+      condition: "Нижче $3,200",
+      price: "$3,260",
+      status: "Активний",
+      telegram: "Підключено",
+      color: "bg-purple-500",
+    },
+    {
+      symbol: "SOL/USDT",
+      condition: "Вище $85,00",
+      price: "$83,80",
+      status: "Активний",
+      telegram: "Підключено",
+      color: "bg-[#14F195]",
+    },
+  ];
+
   return (
-   <div className="w-full  px-[40px] pt-[24px] pb-8 text-white">
-      
+    <div className="w-full px-[40px] pt-[24px] pb-8 text-white font-montserrat">
       {/* TOP */}
-      <div className="flex justify-between items-start mb-6">
-        <p className=" text-white text-[16px] leading-[20px] max-w-[546px] font-normal">
+      <div className="flex justify-between items-start mb-[24px]">
+        <p className="text-white text-[16px] leading-[28px] max-w-[546px] font-normal">
           Створюйте алерти на сайті та отримуйте сповіщення в Telegram,
           коли задана умова буде виконана
         </p>
 
-        <button className="min-w-[165px] h-[44px] px-6 rounded-full flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium transition-all duration-300 ease-out hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-[0.98] cursor-pointer">
-         Як створити алерт?
-        </button>
+        <div className="relative group">
+          <button
+            className="
+              flex items-center gap-[10px]
+              text-white text-[16px] leading-[28px] font-medium
+              transition-all duration-300 cursor-pointer 
+            "
+          >
+            Як створити алерт
+
+
+              <img
+                src={question}
+                alt="Question"
+                className="w-[18px] h-[18px]"
+              />
+            </button>
+
+          <div
+            className="
+             absolute right-0 top-[35px] z-50 w-[288px] p-[1px] rounded-[28px]
+             bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]
+             opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-300 ease-out"
+          >
+            <div className="rounded-[28px] bg-[#050506] px-[24px] py-[24px]">
+              <div className="flex items-start gap-[10px]">
+
+                <p className="text-[#A3A4B0] text-[14px] leading-[17px] font-normal">
+                  Перейдіть на сторінку потрібної 
+                  <br />
+                  криптовалюти, задайте умову
+                  <br />
+                  ціни та період сповіщення.
+                  <br />
+                  Після створення алерт 
+                  <br />
+                  автоматично з’явиться на цій
+                  <br />
+                  сторінці, а сповіщення 
+                  <br />
+                  надходитимуть у Telegram.
+
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* CARDS */}
-      <div className="grid grid-cols-4 gap-4 mb-[24px] w-full">
+      <div className="grid grid-cols-4 gap-[24px] mb-[24px] w-full">
+        {stats.map((stat, index) => (
+          <div
+            key={index}
+            className="h-[110px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.19),0_8px_25px_rgba(0,0,0,0.5)]"
+          >
+            <div className="relative h-full rounded-[28px] bg-[#050506] p-5 text-center overflow-hidden flex flex-col items-center justify-center">
+              <p className="text-white text-[14px] font-normal">
+                {stat.title}
+              </p>
 
-        {/* CARD 1 */}
-        <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.4),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-1">
-          <div className="relative h-full rounded-[28px] bg-[#050506] p-5 text-center overflow-hidden">
-            <p className="text-white text-[14px]">Активні алерти</p>
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <h2 className="text-[28px] leading-none font-medium text-white">
+                  {stat.value}
+                </h2>
 
-            <div className="flex items-center justify-center gap-2 mt-2">
-              <h2 className="text-2xl font-semibold">3</h2>
-              <img src={alarm} className="w-5 h-5" />
+                {stat.icon && (
+                  <img src={stat.icon} alt="" className="w-5 h-5" />
+                )}
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* CARD 2 */}
-        <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.4),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-1">
-          <div className="relative h-full rounded-[28px] bg-[#050506] p-5 text-center overflow-hidden">
-           <p className="text-white text-[14px] font-normal">Спрацювали сьогодні</p>
-           <h2 className="text-2xl font-semibold mt-2">1</h2>
-         </div>
-       </div>
-
-        {/* CARD 3 */}
-        <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.4),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-1">
-          <div className="relative h-full rounded-[28px] bg-[#050506] p-5 text-center overflow-hidden">
-           <p className="text-white text-[14px] font-normal">Telegram підключено</p>
-           <h2 className="text-2xl font-semibold mt-2">Так</h2>
-         </div>
-       </div>
-
-        {/* CARD 4 */}
-        <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.4),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-1">
-          <div className="relative h-full rounded-[28px] bg-[#050506] p-5 text-center overflow-hidden">
-            <p className="text-white text-[14px] font-normal">Останнє сповіщення</p>
-            <h2 className="text-2xl font-semibold mt-2">1 година тому</h2>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* TABLE */}
-      <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
-         <div className="rounded-[28px] bg-[#050506] overflow-hidden">
-
-           {/* HEADER */}
-           <div className="relative flex items-center px-[24px] py-4 text-[#A3A4B0] text-[14px] font-normal bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)]">
+      <div className="w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
+        <div className="rounded-[28px] bg-[#050506] overflow-hidden">
+          {/* HEADER */}
+          <div
+            className={`relative ${tableGrid} items-center px-[24px] h-[57px] text-[#A3A4B0] text-[14px] font-normal bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)]`}
+          >
             <div className="absolute bottom-0 left-0 w-full h-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))]" />
-             <div className="w-[55px]">
-               <span>Валюта</span>
-            </div>
 
-             <div className="ml-[161px] w-[46px]">
-               <span>Умова</span>
-             </div>
-
-             <div className="ml-[154px] w-[97px]">
-               <span>Поточна ціна</span>
-             </div>
-
-             <div className="ml-[85px] w-[47px]">
-               <span>Статус</span>
-             </div>
-
-             <div className="ml-[173px] w-[66px]">
-               <span>Telegram</span>
-             </div>
-
-             <div className="ml-[132px]">
-               <span>Дії</span>
-             </div>
-           </div>
-
-         {/* ROW 1 */}
-         <div className="flex items-center px-[24px] py-4 transition-all duration-300 ease-out hover:bg-white/5">
-
-           {/* Валюта */}
-           <div className="w-[128px] flex items-center gap-3">
-             <div className="w-8 h-8 rounded-full bg-orange-500" />
-             <p className="text-[14px] font-medium text-white">
-               BTC/USDT
-             </p>
+            <span>Валюта</span>
+            <span>Умова</span>
+            <span>Поточна ціна</span>
+            <span>Статус</span>
+            <span>Telegram</span>
+            <span>Дії</span>
           </div>
 
-           {/* Умова */}
-           <div className="ml-[102px] w-[123px]">
-             <p className="text-[14px] font-normal text-white">
-               Вище $80,000
-             </p>
-           </div>
+          {alerts.map((alert, index) => (
+            <React.Fragment key={alert.symbol}>
+              {/* ROW */}
+              <div
+                className={`${tableGrid} items-center px-[24px] h-[76px] transition-all duration-300 ease-out`}
+              >
+                {/* Валюта */}
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-full ${alert.color}`} />
+                  <p className="text-[14px] font-medium text-white">
+                    {alert.symbol}
+                  </p>
+                </div>
 
-           {/* Ціна */}
-           <div className="ml-[64px] w-[56px]">
-             <p className="text-[14px] font-normal text-white">
-               $76,889
-             </p>
-           </div>
+                {/* Умова */}
+                <p className="text-[14px] font-normal text-white">
+                  {alert.condition}
+                </p>
 
-           {/* Статус */}
-           <div className="ml-[122px] w-[103px]">
-             <span className="inline-flex items-center gap-2  rounded-full px-4 py-[6px] text-[12px]  bg-[#25DE28]/10 text-[#25DE28] font-medium">
-               <span className="h-2 w-2 rounded-full bg-[#25DE28]"/>
-               Активний
-             </span>
-           </div>
+                {/* Ціна */}
+                <p className="text-[14px] font-normal text-white">
+                  {alert.price}
+                </p>
 
-           {/* Telegram */}
-           <div className="ml-[120px] w-[89px]">
-             <p className="text-[14px] font-normal text-white">
-               Підключено
-             </p>
-           </div>
+                {/* Статус */}
+                <div>
+                  <span className="inline-flex items-center gap-2 rounded-full px-4 py-[6px] text-[12px] bg-[#25DE28]/10 text-[#25DE28] font-medium">
+                    <span className="h-2 w-2 rounded-full bg-[#25DE28]" />
+                    {alert.status}
+                  </span>
+                </div>
 
-           {/* Дії */}
-           <div className="ml-[107px] flex gap-[16px]">
-             <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center cursor-pointer transition-all duration-300 ease-out hover:scale-110 hover:bg-[#111111] active:scale-95">
-                 <img src={editIcon} className="h-4 w-4" />
-               </button>
-             </div>
-    
-             <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center cursor-pointer transition-all duration-300 ease-out hover:scale-110 hover:bg-red-500/50 active:scale-95">
-                 <img src={trashIcon} className="h-4 w-4" />
-               </button>
-             </div>
-           </div>
-         </div>
+                {/* Telegram */}
+                <p className="text-[14px] font-normal text-white">
+                  {alert.telegram}
+                </p>
 
-         <div className="px-[24px]">
-           <div className="h-[1px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]" />
-         </div>
+                {/* Дії */}
+                <div className="flex items-center gap-[16px]">
+                  {/* EDIT */}
+                  <button className="group relative inline-flex w-8 h-8 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_12px_rgba(131,72,193,0.28)] active:scale-95 cursor-pointer">
+                    <div className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover:bg-[#0B0B0D]">
+                      <img
+                        src={editIcon}
+                        alt=""
+                        className="w-4 h-4 transition-all duration-300 group-hover:scale-110 group-hover:brightness-125"
+                      />
+                    </div>
+                  </button>
 
+                  {/* DELETE */}
+                  <button className="group relative inline-flex w-8 h-8 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] hover:bg-[linear-gradient(90deg,#1C102F_0%,#FF4444_100%)] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_15px_rgba(255,68,68,0.35)] active:scale-95 cursor-pointer">
+                    <div className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover:bg-[#140707]">
+                      <img
+                        src={trashIcon}
+                        alt=""
+                        className="w-4 h-4 transition-all duration-300 group-hover:scale-110 group-hover:brightness-125"
+                      />
+                    </div>
+                  </button>
+                </div>
+              </div>
 
-         {/* ROW 2 */}
-         <div className="flex items-center px-[24px] py-4 transition-all duration-300 ease-out hover:bg-white/5">
-
-           {/* Валюта */}
-           <div className="w-[128px] flex items-center gap-3">
-             <div className="w-8 h-8 rounded-full bg-purple-500" />
-             <p className="text-[14px] font-medium text-white">
-               ETH/USDT
-             </p>
-          </div>
-
-           {/* Умова */}
-           <div className="ml-[102px] w-[111px]">
-             <p className="text-[14px] font-normal text-white">
-               Нижче $3,200
-             </p>
-           </div>
-
-           {/* Ціна */}
-           <div className="ml-[76px] w-[46px]">
-             <p className="text-[14px] font-normal text-white">
-               $3,260
-             </p>
-           </div>
-
-           {/* Статус */}
-           <div className="ml-[133px] w-[103px]">
-             <span className="inline-flex items-center gap-2  rounded-full px-4 py-[6px] text-[12px]  bg-[#25DE28]/10 text-[#25DE28] font-medium">
-               <span className="h-2 w-2 rounded-full bg-[#25DE28]"/>
-               Активний
-             </span>
-           </div>
-
-           {/* Telegram */}
-           <div className="ml-[120px] w-[89px]">
-             <p className="text-[14px] font-normal text-white">
-               Підключено
-             </p>
-           </div>
-
-           {/* Дії */}
-           <div className="ml-[107px] flex gap-[16px]">
-             <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center cursor-pointer transition-all duration-300 ease-out hover:scale-110 hover:bg-[#111111] active:scale-95">
-                 <img src={editIcon} className="h-4 w-4" />
-               </button>
-             </div>
-    
-             <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center cursor-pointer transition-all duration-300 ease-out hover:scale-110 hover:bg-red-500/50 active:scale-95">
-                 <img src={trashIcon} className="h-4 w-4" />
-               </button>
-             </div>
-           </div>
-         </div>
-
-         <div className="px-[24px]">
-           <div className="h-[1px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]" />
-         </div>
-
-
-         {/* ROW 3 */}
-         <div className="flex items-center px-[24px] py-4 transition-all duration-300 ease-out hover:bg-white/5">
-
-           {/* Валюта */}
-           <div className="w-[128px] flex items-center gap-3">
-             <div className="w-8 h-8 rounded-full bg-purple-500" />
-             <p className="text-[14px] font-medium text-white">
-               SOL/USDT
-             </p>
-          </div>
-
-           {/* Умова */}
-           <div className="ml-[102px] w-[102px]">
-             <p className="text-[14px] font-normal text-white">
-               Вище $85,00
-             </p>
-           </div>
-
-           {/* Ціна */}
-           <div className="ml-[85px] w-[47px]">
-             <p className="text-[14px] font-normal text-white">
-               $83,80
-             </p>
-           </div>
-
-           {/* Статус */}
-           <div className="ml-[133px] w-[103px]">
-             <span className="inline-flex items-center gap-2  rounded-full px-4 py-[6px] text-[12px]  bg-[#25DE28]/10 text-[#25DE28] font-medium">
-               <span className="h-2 w-2 rounded-full bg-[#25DE28]"/>
-               Активний
-             </span>
-           </div>
-
-           {/* Telegram */}
-           <div className="ml-[120px] w-[89px]">
-             <p className="text-[14px] font-normal text-white">
-               Підключено
-             </p>
-           </div>
-
-           {/* Дії */}
-           <div className="ml-[107px] flex gap-[16px]">
-             <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center cursor-pointer transition-all duration-300 ease-out hover:scale-110 hover:bg-[#111111] active:scale-95">
-                 <img src={editIcon} className="h-4 w-4" />
-               </button>
-             </div>
-    
-             <div className="p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-               <button className="w-8 h-8 rounded-full bg-[#050506] flex items-center justify-center cursor-pointer transition-all duration-300 ease-out hover:scale-110 hover:bg-red-500/50 active:scale-95">
-                 <img src={trashIcon} className="h-4 w-4" />
-               </button>
-             </div>
-           </div>
-         </div>
+              {index !== alerts.length - 1 && (
+                <div className="px-[24px]">
+                  <div className="h-[1px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32)_0%,rgba(179,179,179,0.032)_100%)]" />
+                </div>
+              )}
+            </React.Fragment>
+          ))}
         </div>
-     </div>
+      </div>
 
       {/* FOOTER */}
       <p className="text-center text-[#A3A4B0] text-[14px] font-normal leading-[18px] mt-[24px]">
