@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+import bookmarkPlusIcon from "../../assets/icons/bookmark-plus.svg";
+import arrowUpOutlineIcon from "../../assets/icons/arrow-up-outline.svg";
+import arrowDownOutlineIcon from "../../assets/icons/arrow-down-outline.svg";
+import trashIcon from "../../assets/icons/trash.svg";
+import eyeIcon from "../../assets/icons/eye.svg";
 import {
   addFavoriteAsset,
   getAuthenticatedUserId,
@@ -49,6 +55,9 @@ type CoinGeckoMarketCoin = {
   max_supply: number | null;
 };
 
+const tableGrid =
+  "grid grid-cols-[1.2fr_0.9fr_0.85fr_1fr_0.75fr_88px]";
+
 const recommendedAssets = [
   { coinId: "bitcoin", name: "Bitcoin", symbol: "BTC", imageUrl: "https://cryptologos.cc/logos/bitcoin-btc-logo.png" },
   { coinId: "ethereum", name: "Ethereum", symbol: "ETH", imageUrl: "https://cryptologos.cc/logos/ethereum-eth-logo.png" },
@@ -59,9 +68,12 @@ const recommendedAssets = [
 ];
 
 const formatPrice = (price: number | null | undefined) => {
-  if (!price) return "$0.00";
-  if (price < 0.01) return `$${price}`;
-  return `$${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (price === null || price === undefined) return "$0.00";
+  if (price > 0 && price < 0.01) return `$${price}`;
+  return `$${price.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 };
 
 const formatChange = (change: number | null | undefined) => {
@@ -132,6 +144,7 @@ export default function FavoritesContent() {
 
     try {
       const userId = await getAuthenticatedUserId();
+
       if (!userId) {
         setFavoriteAssets([]);
         setError("Увійдіть в акаунт, щоб бачити свої обрані активи.");
@@ -139,12 +152,14 @@ export default function FavoritesContent() {
       }
 
       const favorites = await listFavoriteAssets(userId);
+
       if (favorites.length === 0) {
         setFavoriteAssets([]);
         return;
       }
 
       const ids = Array.from(new Set(favorites.map((asset) => asset.coin_id).filter(Boolean))).join(",");
+
       const [binanceRes, cgRes] = await Promise.all([
         fetch("/api/binance/ticker/24hr"),
         ids
@@ -185,41 +200,38 @@ export default function FavoritesContent() {
       {
         title: "Усього в обраному",
         value: String(favoriteAssets.length),
-        icon: (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="#F59E0B" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-          </svg>
-        ),
+        icon: bookmarkPlusIcon,
       },
       {
         title: "Зростають сьогодні",
         value: String(growing),
-        icon: (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#36D399" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 19V5M5 12l7-7 7 7" />
-          </svg>
-        ),
+        icon: arrowUpOutlineIcon,
       },
       {
         title: "Падають сьогодні",
         value: String(falling),
-        icon: (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F87272" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 5v14M19 12l-7 7-7-7" />
-          </svg>
-        ),
+        icon: arrowDownOutlineIcon,
       },
       {
         title: "Найкраща динаміка",
         value: best ? `${best.symbol} ${best.change}` : "---",
         icon: null,
-        valueClass: best?.isPositive ? "text-[22px] font-semibold text-[#36D399]" : "text-[22px] font-semibold text-[#FFFFFF]",
+        valueClass: best?.isPositive
+          ? "text-[30px] leading-none font-normal text-[#36D399]"
+          : "text-[30px] leading-none font-normal text-white",
       },
     ];
   }, [favoriteAssets]);
 
-  const favoriteSymbols = new Set(favoriteAssets.map((asset) => asset.symbol));
-  const visibleRecommendedAssets = recommendedAssets.filter((asset) => !favoriteSymbols.has(asset.symbol)).slice(0, 6);
+  const favoriteSymbols = useMemo(
+    () => new Set(favoriteAssets.map((asset) => asset.symbol)),
+    [favoriteAssets],
+  );
+
+  const visibleRecommendedAssets = useMemo(
+    () => recommendedAssets.filter((asset) => !favoriteSymbols.has(asset.symbol)).slice(0, 6),
+    [favoriteSymbols],
+  );
 
   const handleViewAsset = (asset: FavoriteAssetView) => {
     navigate(`/asset/${asset.coinId || asset.symbol.toLowerCase()}`, {
@@ -244,6 +256,7 @@ export default function FavoritesContent() {
 
     try {
       const userId = await getAuthenticatedUserId();
+
       if (!userId) {
         setError("Увійдіть в акаунт, щоб змінювати обране.");
         return;
@@ -266,6 +279,7 @@ export default function FavoritesContent() {
 
     try {
       const userId = await getAuthenticatedUserId();
+
       if (!userId) {
         setError("Увійдіть в акаунт, щоб додавати активи.");
         return;
@@ -283,10 +297,11 @@ export default function FavoritesContent() {
   };
 
   return (
-    <div className="w-full font-montserrat">
-      <div className="mb-6 flex items-start justify-between mt-[23px]">
-        <p className="w-[546px] pl-[40px] font-montserrat text-[16px] font-normal leading-[28px] text-[#FFFFFF]">
-          Зберігайте криптовалюти в обране, щоб швидко відстежувати ціни, зміни ринку та створювати алерти
+    <div className="w-full px-[40px] pt-[24px] pb-8 text-white font-montserrat">
+      <div className="flex justify-between items-start mb-[24px]">
+        <p className="text-white text-[16px] leading-[28px] max-w-[546px] font-normal">
+          Зберігайте криптовалюти в обране, щоб швидко відстежувати ціни,
+          зміни ринку та створювати алерти
         </p>
 
         <button className="min-w-[208px] h-[44px] px-6 rounded-full flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium transition-all duration-300 ease-out hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-[0.98] cursor-pointer">
@@ -295,16 +310,16 @@ export default function FavoritesContent() {
       </div>
 
       {error && (
-        <div className="mx-[40px] mb-5 rounded-[18px] border border-[#8348C1]/40 bg-[#050506] px-5 py-3 text-[13px] text-[#C38BFF]">
+        <div className="mb-[24px] rounded-[18px] border border-[#8348C1]/40 bg-[#050506] px-5 py-3 text-[13px] text-[#C38BFF]">
           {error}
         </div>
       )}
 
-      <div className="ml-[40px] mr-[40px] grid grid-cols-1 gap-[24px] lg:grid-cols-4">
-        {stats.map((stat, idx) => (
-          <div 
-            key={idx} 
-            className="h-[108px] w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] transition-all duration-500 ease-out hover:shadow-[0_10px_40px_rgba(131,72,193,0.25),0_4px_15px_rgba(0,0,0,0.4)] hover:-translate-y-1"
+      <div className="grid grid-cols-4 gap-[24px] mb-[24px] w-full">
+        {stats.map((stat, index) => (
+          <div
+            key={index}
+            className="h-[110px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:scale-[1.025] hover:-translate-y-1 hover:shadow-[0_20px_90px_rgba(131,72,193,0.24),0_8px_25px_rgba(0,0,0,0.45)]"
           >
             <div className="relative h-full rounded-[28px] bg-[#050506] p-5 text-center overflow-hidden flex flex-col items-center justify-center">
               <p className="text-white text-[14px] font-normal">
@@ -321,143 +336,179 @@ export default function FavoritesContent() {
                   {stat.value}
                 </h2>
 
-                {stat.icon && (
-                  <span className="flex h-5 w-5 items-center justify-center">
-                    {stat.icon}
-                  </span>
-                )}
-
+                {stat.icon && <img src={stat.icon} alt="" className="w-5 h-5" />}
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="ml-[40px] mr-[40px] mt-[26px] flex flex-col lg:flex-row gap-[24px]">
-        <div className="flex w-full flex-col lg:w-[calc(75%-6px)]">
-          <h2 className="mb-[24px] text-[20px] font-semibold leading-none text-white/95">
+      <div className="grid grid-cols-4 gap-[24px] w-full">
+        <div className="col-span-3">
+          <h2 className="mb-[24px] text-[24px] leading-[28px] font-semibold text-white">
             Вибрані активи
           </h2>
-          
-          <div className="w-full p-[1px] rounded-[24px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-            <div className="w-full overflow-hidden rounded-[24px] bg-[#050506] pb-6 shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
-              <table className="w-full whitespace-nowrap text-left border-collapse">
-                <thead className="bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)]">
-                  <tr className="border-b border-white/5 text-[14px] font-semibold text-[#A3A4B0]">
-                    <th className="py-5 pl-6 w-[18%]">Монета</th>
-                    <th className="py-5 w-[15%]">Ціна</th>
-                    <th className="py-5 w-[15%]">24год</th>
-                    <th className="py-5 w-[22%]">Ринкова капіталізація</th>
-                    <th className="py-5 w-[18%]">Обсяг</th>
-                    <th className="py-5 pr-6 w-[12%] text-left">Дії</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={6} className="py-12 text-center text-[14px] text-[#A3A4B0]">
-                        Завантаження обраного...
-                      </td>
-                    </tr>
-                  ) : favoriteAssets.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-12 text-center text-[14px] text-[#A3A4B0]">
-                        Поки немає обраних активів
-                      </td>
-                    </tr>
-                  ) : (
-                    favoriteAssets.map((asset, index) => (
-                      <React.Fragment key={asset.symbol}>
-                        <tr className="text-[15px] font-medium text-[#FFFFFF] transition-colors hover:bg-white/[0.02]">
-                          <td className="py-[14px] pl-6">
-                            <div className="flex items-center gap-3">
-                              <img src={asset.imageUrl} alt={asset.symbol} className="h-[32px] w-[32px] rounded-full object-contain" />
-                              <span className="font-semibold">{asset.symbol}</span>
-                            </div>
-                          </td>
-                          <td className="py-[14px]">{asset.price}</td>
-                          <td className={`py-[14px] ${asset.isPositive ? "text-[#36D399]" : "text-[#F87272]"}`}>
-                            {asset.change}
-                          </td>
-                          <td className="py-[14px]">{asset.marketCap}</td>
-                          <td className="py-[14px]">{asset.volume}</td>
-                          <td className="py-[14px] pr-6">
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleViewAsset(asset)}
-                                className="group relative inline-flex h-[38px] w-[118px] items-center justify-center rounded-full p-[1px] bg-gradient-to-r from-[#4C2475] via-[#7A40B5] to-[#B57AFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-95"
-                              >
-                                <span className="flex h-full w-full items-center justify-center rounded-full bg-[#000000] text-[14px] font-normal text-[#A3A4B0] transition-colors group-hover:text-white">
-                                  Переглянути
-                                </span>
-                              </button>
-                              <button
-                                type="button"
-                                disabled={pendingSymbol === asset.symbol}
-                                onClick={() => handleRemoveAsset(asset.symbol)}
-                                className="group relative inline-flex h-[38px] w-[92px] items-center justify-center rounded-full p-[1px] bg-gradient-to-r from-[#4C2475] via-[#7A40B5] to-[#B57AFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-95 disabled:opacity-60"
-                              >
-                                <span className="flex h-full w-full items-center justify-center rounded-full bg-[#000000] text-[14px] font-normal text-[#A3A4B0] transition-colors group-hover:text-white">
-                                  {pendingSymbol === asset.symbol ? "..." : "Видалити"}
-                                </span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                        {index !== favoriteAssets.length - 1 && (
-                          <tr>
-                            <td colSpan={6} className="p-0">
-                              <div className="mx-auto h-[1px] w-[calc(100%-48px)] bg-white/5"></div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
 
-        <div className="flex w-full flex-col lg:w-[calc(25%-18px)]">
-          <h2 className="mb-[24px] text-[20px] font-semibold leading-none text-white/95">
-            Рекомендовано 
-          </h2>
-          <div className="w-full p-[1px] rounded-[24px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-            <div className="w-full rounded-[24px] bg-[#050506] py-2 shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
-              <div className="flex flex-col">
-                {visibleRecommendedAssets.length === 0 ? (
-                  <div className="px-6 py-8 text-center text-[13px] text-[#A3A4B0]">
-                    Усі базові рекомендації вже додані
+          <div className="w-full h-[519px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
+            <div className="h-full rounded-[28px] bg-[#050506] overflow-hidden">
+              <div
+                className={`relative ${tableGrid} items-center px-[24px] h-[57px] text-[#A3A4B0] text-[14px] font-normal bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)]`}
+              >
+                <div className="absolute bottom-0 left-0 w-full h-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))]" />
+                <span>Монета</span>
+                <span>Ціна</span>
+                <span>24год</span>
+                <span className="block leading-[18px]">
+                  Ринкова <br />
+                  капіталізація
+                </span>
+                <span>Обсяг</span>
+                <span>Дії</span>
+              </div>
+
+              <div className="h-[calc(100%-57px)] overflow-y-auto">
+                {loading ? (
+                  <div className="flex h-full items-center justify-center text-[14px] text-[#A3A4B0]">
+                    Завантаження обраного...
+                  </div>
+                ) : favoriteAssets.length === 0 ? (
+                  <div className="flex h-full items-center justify-center text-[14px] text-[#A3A4B0]">
+                    Поки немає обраних активів
                   </div>
                 ) : (
-                  visibleRecommendedAssets.map((asset, index) => (
+                  favoriteAssets.map((asset, index) => (
                     <React.Fragment key={asset.symbol}>
-                      <div className="flex items-center justify-between px-6 py-[14px] transition-colors hover:bg-white/[0.02]">
+                      <div
+                        className={`${tableGrid} items-center px-[24px] h-[76px] transition-all duration-300 ease-out hover:bg-white/[0.035] hover:scale-[1.006] hover:shadow-[0_10px_30px_rgba(131,72,193,0.12)]`}
+                      >
                         <div className="flex items-center gap-3">
-                          <img src={asset.imageUrl} alt={asset.symbol} className="h-[32px] w-[32px] rounded-full object-contain" />
-                          <span className="text-[15px] font-semibold text-[#FFFFFF]">{asset.symbol}</span>
+                          <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center overflow-hidden">
+                            <img
+                              src={asset.imageUrl}
+                              alt={asset.symbol}
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                e.currentTarget.src = buildFallbackLogo(asset.symbol);
+                              }}
+                            />
+                          </div>
+
+                          <p className="text-[14px] font-medium text-white">
+                            {asset.symbol}
+                          </p>
                         </div>
-                        <button
-                          type="button"
-                          disabled={pendingSymbol === asset.symbol}
-                          onClick={() => handleAddRecommended(asset)}
-                          className="group relative inline-flex h-[38px] w-[90px] items-center justify-center rounded-full p-[1px] bg-gradient-to-r from-[#4C2475] via-[#7A40B5] to-[#B57AFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-95 disabled:opacity-60"
+
+                        <p className="text-[14px] font-normal text-white">
+                          {asset.price}
+                        </p>
+
+                        <p
+                          className={`text-[14px] font-medium ${
+                            asset.isPositive ? "text-[#25DE28]" : "text-[#F40000]"
+                          }`}
                         >
-                          <span className="flex h-full w-full items-center justify-center rounded-full bg-[#000000] text-[14px] font-normal text-[#A3A4B0] transition-colors group-hover:text-white">
-                            {pendingSymbol === asset.symbol ? "..." : "Додати"}
-                          </span>
-                        </button>
+                          {asset.change}
+                        </p>
+
+                        <p className="text-[14px] font-normal text-white">
+                          {asset.marketCap}
+                        </p>
+
+                        <p className="text-[14px] font-normal text-white">
+                          {asset.volume}
+                        </p>
+
+                        <div className="flex items-center justify-end gap-[16px] pr-[8px]">
+                          <button
+                            type="button"
+                            onClick={() => handleViewAsset(asset)}
+                            className="group relative inline-flex w-8 h-8 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_12px_rgba(131,72,193,0.28)] active:scale-95 cursor-pointer"
+                          >
+                            <div className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover:bg-[#0B0B0D]">
+                              <img src={eyeIcon} alt="" className="w-4 h-4 transition-all duration-300 group-hover:scale-110 group-hover:brightness-125" />
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={pendingSymbol === asset.symbol}
+                            onClick={() => handleRemoveAsset(asset.symbol)}
+                            className="group relative inline-flex w-8 h-8 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] hover:bg-[linear-gradient(90deg,#1C102F_0%,#FF4444_100%)] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_15px_rgba(255,68,68,0.35)] active:scale-95 cursor-pointer disabled:opacity-60"
+                          >
+                            <div className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover:bg-[#140707]">
+                              <img src={trashIcon} alt="" className="w-4 h-4 transition-all duration-300 group-hover:scale-110 group-hover:brightness-125" />
+                            </div>
+                          </button>
+                        </div>
                       </div>
-                      {index !== visibleRecommendedAssets.length - 1 && (
-                        <div className="mx-auto h-[1px] w-[calc(100%-48px)] bg-white/5"></div>
+
+                      {index !== favoriteAssets.length - 1 && (
+                        <div className="px-[24px]">
+                          <div className="h-[1px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32)_0%,rgba(179,179,179,0.032)_100%)]" />
+                        </div>
                       )}
                     </React.Fragment>
                   ))
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-span-1">
+          <h2 className="mb-[24px] text-[24px] leading-[28px] font-semibold text-white">
+            Рекомендовано
+          </h2>
+
+          <div className="w-[279px] h-[462px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
+            <div className="h-full rounded-[28px] bg-[#050506] overflow-hidden">
+              {visibleRecommendedAssets.length === 0 ? (
+                <div className="flex h-full items-center justify-center px-6 text-center text-[13px] text-[#A3A4B0]">
+                  Усі базові рекомендації вже додані
+                </div>
+              ) : (
+                visibleRecommendedAssets.map((asset, index) => (
+                  <React.Fragment key={asset.symbol}>
+                    <div className="flex items-center justify-between px-6 h-[76px] transition-all duration-300 ease-out hover:bg-white/[0.035] hover:scale-[1.018] hover:shadow-[0_10px_30px_rgba(131,72,193,0.10)]">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center overflow-hidden">
+                          <img
+                            src={asset.imageUrl}
+                            alt={asset.symbol}
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              e.currentTarget.src = buildFallbackLogo(asset.symbol);
+                            }}
+                          />
+                        </div>
+
+                        <p className="text-[14px] font-medium text-white">
+                          {asset.symbol}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={pendingSymbol === asset.symbol}
+                        onClick={() => handleAddRecommended(asset)}
+                        className="group relative inline-flex h-[36px] w-[86px] items-center justify-center rounded-full p-[1px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-95 cursor-pointer disabled:opacity-60"
+                      >
+                        <div className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all group-hover:bg-[#0B0B0D]">
+                          <span className="text-[14px] font-normal text-white">
+                            {pendingSymbol === asset.symbol ? "..." : "Додати"}
+                          </span>
+                        </div>
+                      </button>
+                    </div>
+
+                    {index !== visibleRecommendedAssets.length - 1 && (
+                      <div className="px-[24px]">
+                        <div className="h-[1px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32)_0%,rgba(179,179,179,0.032)_100%)]" />
+                      </div>
+                    )}
+                  </React.Fragment>
+                ))
+              )}
             </div>
           </div>
         </div>

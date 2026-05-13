@@ -1,5 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import bookmarkPlusIcon from '../../assets/icons/bookmark-plus.svg';
+import trashIcon from '../../assets/icons/trash.svg';
+import eyeIcon from '../../assets/icons/eye.svg';
+import {
+  addFavoriteAsset,
+  getAuthenticatedUserId,
+  listFavoriteAssets,
+  removeFavoriteAsset,
+} from '../../utils/favoriteAssets';
 
 // === ДАНІ ДЛЯ ВЕРХНІХ КАРТОК ===
 interface MarketItem {
@@ -13,6 +22,7 @@ interface MarketItem {
 interface TableMarketItem {
   id: string;
   symbol: string;
+  name: string;
   price: string;
   change: string;
   isPositive: boolean;
@@ -41,6 +51,7 @@ type BinanceTicker24h = {
 type CoinGeckoMarketCoin = {
   id: string;
   symbol: string;
+  name: string;
   current_price: number | null;
   price_change_percentage_24h: number | null;
   market_cap: number | null;
@@ -104,6 +115,10 @@ export default function MarketsPage() {
   const [allTableMarkets, setAllTableMarkets] = useState<TableMarketItem[]>([]);
   const [visibleCount, setVisibleCount] = useState<number>(30); 
   const [apiError, setApiError] = useState<string | null>(null);
+  const [favoriteUserId, setFavoriteUserId] = useState<string | null>(null);
+  const [favoriteSymbols, setFavoriteSymbols] = useState<Set<string>>(new Set());
+  const [pendingFavorites, setPendingFavorites] = useState<Set<string>>(new Set());
+  const [favoriteError, setFavoriteError] = useState<string | null>(null);
 
   const formatPrice = (price: number | null) => {
     if (!price) return "$0.00";
@@ -220,6 +235,7 @@ export default function MarketsPage() {
                 return {
                   id: topCardsIds[symbol] || symbol.toLowerCase(),
                   symbol,
+                  name: symbol,
                   price: formatPrice(Number(ticker?.lastPrice || 0)),
                   change: formatChange(change),
                   isPositive: change > 0,
@@ -268,9 +284,10 @@ export default function MarketsPage() {
           const formattedTable = final125Coins.map((coin) => ({
             id: coin.id,
             symbol: coin.symbol.toUpperCase(),
+            name: coin.name,
             price: formatPrice(coin.current_price),
             change: formatChange(coin.price_change_percentage_24h),
-            isPositive: coin.price_change_percentage_24h > 0,
+            isPositive: (coin.price_change_percentage_24h ?? 0) > 0,
             cap: formatCompactNumber(coin.market_cap),
             vol: formatCompactNumber(coin.total_volume),
             imgUrl: coin.image,
@@ -314,6 +331,85 @@ export default function MarketsPage() {
 
   const handleViewClick = (coin: TableMarketItem) => {
     navigate(`/asset/${coin.id}`, { state: { coin } });
+  };
+
+  const loadFavoriteSymbols = useCallback(async () => {
+    try {
+      const userId = await getAuthenticatedUserId();
+      if (!userId) {
+        setFavoriteUserId(null);
+        setFavoriteSymbols(new Set());
+        return;
+      }
+
+      setFavoriteUserId(userId);
+      const favorites = await listFavoriteAssets(userId);
+      setFavoriteSymbols(new Set(favorites.map((favorite) => favorite.symbol.toUpperCase())));
+    } catch (error) {
+      console.error('Помилка завантаження обраного:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadFavoriteSymbols();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadFavoriteSymbols]);
+
+  const handleFavoriteToggle = async (coin: TableMarketItem) => {
+    const symbol = coin.symbol.toUpperCase();
+    if (pendingFavorites.has(symbol)) return;
+
+    const wasFavorite = favoriteSymbols.has(symbol);
+    const userId = favoriteUserId || await getAuthenticatedUserId();
+
+    if (!userId) {
+      setFavoriteError('Увійдіть в акаунт, щоб додавати активи в обране.');
+      return;
+    }
+
+    if (!favoriteUserId) setFavoriteUserId(userId);
+
+    setFavoriteError(null);
+    setPendingFavorites((prev) => new Set(prev).add(symbol));
+    setFavoriteSymbols((prev) => {
+      const next = new Set(prev);
+      if (wasFavorite) next.delete(symbol);
+      else next.add(symbol);
+      return next;
+    });
+
+    try {
+      if (wasFavorite) {
+        await removeFavoriteAsset(userId, symbol);
+      } else {
+        await addFavoriteAsset(userId, {
+          coinId: coin.id,
+          symbol,
+          name: coin.name || symbol,
+          imageUrl: coin.imgUrl,
+        });
+      }
+
+      sessionStorage.removeItem('pulse_user_favorites');
+    } catch (error) {
+      console.error('Помилка оновлення обраного:', error);
+      setFavoriteSymbols((prev) => {
+        const next = new Set(prev);
+        if (wasFavorite) next.add(symbol);
+        else next.delete(symbol);
+        return next;
+      });
+      setFavoriteError('Не вдалося оновити обране. Перевірте таблицю user_favorites.');
+    } finally {
+      setPendingFavorites((prev) => {
+        const next = new Set(prev);
+        next.delete(symbol);
+        return next;
+      });
+    }
   };
 
   const handleLoadMore = () => {
@@ -412,6 +508,12 @@ export default function MarketsPage() {
         <MarketStatsCard title="Найновіші" items={currentNew} />
       </div>
 
+      {favoriteError && (
+        <div className="mx-10 mb-4 rounded-[18px] border border-[#8348C1]/40 bg-[#050506] px-5 py-3 text-[13px] text-[#C38BFF]">
+          {favoriteError}
+        </div>
+      )}
+
       <div 
         style={{ width: '1116px' }}
         className="ml-10 p-[1px] rounded-[24px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] transition-all duration-500 ease-out hover:shadow-[0_20px_100px_rgba(131,72,193,0.3),0_8px_25px_rgba(0,0,0,0.4)]"
@@ -420,7 +522,7 @@ export default function MarketsPage() {
           
           <div 
             style={{ height: '57px' }}
-            className="grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr_1fr] gap-4 px-8 text-[14px] text-[#A3A4B0] font-semibold items-center bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)] min-h-[57px] rounded-t-[24px]"
+            className="grid grid-cols-[1.45fr_1fr_1fr_1.45fr_1fr_116px] gap-4 px-8 text-[14px] text-[#A3A4B0] font-semibold items-center bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)] min-h-[57px] rounded-t-[24px]"
           >
             <div>Монета</div>
             <div>Ціна</div>
@@ -430,7 +532,7 @@ export default function MarketsPage() {
               <span>капіталізація</span>
             </div>
             <div>Обсяг</div>
-            <div className="pl-4">Дії</div>
+            <div className="pl-2">Дії</div>
           </div>
 
           <div className="flex flex-col">
@@ -443,10 +545,13 @@ export default function MarketsPage() {
                 Завантаження криптовалют...
               </div>
             ) : (
-              visibleTableMarkets.map((coin) => (
+              visibleTableMarkets.map((coin) => {
+                const isFavorite = favoriteSymbols.has(coin.symbol);
+
+                return (
                 <div 
                   key={coin.id} 
-                  className="row-divider grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr_1fr] gap-4 px-8 items-center h-[68px] min-h-[68px] bg-transparent hover:bg-white/5 transition-colors duration-300 ease-in-out cursor-default"                
+                  className="row-divider grid grid-cols-[1.45fr_1fr_1fr_1.45fr_1fr_116px] gap-4 px-8 items-center h-[68px] min-h-[68px] bg-transparent transition-all duration-300 ease-out hover:bg-white/[0.035] hover:scale-[1.004] hover:shadow-[0_10px_32px_rgba(131,72,193,0.12)] cursor-default"
                 >
                   <div className="flex items-center gap-3">
                     <img src={coin.imgUrl} alt={coin.symbol} className="w-7 h-7 object-contain rounded-full" />
@@ -459,18 +564,41 @@ export default function MarketsPage() {
                   <div className="text-[15px] text-[#FFFFFF]">{coin.cap}</div>
                   <div className="text-[15px] text-[#FFFFFF]">{coin.vol}</div>
                   
-                  <div className="flex items-center">
+                  <div className="flex items-center justify-end gap-[16px] pr-[8px]">
                     <button 
-                      className="action-button"
+                      type="button"
+                      title="Переглянути"
+                      className="group relative inline-flex w-8 h-8 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_12px_rgba(131,72,193,0.28)] active:scale-95 cursor-pointer"
                       onClick={() => handleViewClick(coin)} 
                     >
-                      <span className="text-[14px] font-medium text-[#FFFFFF] whitespace-nowrap font-['Montserrat']">
-                        Переглянути
+                      <span className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover:bg-[#0B0B0D]">
+                        <img src={eyeIcon} alt="" className="w-4 h-4 opacity-70 grayscale brightness-125 transition-all duration-300 group-hover:scale-110 group-hover:opacity-100 group-hover:grayscale-0 group-hover:brightness-125" />
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      title={isFavorite ? 'Видалити з обраного' : 'Додати в обране'}
+                      disabled={pendingFavorites.has(coin.symbol)}
+                      onClick={() => handleFavoriteToggle(coin)}
+                      className={`group relative inline-flex w-8 h-8 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer disabled:opacity-60 ${
+                        isFavorite
+                          ? 'hover:bg-[linear-gradient(90deg,#1C102F_0%,#FF4444_100%)] hover:shadow-[0_0_15px_rgba(255,68,68,0.35)]'
+                          : 'hover:bg-gradient-to-r hover:from-[#2C1969] hover:via-[#8348C1] hover:to-[#C38BFF] hover:shadow-[0_0_15px_rgba(131,72,193,0.4)]'
+                      }`}
+                    >
+                      <span className={`flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 ${isFavorite ? 'group-hover:bg-[#140707]' : 'group-hover:bg-[#0B0B0D]'}`}>
+                        <img
+                          src={isFavorite ? trashIcon : bookmarkPlusIcon}
+                          alt=""
+                          className="w-4 h-4 opacity-70 grayscale brightness-125 transition-all duration-300 group-hover:scale-110 group-hover:opacity-100 group-hover:grayscale-0 group-hover:brightness-125"
+                        />
                       </span>
                     </button>
                   </div>
                 </div>
-              ))
+              );
+            })
             )}
             
             {hasMore && allTableMarkets.length > 0 && !apiError && (
