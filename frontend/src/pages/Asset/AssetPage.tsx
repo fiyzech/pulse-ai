@@ -1,18 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { createChart, ColorType, CrosshairMode, AreaSeries, CandlestickSeries } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, Time } from 'lightweight-charts';
+import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
 import {
   addFavoriteAsset,
   getAuthenticatedUserId,
   getFavoriteAsset,
   removeFavoriteAsset,
 } from '../../utils/favoriteAssets';
+import { fetchCryptoNews, formatNewsTime } from '../../utils/news';
+import type { CryptoNewsItem } from '../../utils/news';
 
 const COINGECKO_IDS: Record<string, string> = {
   'BTC': 'bitcoin', 'ETH': 'ethereum', 'SOL': 'solana', 'BNB': 'binancecoin',
   'XRP': 'ripple', 'ADA': 'cardano', 'AVAX': 'avalanche-2', 'DOGE': 'dogecoin',
-  'DOT': 'polkadot', 'MATIC': 'matic-network',
+  'DOT': 'polkadot', 'MATIC': 'matic-network', 'ARB': 'arbitrum', 'SUI': 'sui',
+  'PEPE': 'pepe', 'TIA': 'celestia', 'LINK': 'chainlink', 'NEAR': 'near',
 };
 
 const formatCurrency = (value: number) => {
@@ -34,6 +38,176 @@ const formatSupply = (value: number, isMax: boolean = false) => {
 type ModelPrediction = {
   signal?: string;
   confidence?: number | null;
+};
+
+type RelatedCoinCard = {
+  id: string;
+  symbol: string;
+  name: string;
+  image: string;
+  price: number;
+  change: number;
+  chartData: { value: number }[];
+};
+
+type MarketCacheItem = {
+  id: string;
+  symbol: string;
+  name: string;
+  price: string;
+  change: string;
+  imgUrl: string;
+};
+
+type BinanceTicker24h = {
+  symbol: string;
+  lastPrice: string;
+  priceChangePercent: string;
+};
+
+type RelatedBaseAsset = {
+  id: string;
+  symbol: string;
+  name: string;
+  image: string;
+  price?: number;
+  change?: number;
+};
+
+const RELATED_FALLBACK_CATALOG: RelatedBaseAsset[] = [
+  { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', image: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png' },
+  { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', image: 'https://cryptologos.cc/logos/ethereum-eth-logo.png' },
+  { id: 'solana', symbol: 'SOL', name: 'Solana', image: 'https://cryptologos.cc/logos/solana-sol-logo.png' },
+  { id: 'binancecoin', symbol: 'BNB', name: 'BNB', image: 'https://cryptologos.cc/logos/bnb-bnb-logo.png' },
+  { id: 'ripple', symbol: 'XRP', name: 'XRP', image: 'https://cryptologos.cc/logos/xrp-xrp-logo.png' },
+  { id: 'avalanche-2', symbol: 'AVAX', name: 'Avalanche', image: 'https://cryptologos.cc/logos/avalanche-avax-logo.png' },
+  { id: 'cardano', symbol: 'ADA', name: 'Cardano', image: 'https://cryptologos.cc/logos/cardano-ada-logo.png' },
+  { id: 'dogecoin', symbol: 'DOGE', name: 'Dogecoin', image: 'https://cryptologos.cc/logos/dogecoin-doge-logo.png' },
+  { id: 'arbitrum', symbol: 'ARB', name: 'Arbitrum', image: 'https://cryptologos.cc/logos/arbitrum-arb-logo.png' },
+  { id: 'sui', symbol: 'SUI', name: 'Sui', image: 'https://cryptologos.cc/logos/sui-sui-logo.png' },
+  { id: 'pepe', symbol: 'PEPE', name: 'Pepe', image: 'https://cryptologos.cc/logos/pepe-pepe-logo.png' },
+  { id: 'celestia', symbol: 'TIA', name: 'Celestia', image: 'https://cryptologos.cc/logos/celestia-tia-logo.png' },
+  { id: 'chainlink', symbol: 'LINK', name: 'Chainlink', image: 'https://cryptologos.cc/logos/chainlink-link-logo.png' },
+  { id: 'near', symbol: 'NEAR', name: 'Near', image: 'https://cryptologos.cc/logos/near-protocol-near-logo.png' },
+];
+
+const RELATED_GROUPS = [
+  ['bitcoin', 'ethereum', 'solana', 'cardano', 'avalanche-2', 'sui', 'near'],
+  ['arbitrum', 'avalanche-2', 'ethereum', 'solana', 'chainlink', 'binancecoin'],
+  ['dogecoin', 'pepe', 'shiba-inu', 'bonk', 'floki', 'dogwifcoin'],
+  ['binancecoin', 'ripple', 'chainlink', 'arbitrum', 'ethereum', 'solana'],
+  ['celestia', 'arbitrum', 'sui', 'near', 'solana', 'avalanche-2'],
+];
+
+const buildMiniChartData = (change: number) => {
+  const base = 100;
+  const direction = change >= 0 ? 1 : -1;
+  return [0, -2, -2.5, -7, -3, -2, 1, 2, 5, 3, 7, 8].map((point, index) => ({
+    value: base + point + direction * index * Math.min(Math.abs(change), 8) * 0.12,
+  }));
+};
+
+const formatRelatedPrice = (price: number) => {
+  if (!Number.isFinite(price) || price <= 0) return '---';
+  if (price < 1) return price.toFixed(6);
+  return price.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: price >= 100 ? 2 : 4,
+  });
+};
+
+const formatRelatedChange = (change: number) =>
+  `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
+
+const parseCachedPrice = (value?: string) => {
+  if (!value || value === '...' || value === '---') return 0;
+  const multiplier = value.includes('T') ? 1e12 : value.includes('B') ? 1e9 : value.includes('M') ? 1e6 : 1;
+  const numeric = Number(value.replace(/[$,\sA-Z]/g, ''));
+  return Number.isFinite(numeric) ? numeric * multiplier : 0;
+};
+
+const parseCachedChange = (value?: string) => {
+  if (!value || value === '...') return 0;
+  const numeric = Number(value.replace('%', '').replace('+', ''));
+  return Number.isFinite(numeric) ? numeric : 0;
+};
+
+const readMarketCache = () => {
+  try {
+    const raw = sessionStorage.getItem('pulse_table_cards');
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as MarketCacheItem[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const getCatalogAssetById = (id: string) =>
+  RELATED_FALLBACK_CATALOG.find((asset) => asset.id === id);
+
+const hashAssetKey = (value: string) =>
+  value.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+const toRelatedBaseAsset = (asset: MarketCacheItem | RelatedBaseAsset): RelatedBaseAsset => {
+  if ('imgUrl' in asset) {
+    return {
+      id: asset.id,
+      symbol: asset.symbol.toUpperCase(),
+      name: asset.name || asset.symbol.toUpperCase(),
+      image: asset.imgUrl,
+      price: parseCachedPrice(asset.price),
+      change: parseCachedChange(asset.change),
+    };
+  }
+
+  return {
+    ...asset,
+    symbol: asset.symbol.toUpperCase(),
+  };
+};
+
+const getRelatedBaseAssets = (
+  currentId: string,
+  currentSymbol: string,
+  cachedMarkets: MarketCacheItem[],
+) => {
+  const normalizedId = currentId.toLowerCase();
+  const normalizedSymbol = currentSymbol.toUpperCase();
+  const selected = new Map<string, RelatedBaseAsset>();
+  const cachedById = new Map(cachedMarkets.map((asset) => [asset.id, asset]));
+  const cachedBySymbol = new Map(cachedMarkets.map((asset) => [asset.symbol.toUpperCase(), asset]));
+  const currentIndex = cachedMarkets.findIndex(
+    (asset) => asset.id === normalizedId || asset.symbol.toUpperCase() === normalizedSymbol,
+  );
+
+  const addCandidate = (candidate?: MarketCacheItem | RelatedBaseAsset) => {
+    if (!candidate) return;
+    const asset = toRelatedBaseAsset(candidate);
+    if (asset.id === normalizedId || asset.symbol === normalizedSymbol) return;
+    if (!asset.id || !asset.symbol || selected.has(asset.symbol)) return;
+    selected.set(asset.symbol, asset);
+  };
+
+  const activeGroup = RELATED_GROUPS.find((group) => group.includes(normalizedId));
+  activeGroup?.forEach((id) => addCandidate(cachedById.get(id) || getCatalogAssetById(id)));
+
+  if (currentIndex >= 0) {
+    [currentIndex - 2, currentIndex - 1, currentIndex + 1, currentIndex + 2, currentIndex + 3].forEach((index) => {
+      addCandidate(cachedMarkets[index]);
+    });
+  }
+
+  cachedMarkets.forEach(addCandidate);
+
+  const rotatedFallback = [...RELATED_FALLBACK_CATALOG];
+  const offset = rotatedFallback.length ? hashAssetKey(`${normalizedId}-${normalizedSymbol}`) % rotatedFallback.length : 0;
+  const fallbackCandidates = [...rotatedFallback.slice(offset), ...rotatedFallback.slice(0, offset)];
+  fallbackCandidates.forEach((asset) => {
+    addCandidate(cachedById.get(asset.id) || cachedBySymbol.get(asset.symbol) || asset);
+  });
+
+  return Array.from(selected.values()).slice(0, 4);
 };
 
 const buildPredictionSymbolVariants = (coinShort: string, coinSymbol: string, cgId: string) => {
@@ -60,11 +234,13 @@ interface AssetPageProps {
 
 export default function AssetPage(props: AssetPageProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { symbol: routeAsset } = useParams<{ symbol: string }>();
   const passedCoin = location.state?.coin;
   const routeAssetValue = routeAsset || '';
   const routeSymbolFromCgId = Object.entries(COINGECKO_IDS).find(([, value]) => value === routeAssetValue)?.[0];
-  const routeSymbol = routeAssetValue.length <= 6 ? routeAssetValue.toUpperCase() : routeSymbolFromCgId;
+  const routeSymbolFromCatalog = getCatalogAssetById(routeAssetValue)?.symbol;
+  const routeSymbol = routeAssetValue.length <= 6 ? routeAssetValue.toUpperCase() : routeSymbolFromCgId || routeSymbolFromCatalog;
 
   const coinShort = (passedCoin?.symbol || props.coinShort || routeSymbol || 'BTC').toUpperCase();
   const coinSymbol = `${coinShort}USDT`; 
@@ -92,6 +268,11 @@ export default function AssetPage(props: AssetPageProps) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [favoriteNotice, setFavoriteNotice] = useState('');
+  const [assetNews, setAssetNews] = useState<CryptoNewsItem[]>([]);
+  const [newsLoading, setNewsLoading] = useState(true);
+  const [newsError, setNewsError] = useState('');
+  const [relatedCoins, setRelatedCoins] = useState<RelatedCoinCard[]>([]);
+  const [relatedLoading, setRelatedLoading] = useState(true);
 
   const [stats, setStats] = useState({
     priceChange1h: 0, priceChange24h: 0, high24h: 0, low24h: 0, volume24h: 0,
@@ -116,6 +297,10 @@ export default function AssetPage(props: AssetPageProps) {
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | ISeriesApi<"Candlestick"> | null>(null);
   const prevPriceRef = useRef<number>(0);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [cgId]);
 
   useEffect(() => {
     let active = true;
@@ -145,6 +330,92 @@ export default function AssetPage(props: AssetPageProps) {
       active = false;
     };
   }, [coinShort]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadAssetNews = async () => {
+      try {
+        setNewsLoading(true);
+        setNewsError('');
+        const items = await fetchCryptoNews(6, 100);
+        if (!active) return;
+
+        const coinQuery = `${coinName} ${coinShort}`.toLowerCase();
+        const coinFocused = items.filter((item) => {
+          const text = `${item.title} ${item.description || ''} ${item.tag}`.toLowerCase();
+          return text.includes(coinShort.toLowerCase()) || coinQuery.split(' ').some((part) => part.length > 3 && text.includes(part));
+        });
+
+        setAssetNews((coinFocused.length >= 3 ? coinFocused : items).slice(0, 6));
+      } catch (error) {
+        console.error('Помилка завантаження новин активу:', error);
+        if (active) setNewsError('Не вдалося завантажити новини');
+      } finally {
+        if (active) setNewsLoading(false);
+      }
+    };
+
+    loadAssetNews();
+    return () => {
+      active = false;
+    };
+  }, [coinName, coinShort]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadRelatedCoins = async () => {
+      const baseAssets = getRelatedBaseAssets(cgId, coinShort, readMarketCache());
+
+      try {
+        setRelatedLoading(true);
+        const binanceRes = await fetch('/api/binance/ticker/24hr');
+        const binanceData = binanceRes.ok ? await binanceRes.json() as BinanceTicker24h[] : [];
+        const tickerByPair = new Map(binanceData.map((ticker) => [ticker.symbol, ticker]));
+        if (!active) return;
+
+        setRelatedCoins(baseAssets.map((coin) => {
+          const ticker = tickerByPair.get(`${coin.symbol}USDT`);
+          const price = Number(ticker?.lastPrice ?? coin.price ?? 0);
+          const change = Number(ticker?.priceChangePercent ?? coin.change ?? 0);
+
+          return {
+            id: coin.id,
+            symbol: coin.symbol,
+            name: coin.name,
+            image: coin.image,
+            price,
+            change,
+            chartData: buildMiniChartData(change),
+          };
+        }));
+      } catch (error) {
+        console.error('Помилка оновлення цін схожих монет:', error);
+        if (active) {
+          setRelatedCoins(baseAssets.map((coin) => {
+            const change = coin.change ?? 0;
+            return {
+              id: coin.id,
+              symbol: coin.symbol,
+              name: coin.name,
+              image: coin.image,
+              price: coin.price ?? 0,
+              change,
+              chartData: buildMiniChartData(change),
+            };
+          }));
+        }
+      } finally {
+        if (active) setRelatedLoading(false);
+      }
+    };
+
+    loadRelatedCoins();
+    return () => {
+      active = false;
+    };
+  }, [cgId, coinShort]);
 
   const handleFavoriteToggle = async () => {
     setFavoriteNotice('');
@@ -437,7 +708,14 @@ export default function AssetPage(props: AssetPageProps) {
         (seriesRef.current as ISeriesApi<"Area">).update({ time: timestamp, value: parseFloat(message.k.c) });
       }
     };
-    return () => ws.close();
+    return () => {
+      ws.onmessage = null;
+      if (ws.readyState === WebSocket.CONNECTING) {
+        ws.onopen = () => ws.close();
+        return;
+      }
+      if (ws.readyState === WebSocket.OPEN) ws.close();
+    };
   }, [timeframe, chartType, coinSymbol, isBinanceAvailable]);
   
   const highLowRange = stats.high24h - stats.low24h;
@@ -460,6 +738,22 @@ export default function AssetPage(props: AssetPageProps) {
     signalText = "Ймовірне зниження ціни\nна цьому таймфреймі";
     signalColorClass = "text-[#E53232]";
   }
+
+  const handleRelatedCoinClick = (coin: RelatedCoinCard) => {
+    navigate(`/asset/${coin.id}`, {
+      state: {
+        coin: {
+          id: coin.id,
+          symbol: coin.symbol,
+          imgUrl: coin.image,
+        },
+      },
+    });
+
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  };
 
   return (
     <section className="w-full max-w-[1600px] mx-auto px-10 pt-7 pb-12 font-montserrat">
@@ -818,6 +1112,164 @@ export default function AssetPage(props: AssetPageProps) {
               </p>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="mt-[24px]">
+        <h3 className="text-[24px] font-semibold leading-[28px] text-[#FFF9F9] mb-6">
+          Останні новини
+        </h3>
+
+        <div className="w-full max-w-[1116px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_100px_rgba(131,72,193,0.22),0_8px_25px_rgba(0,0,0,0.42)]">
+          <div className="relative min-h-[442px] overflow-hidden rounded-[28px] bg-[#050506] px-[24px] pt-[24px] pb-[86px]">
+            {newsLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-[80px] gap-y-[24px]">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <div key={index} className="min-h-[82px] rounded-[16px] p-3 -mx-3 -my-2 animate-pulse">
+                    <div className="mb-[12px] h-[24px] w-[210px] rounded-full bg-white/10" />
+                    <div className="h-[18px] w-full rounded-full bg-white/10" />
+                    <div className="mt-[8px] h-[18px] w-[75%] rounded-full bg-white/10" />
+                  </div>
+                ))}
+              </div>
+            ) : newsError ? (
+              <div className="flex h-[260px] items-center justify-center text-center text-[14px] text-white/60">
+                {newsError}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-[80px] gap-y-[24px]">
+                {assetNews.map((item, index) => (
+                  <a
+                    key={`${item.url}-${index}`}
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex min-h-[82px] flex-col gap-[8px] rounded-[16px] p-3 -mx-3 -my-2 transition-all duration-300 hover:bg-white/[0.04] hover:translate-x-1"
+                  >
+                    <div className="flex h-[24px] items-center gap-[8px]">
+                      <div className="flex h-[24px] w-[24px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#9A5A00]/45">
+                        <img
+                          src={item.icon || coinIcon}
+                          alt={item.tag || coinShort}
+                          className="h-[18px] w-[18px] object-contain"
+                          onError={(event) => {
+                            event.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      </div>
+
+                      <span className="text-[12px] font-normal leading-[16px] text-[#A3A4B0]">
+                        {formatNewsTime(item.publishedAt)} · {item.source}
+                      </span>
+                    </div>
+
+                    <p className="text-[16px] font-medium leading-[24px] text-white line-clamp-2">
+                      {item.title}
+                    </p>
+                  </a>
+                ))}
+              </div>
+            )}
+
+            <div className="absolute bottom-[24px] left-1/2 -translate-x-1/2">
+              <button
+                type="button"
+                onClick={() => navigate('/news')}
+                className="group relative flex h-[44px] w-[243px] items-center justify-center rounded-[28px] p-[1px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_18px_rgba(131,72,193,0.35)] active:scale-95"
+              >
+                <span className="flex h-full w-full items-center justify-center rounded-[28px] bg-[#050506] text-[14px] font-medium leading-[20px] text-white transition-colors group-hover:bg-[#0B0B0D]">
+                  Перейти до головних новин
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-[24px]">
+        <h3 className="text-[24px] font-semibold leading-[28px] text-[#FFF9F9] mb-6">
+          Схожі монети
+        </h3>
+
+        <div className="grid w-full max-w-[1116px] grid-cols-1 gap-[24px] md:grid-cols-2 xl:grid-cols-4">
+          {relatedLoading
+            ? Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="h-[227px] rounded-[28px] border border-white/10 bg-[#050506] animate-pulse" />
+              ))
+            : relatedCoins.map((coin, index) => {
+                const isPositive = coin.change >= 0;
+                const gradientId = `asset-related-gradient-${coin.symbol}-${index}`;
+
+                return (
+                  <button
+                    key={coin.id}
+                    type="button"
+                    onClick={() => handleRelatedCoinClick(coin)}
+                    className="group h-[227px] w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] text-left shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:scale-[1.018] hover:-translate-y-1 hover:shadow-[0_20px_80px_rgba(131,72,193,0.28),0_8px_25px_rgba(0,0,0,0.5)]"
+                  >
+                    <div className="relative h-full overflow-hidden rounded-[28px] bg-[#050506] px-[24px] py-[24px]">
+                      <div className="relative z-10 flex items-start justify-between">
+                        <div className="flex items-center gap-[12px]">
+                          <div className="flex h-[40px] w-[40px] items-center justify-center overflow-hidden rounded-full bg-white/5">
+                            <img src={coin.image} alt={coin.symbol} className="h-full w-full object-contain" />
+                          </div>
+                          <div>
+                            <p className="text-[14px] font-medium leading-[18px] text-white">{coin.name}</p>
+                            <p className="text-[14px] font-medium leading-[18px] text-white">({coin.symbol})</p>
+                          </div>
+                        </div>
+
+                        <span className="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#8348C1] text-[#C38BFF] transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_14px_rgba(131,72,193,0.4)]">
+                          ↗
+                        </span>
+                      </div>
+
+                      <div className="relative z-10 mt-[18px]">
+                        <div className="flex items-end gap-1">
+                          <span className="text-[28px] font-medium leading-[32px] text-white">
+                            {formatRelatedPrice(coin.price)}
+                          </span>
+                          <span className="pb-[3px] text-[12px] font-medium text-white">USDT</span>
+                        </div>
+                        <p className="mt-[6px] text-[12px] font-normal leading-[16px] text-white">
+                          Зміна : <span className={isPositive ? 'text-[#24FF7A]' : 'text-[#F40000]'}>{formatRelatedChange(coin.change)}</span>
+                        </p>
+                      </div>
+
+                      <div className="absolute bottom-0 left-0 right-0 h-[96px]">
+                        <div
+                          className="absolute bottom-[34px] left-0 right-0 h-[1px] opacity-35"
+                          style={{
+                            backgroundImage: 'linear-gradient(to right, #6F6C6C 50%, transparent 50%)',
+                            backgroundSize: '8px 1px',
+                            backgroundRepeat: 'repeat-x',
+                          }}
+                        />
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={coin.chartData} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stopColor="#2C1969" />
+                                <stop offset="50%" stopColor="#8348C1" />
+                                <stop offset="100%" stopColor="#C38BFF" />
+                              </linearGradient>
+                            </defs>
+                            <YAxis hide domain={['auto', 'auto']} />
+                            <Line
+                              type="monotone"
+                              dataKey="value"
+                              stroke={`url(#${gradientId})`}
+                              strokeWidth={2.2}
+                              dot={false}
+                              isAnimationActive={false}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
         </div>
       </div>
     </section>
