@@ -1,37 +1,37 @@
 version: '3.8'
 
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: CryptoPulse_postgres
-    restart: always
-    env_file:
-      - .env
-    ports:
-      - "5433:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
+  # db:
+  #   image: postgres:15-alpine
+  #   container_name: CryptoPulse_postgres
+  #   restart: always
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "5433:5432"
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
 
-  api:
-    build: ./backend
-    container_name: CryptoPulse_api
-    restart: always
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
-    depends_on:
-      - db
-    volumes:
-      - ./backend:/app  # <-- Ось це робить Live Sync твого коду з Docker
+  # api:
+  #   build: ./backend
+  #   container_name: CryptoPulse_api
+  #   restart: always
+  #   ports:
+  #     - "8000:8000"
+  #   # env_file:
+  #   #   - .env
+  #   # depends_on:
+  #   #   - db
+  #   volumes:
+  #     - ./backend:/app  # <-- Ось це робить Live Sync твого коду з Docker
   frontend:
       build: ./frontend
       container_name: CryptoPulse_frontend
       restart: always
       ports:
         - "5173:5173" # Стандартний порт, на якому крутиться React через Vite
-      depends_on:
-        - api         # Фронтенд запуститься тільки після того, як підніметься твоє API
+      # depends_on:
+      #   - api         # Фронтенд запуститься тільки після того, як підніметься твоє API
       volumes:
         - ./frontend:/app
         # 🚨 ВАЖЛИВИЙ ТРЮК: Ізолюємо папку node_modules, щоб Докер не бився з вашим компом
@@ -39,6 +39,18 @@ services:
       environment:
         # Ця змінна змушує Докер краще слідкувати за змінами файлів (щоб Hot Reload працював безвідмовно)
         - WATCHPACK_POLLING=true
+  bot:
+    build: ./telegrambot
+    container_name: CryptoPulse_bot
+    restart: always
+    volumes:
+      - .:/app  # <-- Переконайтеся, що тут саме так (крапка, двокрапка, слейш app)
+    # Це гарантує, що бот не "ляже", якщо база ще піднімається
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3" 
 # Це має бути притиснуто до самого лівого краю (без пробілів)
 volumes:
   pgdata:
