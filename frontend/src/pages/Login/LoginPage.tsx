@@ -144,7 +144,7 @@ const LoginPage: React.FC = () => {
       <div className="absolute top-1/4 -left-[200px] w-[480px] h-[680px] bg-[#522E8B]/30 blur-[150px] rounded-full pointer-events-none"></div>
       <div className="absolute bottom-1/4 -right-[200px] w-[600px] h-[600px] bg-[#522E8B]/20 blur-[150px] rounded-full pointer-events-none"></div>
 
-      <div className="flex-1 flex items-center justify-center z-10 p-4">
+      <div className="flex-1 flex flex-col items-center pt-[120px] z-10 p-4">
         <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] w-[480px] h-[680px]">
           <div className="relative h-full rounded-[28px] bg-[#050506] px-[60px] py-[60px] text-center shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] overflow-hidden">
             <h1 className="text-white text-[32px] font-bold font-montserrat text-center">Вітаємо</h1>
@@ -177,7 +177,7 @@ const LoginPage: React.FC = () => {
                     setGeneralSuccess("");
                   }}
                   placeholder="Введіть електронну пошту"
-                  className="w-full h-[44px] px-5 rounded-full text-[14px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
+                  className="w-[360px] h-[44px] px-5 rounded-full text-[14px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
                   style={inputStyle(Boolean(fieldErrors.email))}
                 />
                 <ErrorMessage message={fieldErrors.email} />
@@ -256,10 +256,12 @@ const LoginPage: React.FC = () => {
           </div>
         </div>
       </div>
+      
+    
 
-      <div className="w-full text-center pb-8 z-10">
-        <span className="text-[13px] text-[#A3A4B0]">Не маєте акаунту? </span>
-        <Link to="/register" className="text-[13px] text-[#22C55E] hover:text-[#1ea84f] transition-all">
+      <div className="w-full text-center mt-[40px] z-10">
+        <span className="text-[14px] text-[#A3A4B0]">Не маєте акаунту? </span>
+        <Link to="/register" className="text-[14px] text-[#25DE28] hover:text-[#1ea84f] transition-all">
           Зареєструватись
         </Link>
       </div>
