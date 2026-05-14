@@ -9,12 +9,14 @@ import {
   getFavoriteAsset,
   removeFavoriteAsset,
 } from '../../utils/favoriteAssets';
+import { createPriceAlert } from '../../utils/priceAlerts';
+import type { PriceAlertCondition } from '../../utils/priceAlerts';
 import { fetchCryptoNews, formatNewsTime } from '../../utils/news';
 import type { CryptoNewsItem } from '../../utils/news';
 
 const COINGECKO_IDS: Record<string, string> = {
   'BTC': 'bitcoin', 'ETH': 'ethereum', 'SOL': 'solana', 'BNB': 'binancecoin',
-  'XRP': 'ripple', 'ADA': 'cardano', 'AVAX': 'avalanche-2', 'DOGE': 'dogecoin',
+  'USDT': 'tether', 'XRP': 'ripple', 'ADA': 'cardano', 'AVAX': 'avalanche-2', 'DOGE': 'dogecoin',
   'DOT': 'polkadot', 'MATIC': 'matic-network', 'ARB': 'arbitrum', 'SUI': 'sui',
   'PEPE': 'pepe', 'TIA': 'celestia', 'LINK': 'chainlink', 'NEAR': 'near',
 };
@@ -38,6 +40,13 @@ const formatSupply = (value: number, isMax: boolean = false) => {
 type ModelPrediction = {
   signal?: string;
   confidence?: number | null;
+};
+
+const getBinancePairSymbol = (symbol: string) => {
+  const normalized = symbol.toUpperCase();
+  if (normalized === 'USDT') return 'USDCUSDT';
+  if (normalized === 'USDC') return 'USDCUSDT';
+  return `${normalized}USDT`;
 };
 
 type RelatedCoinCard = {
@@ -77,6 +86,7 @@ type RelatedBaseAsset = {
 const RELATED_FALLBACK_CATALOG: RelatedBaseAsset[] = [
   { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', image: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png' },
   { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', image: 'https://cryptologos.cc/logos/ethereum-eth-logo.png' },
+  { id: 'tether', symbol: 'USDT', name: 'Tether', image: '/Tether.svg' },
   { id: 'solana', symbol: 'SOL', name: 'Solana', image: 'https://cryptologos.cc/logos/solana-sol-logo.png' },
   { id: 'binancecoin', symbol: 'BNB', name: 'BNB', image: 'https://cryptologos.cc/logos/bnb-bnb-logo.png' },
   { id: 'ripple', symbol: 'XRP', name: 'XRP', image: 'https://cryptologos.cc/logos/xrp-xrp-logo.png' },
@@ -237,24 +247,26 @@ export default function AssetPage(props: AssetPageProps) {
   const navigate = useNavigate();
   const { symbol: routeAsset } = useParams<{ symbol: string }>();
   const passedCoin = location.state?.coin;
-  const routeAssetValue = routeAsset || '';
+  const routeAssetValue = (routeAsset || '').toLowerCase();
   const routeSymbolFromCgId = Object.entries(COINGECKO_IDS).find(([, value]) => value === routeAssetValue)?.[0];
-  const routeSymbolFromCatalog = getCatalogAssetById(routeAssetValue)?.symbol;
-  const routeSymbol = routeAssetValue.length <= 6 ? routeAssetValue.toUpperCase() : routeSymbolFromCgId || routeSymbolFromCatalog;
+  const routeCatalogAsset = getCatalogAssetById(routeAssetValue);
+  const routeSymbolFromCatalog = routeCatalogAsset?.symbol;
+  const routeSymbol = routeSymbolFromCgId || routeSymbolFromCatalog || (routeAssetValue.length <= 6 ? routeAssetValue.toUpperCase() : undefined);
 
   const coinShort = (passedCoin?.symbol || props.coinShort || routeSymbol || 'BTC').toUpperCase();
-  const coinSymbol = `${coinShort}USDT`; 
+  const binancePairSymbol = getBinancePairSymbol(coinShort);
+  const cgId = passedCoin?.id || COINGECKO_IDS[coinShort] || routeCatalogAsset?.id || routeAssetValue || 'bitcoin';
+  const catalogAsset = getCatalogAssetById(cgId);
   
   const routeName = routeAssetValue && routeAssetValue.length > 6
-    ? routeAssetValue.charAt(0).toUpperCase() + routeAssetValue.slice(1).replace(/-/g, ' ')
+    ? catalogAsset?.name || routeAssetValue.charAt(0).toUpperCase() + routeAssetValue.slice(1).replace(/-/g, ' ')
     : coinShort;
 
-  const coinName = passedCoin?.id
+  const coinName = passedCoin?.name || (passedCoin?.id
     ? passedCoin.id.charAt(0).toUpperCase() + passedCoin.id.slice(1).replace(/-/g, ' ')
-    : props.coinName || routeName || 'Bitcoin';
+    : props.coinName || catalogAsset?.name || routeName || 'Bitcoin');
     
-  const coinIcon = passedCoin?.imgUrl || props.coinIcon || '/Bitcoin.svg';
-  const cgId = passedCoin?.id || (routeSymbol ? COINGECKO_IDS[routeSymbol] : routeAssetValue) || COINGECKO_IDS[coinShort] || 'bitcoin';
+  const coinIcon = passedCoin?.imgUrl || props.coinIcon || catalogAsset?.image || '/Bitcoin.svg';
   
   const [timeframe, setTimeframe] = useState('15 хв');
   const [chartType, setChartType] = useState<'area' | 'candle'>('area');
@@ -268,6 +280,11 @@ export default function AssetPage(props: AssetPageProps) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [favoriteNotice, setFavoriteNotice] = useState('');
+  const [alertCondition, setAlertCondition] = useState<PriceAlertCondition>('price_gte');
+  const [alertTargetPrice, setAlertTargetPrice] = useState('');
+  const [alertLoading, setAlertLoading] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertError, setAlertError] = useState('');
   const [assetNews, setAssetNews] = useState<CryptoNewsItem[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState('');
@@ -294,6 +311,7 @@ export default function AssetPage(props: AssetPageProps) {
   });
   
   const chartContainerRef = useRef<HTMLDivElement>(null);
+  const noticeTimeoutRef = useRef<number | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | ISeriesApi<"Candlestick"> | null>(null);
   const prevPriceRef = useRef<number>(0);
@@ -301,6 +319,16 @@ export default function AssetPage(props: AssetPageProps) {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [cgId]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (currentPrice > 0 && !alertTargetPrice) {
+        setAlertTargetPrice(currentPrice.toFixed(currentPrice < 1 ? 6 : 2));
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [alertTargetPrice, currentPrice]);
 
   useEffect(() => {
     let active = true;
@@ -417,9 +445,14 @@ export default function AssetPage(props: AssetPageProps) {
     };
   }, [cgId, coinShort]);
 
-  const handleFavoriteToggle = async () => {
+const handleFavoriteToggle = async () => {
     setFavoriteNotice('');
     setFavoriteLoading(true);
+
+    // 1. Очищаємо попередній таймер, якщо користувач клікнув кілька разів швидко
+    if (noticeTimeoutRef.current) {
+      window.clearTimeout(noticeTimeoutRef.current);
+    }
 
     try {
       const userId = await getAuthenticatedUserId();
@@ -449,6 +482,45 @@ export default function AssetPage(props: AssetPageProps) {
       setFavoriteNotice('Не вдалося оновити обране. Перевірте таблицю user_favorites.');
     } finally {
       setFavoriteLoading(false);
+      
+      // 2. Встановлюємо таймер, щоб приховати повідомлення через 3 секунди (3000 мс)
+      noticeTimeoutRef.current = window.setTimeout(() => {
+        setFavoriteNotice('');
+      }, 3000);
+    }
+  };
+
+  const handleCreateAlert = async () => {
+    setAlertMessage('');
+    setAlertError('');
+
+    const normalizedTarget = Number(alertTargetPrice.replace(',', '.').replace(/[^0-9.]/g, ''));
+    if (!Number.isFinite(normalizedTarget) || normalizedTarget <= 0) {
+      setAlertError('Введіть коректну ціну для алерту.');
+      return;
+    }
+
+    setAlertLoading(true);
+    try {
+      const userId = await getAuthenticatedUserId();
+      if (!userId) {
+        setAlertError('Увійдіть в акаунт, щоб створювати алерти.');
+        return;
+      }
+
+      await createPriceAlert({
+        userId,
+        symbol: coinShort,
+        condition: alertCondition,
+        targetPrice: normalizedTarget,
+      });
+
+      setAlertMessage('Алерт створено. Він вже доступний на сторінці алертів.');
+    } catch (error) {
+      console.error('Помилка створення алерту:', error);
+      setAlertError('Не вдалося створити алерт. Перевірте таблицю alerts та RLS.');
+    } finally {
+      setAlertLoading(false);
     }
   };
 
@@ -476,7 +548,7 @@ export default function AssetPage(props: AssetPageProps) {
         };
         const dbInterval = dbIntervalMap[timeframe] || '4h';
 
-        const predictionSymbols = buildPredictionSymbolVariants(coinShort, coinSymbol, cgId);
+        const predictionSymbols = buildPredictionSymbolVariants(coinShort, binancePairSymbol, cgId);
         const params = new URLSearchParams({
           select: '*',
           symbol: `in.(${predictionSymbols.join(',')})`,
@@ -532,7 +604,7 @@ export default function AssetPage(props: AssetPageProps) {
     };
 
     fetchAiSignal();
-  }, [coinShort, coinSymbol, cgId, timeframe]);
+  }, [coinShort, binancePairSymbol, cgId, timeframe]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -581,11 +653,11 @@ export default function AssetPage(props: AssetPageProps) {
           }
         }
 
-        const tickerRes = await fetch(`/api/binance/ticker/24hr?symbol=${coinSymbol}`);
+        const tickerRes = await fetch(`/api/binance/ticker/24hr?symbol=${binancePairSymbol}`);
         if(tickerRes.ok) {
           setIsBinanceAvailable(true);
           const tickerData = await tickerRes.json();
-          const kline1hRes = await fetch(`/api/binance/klines?symbol=${coinSymbol}&interval=1h&limit=2`);
+          const kline1hRes = await fetch(`/api/binance/klines?symbol=${binancePairSymbol}&interval=1h&limit=2`);
           const kline1hData = await kline1hRes.json();
           
           let change1h = 0;
@@ -610,10 +682,9 @@ export default function AssetPage(props: AssetPageProps) {
       }
     };
     fetchStats();
-  }, [coinSymbol, coinShort, cgId, passedCoin]);
+  }, [binancePairSymbol, coinShort, cgId, passedCoin]);
 
   useEffect(() => {
-    // ВИПРАВЛЕННЯ 1: Ховаємо setState всередину асинхронної функції
     const fetchChartData = async () => {
       if (!isBinanceAvailable) {
         setIsLoading(false);
@@ -633,7 +704,7 @@ export default function AssetPage(props: AssetPageProps) {
           chartRef.current.applyOptions({ timeScale: { secondsVisible: timeframe === '1 сек' || timeframe === '1 хв' || timeframe === '5 хв' } });
         }
 
-        const res = await fetch(`/api/binance/klines?symbol=${coinSymbol}&interval=${config.interval}&limit=${config.limit}`);
+        const res = await fetch(`/api/binance/klines?symbol=${binancePairSymbol}&interval=${config.interval}&limit=${config.limit}`);
         if(!res.ok) throw new Error("Binance API Error");
         
         const data = await res.json() as (string | number)[][];
@@ -677,7 +748,7 @@ export default function AssetPage(props: AssetPageProps) {
     };
 
     fetchChartData();
-  }, [timeframe, chartType, coinSymbol, isBinanceAvailable]);
+  }, [timeframe, chartType, binancePairSymbol, isBinanceAvailable]);
 
   useEffect(() => {
     if (!isBinanceAvailable) return;
@@ -685,7 +756,7 @@ export default function AssetPage(props: AssetPageProps) {
     const tfConfig: Record<string, string> = {
       '1 сек': '1s', '1 хв': '1m', '5 хв': '5m', '15 хв': '15m', '1 год': '1h', '4 год': '4h', '1 день': '1d', '1 тиж': '1w', '1 міс': '1M'
     };
-    const wsUrl = `wss://stream.binance.com:9443/ws/${coinSymbol.toLowerCase()}@kline_${tfConfig[timeframe] || '15m'}`;
+    const wsUrl = `wss://stream.binance.com:9443/ws/${binancePairSymbol.toLowerCase()}@kline_${tfConfig[timeframe] || '15m'}`;
     const ws = new WebSocket(wsUrl);
 
     ws.onmessage = (event: MessageEvent) => {
@@ -716,7 +787,7 @@ export default function AssetPage(props: AssetPageProps) {
       }
       if (ws.readyState === WebSocket.OPEN) ws.close();
     };
-  }, [timeframe, chartType, coinSymbol, isBinanceAvailable]);
+  }, [timeframe, chartType, binancePairSymbol, isBinanceAvailable]);
   
   const highLowRange = stats.high24h - stats.low24h;
   const currentPositionPercent = highLowRange > 0 
@@ -766,7 +837,7 @@ export default function AssetPage(props: AssetPageProps) {
               
               <div className="flex-1 min-w-0 pr-4">
                 <div className="flex items-center gap-3 mb-2 w-full group relative">
-                  <img src={coinIcon} alt={coinShort} className="w-[32px] h-[32px] rounded-full shrink-0" />
+                  <img src={coinIcon} alt={coinShort} className="w-[32px] h-[32px] rounded-full shrink-0 object-contain" />
                   
                   <h2 className="text-[28px] font-semibold text-white flex items-baseline gap-2 min-w-0 max-w-full cursor-default">
                     <span className="truncate block">{coinName}</span>
@@ -798,34 +869,29 @@ export default function AssetPage(props: AssetPageProps) {
               </div>
 
               <div className="flex flex-col items-end gap-4 mt-1 shrink-0">
-                <div className="flex flex-col items-end gap-2">
+                <div className="flex items-center justify-end gap-4">
                   <button
                     type="button"
                     onClick={handleFavoriteToggle}
                     disabled={favoriteLoading}
-                    className={`group relative inline-flex h-[38px] min-w-[164px] items-center justify-center gap-2 rounded-full p-[1px] transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-60 ${
-                      isFavorite
-                        ? 'bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] shadow-[0_0_18px_rgba(131,72,193,0.35)]'
-                        : 'bg-[linear-gradient(90deg,rgba(82,46,139,0.95),rgba(195,139,255,0.95))]'
-                    }`}
+                    className="group inline-flex items-center gap-2 text-[14px] font-medium text-[#C38BFF] transition-all duration-300 hover:text-white hover:scale-[1.03] active:scale-95 disabled:opacity-60 pb-1 border-b-2 border-transparent"
                   >
-                    <span className="flex h-full w-full items-center justify-center gap-2 rounded-full bg-[#050506] px-5 text-[13px] font-medium text-[#FFF9F9] transition-colors group-hover:bg-[#09090B]">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill={isFavorite ? '#C38BFF' : 'none'} stroke="#C38BFF" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                      </svg>
-                      {favoriteLoading ? 'Оновлення...' : isFavorite ? 'В обраному' : 'Додати в обране'}
-                    </span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill={isFavorite ? '#C38BFF' : 'none'} stroke="#C38BFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="mb-[1px]">
+                      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                    </svg>
+                    {favoriteLoading ? 'Оновлення...' : isFavorite ? 'В обраному' : 'В обране'}
                   </button>
-                  {favoriteNotice && (
-                    <span className="max-w-[240px] text-right text-[11px] leading-[16px] text-[#A3A4B0]">
-                      {favoriteNotice}
-                    </span>
-                  )}
+
+                  <div className="flex gap-4 items-center">
+                    <button onClick={() => setChartType('area')} className={`text-[14px] font-medium pb-1 transition-all duration-300 border-b-2 ${chartType === 'area' ? 'text-[#FFF9F9] border-[#8348C1]' : 'text-[#FFF9F9]/50 border-transparent hover:text-[#FFF9F9]'}`}>Лінія</button>
+                    <button onClick={() => setChartType('candle')} className={`text-[14px] font-medium pb-1 transition-all duration-300 border-b-2 ${chartType === 'candle' ? 'text-[#FFF9F9] border-[#8348C1]' : 'text-[#FFF9F9]/50 border-transparent hover:text-[#FFF9F9]'}`}>Свічки</button>
+                  </div>
                 </div>
-                <div className="flex gap-4 items-center">
-                  <button onClick={() => setChartType('area')} className={`text-[14px] font-medium pb-1 transition-all duration-300 border-b-2 ${chartType === 'area' ? 'text-[#FFF9F9] border-[#8348C1]' : 'text-[#FFF9F9]/50 border-transparent hover:text-[#FFF9F9]'}`}>Лінія</button>
-                  <button onClick={() => setChartType('candle')} className={`text-[14px] font-medium pb-1 transition-all duration-300 border-b-2 ${chartType === 'candle' ? 'text-[#FFF9F9] border-[#8348C1]' : 'text-[#FFF9F9]/50 border-transparent hover:text-[#FFF9F9]'}`}>Свічки</button>
-                </div>
+                {favoriteNotice && (
+                  <span className="-mt-2 max-w-[260px] text-right text-[11px] leading-[16px] text-[#A3A4B0]">
+                    {favoriteNotice}
+                  </span>
+                )}
                 <div className="flex gap-4 items-center flex-wrap justify-end">
                   {['1 сек', '1 хв', '5 хв', '15 хв', '1 год', '4 год', '1 день', '1 тиж', '1 міс'].map((t) => (
                     <button key={t} onClick={() => setTimeframe(t)} className={`text-[14px] font-medium pb-1 transition-all duration-300 border-b-2 ${timeframe === t ? 'text-[#FFF9F9] border-[#8348C1]' : 'text-[#FFF9F9]/50 border-transparent hover:text-[#FFF9F9]'}`}>{t}</button>
@@ -847,7 +913,7 @@ export default function AssetPage(props: AssetPageProps) {
                   <path d="M9 12H15" strokeLinecap="round" />
                 </svg>
                 <span className="text-white/60 font-medium text-[16px] text-center">
-                  Пара {coinSymbol} наразі не торгується на Binance
+                  Пара {binancePairSymbol} наразі не торгується на Binance
                 </span>
                 <span className="text-white/30 text-[13px] mt-2">Фундаментальні дані нижче оновлені з CoinGecko</span>
               </div>
@@ -868,20 +934,35 @@ export default function AssetPage(props: AssetPageProps) {
                 </div>
             </div>
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                <h3 className="text-[16px] font-medium text-white font-montserrat">Створити алерт</h3>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/40"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+              <div className="mb-2 flex h-[22px] items-center justify-between">
+                <h3 className="text-[16px] font-medium leading-[22px] text-white font-montserrat">Створити алерт</h3>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="shrink-0" aria-hidden="true">
+                  <circle cx="10" cy="10" r="8.25" stroke="#FFF9F9" strokeWidth="2" />
+                  <path d="M8.22 7.55C8.48 6.77 9.14 6.22 10.13 6.22C11.27 6.22 12.02 6.87 12.02 7.83C12.02 8.59 11.59 9.05 10.96 9.49C10.39 9.9 10.13 10.23 10.13 10.95V11.2" stroke="#FFF9F9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M10.1 13.32H10.11" stroke="#FFF9F9" strokeWidth="2.2" strokeLinecap="round" />
+                </svg>
               </div>
-              <p className="text-[12px] font-light text-[#8E8E8E] mb-5 leading-relaxed font-montserrat">Створи алерт і не пропускай важливі зміни</p>
+              <p className="mb-5 max-w-[213px] text-[12px] font-light leading-[16px] text-[#8E8E8E] font-montserrat">Створи алерт і не пропускай важливі зміни</p>
             </div>
             <div className="flex flex-col gap-4 flex-grow">
               <div>
                 <label className="text-[12px] font-light text-[#8E8E8E] mb-1.5 block font-montserrat">Умова</label>
                 <div className="w-full h-[44px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
                   <div className="relative w-full h-full rounded-[27px] bg-[#050506]">
-                    <select className="w-full h-full bg-transparent px-4 text-[14px] font-normal text-white appearance-none outline-none font-montserrat rounded-[27px]">
-                      <option>Ціна вище ніж</option>
-                      <option>Ціна нижче ніж</option>
+                    <select
+                      value={alertCondition}
+                      onChange={(event) => {
+                        setAlertCondition(event.target.value as PriceAlertCondition);
+                        setAlertError('');
+                        setAlertMessage('');
+                      }}
+                      className="w-full h-full bg-transparent px-4 text-[14px] font-normal text-white appearance-none outline-none font-montserrat rounded-[27px]"
+                    >
+                      <option value="price_gt" className="bg-[#050506]">Ціна більше ніж</option>
+                      <option value="price_gte" className="bg-[#050506]">Ціна більше або =</option>
+                      <option value="price_lt" className="bg-[#050506]">Ціна менше ніж</option>
+                      <option value="price_lte" className="bg-[#050506]">Ціна менше або =</option>
+                      <option value="price_eq" className="bg-[#050506]">Ціна дорівнює</option>
                     </select>
                     <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -893,13 +974,20 @@ export default function AssetPage(props: AssetPageProps) {
                 <div className="flex-1">
                   <label className="text-[12px] font-light text-[#8E8E8E] mb-1.5 block font-montserrat">Значення</label>
                   <div className="w-full h-[44px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-                      <div className="w-full h-full rounded-[27px] bg-[#050506]">
-                        <input 
-                          type="text" 
-                          key={currentPrice} 
-                          defaultValue={currentPrice > 0 ? `${currentPrice.toFixed(0)} USDT` : '---'} 
-                          className="w-full h-full bg-transparent px-2 text-[14px] font-normal text-white outline-none font-montserrat text-center rounded-[27px]" 
+                      <div className="relative w-full h-full rounded-[27px] bg-[#050506]">
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={alertTargetPrice}
+                          onChange={(event) => {
+                            setAlertTargetPrice(event.target.value);
+                            setAlertError('');
+                            setAlertMessage('');
+                          }}
+                          placeholder={currentPrice > 0 ? `${currentPrice.toFixed(currentPrice < 1 ? 6 : 2)}` : '---'}
+                          className="w-full h-full bg-transparent pl-4 pr-12 text-[14px] font-normal text-white outline-none font-montserrat rounded-[27px]" 
                         />
+                        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-normal text-white/80">USDT</span>
                       </div>
                   </div>
                 </div>
@@ -921,14 +1009,26 @@ export default function AssetPage(props: AssetPageProps) {
               </div>
             </div>
             <div className="mt-4">
-                <div className="flex items-center justify-between mb-4 px-1">
-                  <span className="text-[13px] font-light text-[#8E8E8E] font-montserrat">Сповіщати щоразу</span>
+                <div className="flex items-center gap-4 mb-4 px-1">
+                  <span className="text-[12px] font-regular leading-[16px] text-[#FFF9F9] font-montserrat">Сповіщати щоразу</span>
                   <div className="w-[36px] h-[20px] bg-[#FFF9F9]/20 rounded-full relative cursor-pointer">
                       <div className="absolute left-1 top-[2px] w-[16px] h-[16px] bg-[#FFF9F9] rounded-full"></div>
                   </div>
                 </div>
-                <button className="w-full h-[44px] rounded-[28px] font-montserrat font-medium text-[14px] text-[#FFF9F9] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] shadow-[0_4px_15px_rgba(131,72,193,0.3)] hover:scale-[1.02] transition-transform">
-                  Створити
+                <div className="mb-2 flex min-h-[18px] items-center justify-center px-2">
+                  {(alertError || alertMessage) && (
+                    <p className={`text-center text-[11px] leading-[15px] ${alertError ? 'text-red-300' : 'text-[#86EFAC]'}`}>
+                      {alertError || alertMessage}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  disabled={alertLoading}
+                  onClick={handleCreateAlert}
+                  className="w-full h-[44px] rounded-[28px] font-montserrat font-medium text-[14px] text-[#FFF9F9] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] shadow-[0_4px_15px_rgba(131,72,193,0.3)] hover:scale-[1.02] transition-transform disabled:opacity-60 disabled:hover:scale-100"
+                >
+                  {alertLoading ? 'Створення...' : 'Створити'}
                 </button>
             </div>
           </div>
@@ -1199,6 +1299,7 @@ export default function AssetPage(props: AssetPageProps) {
             : relatedCoins.map((coin, index) => {
                 const isPositive = coin.change >= 0;
                 const gradientId = `asset-related-gradient-${coin.symbol}-${index}`;
+                const arrowGradientId = `${gradientId}-arrow`;
 
                 return (
                   <button
@@ -1219,8 +1320,19 @@ export default function AssetPage(props: AssetPageProps) {
                           </div>
                         </div>
 
-                        <span className="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#8348C1] text-[#C38BFF] transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_14px_rgba(131,72,193,0.4)]">
-                          ↗
+                        <span className="flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,#FFFFFF_0%,#8348C1_48%,#2C1969_100%)] transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_16px_rgba(131,72,193,0.45)]">
+                          <span className="flex h-full w-full items-center justify-center rounded-full bg-[#000000]">
+                            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <defs>
+                                <linearGradient id={arrowGradientId} x1="6.5" y1="17.5" x2="17.5" y2="6.5" gradientUnits="userSpaceOnUse">
+                                  <stop stopColor="#FFFFFF" />
+                                  <stop offset="0.48" stopColor="#8348C1" />
+                                  <stop offset="1" stopColor="#C38BFF" />
+                                </linearGradient>
+                              </defs>
+                              <path d="M7 17L17 7M10 7H17V14" stroke={`url(#${arrowGradientId})`} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </span>
                         </span>
                       </div>
 
