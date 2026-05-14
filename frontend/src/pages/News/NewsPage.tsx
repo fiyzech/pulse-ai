@@ -211,11 +211,11 @@ export default function NewsPage() {
                   <div className="relative z-10 flex items-center justify-between gap-[12px]">
                     <div className="flex min-w-0 items-center gap-[10px]">
                       {item.icon && (
-                        <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10">
+                        <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#5F6068] bg-[#303137]/70">
                           <img
                             src={item.icon}
                             alt={item.tag}
-                            className="h-[22px] w-[22px] object-contain"
+                            className="h-[22px] w-[22px] object-contain grayscale opacity-75"
                             onError={(e) => {
                               e.currentTarget.style.display = "none";
                             }}

@@ -1236,11 +1236,11 @@ export default function DashboardPage() {
                     className="flex flex-col gap-[8px] min-h-[82px] cursor-pointer p-3 -mx-3 -my-2 rounded-[16px] transition-all duration-300 hover:bg-white/5"
                   >
                     <div className="flex items-center gap-[8px] h-[24px]">
-                      <div className="flex h-[24px] w-[24px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#9A5A00]/45">
+                      <div className="flex h-[24px] w-[24px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#5F6068] bg-[#303137]/70">
                         <img
                           src={item.icon || "/NewsDetails.svg"}
                           alt={item.tag || "Новина"}
-                          className="h-[18px] w-[18px] object-contain"
+                          className="h-[18px] w-[18px] object-contain grayscale opacity-75"
                           onError={(e) => {
                             e.currentTarget.onerror = null;
                             e.currentTarget.src = "/NewsDetails.svg";

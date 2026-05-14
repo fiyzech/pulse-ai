@@ -406,15 +406,20 @@ const RegisterPage = () => {
 };
 
 const { data, error } = await supabase.auth.signUp({
-  email: email.trim(),
+  email: email.trim().toLowerCase(),
   password,
   options: {
     data: profileData,
   },
 });
-
+	
 if (error) {
-  setS2GenErr(error.message || 'Помилка реєстрації. Перевірте дані.');
+  const message = error.message || '';
+  setS2GenErr(
+    message.includes('Database error saving new user')
+      ? 'Supabase не зміг створити профіль користувача. Оновіть SQL trigger handle_new_user у базі.'
+      : message || 'Помилка реєстрації. Перевірте дані.'
+  );
   return;
 }
 
@@ -428,25 +433,39 @@ if (!data.session) {
   return;
 }
 
-const { error: profileError } = await supabase.from('users').upsert(
-  {
+const profilePayload = {
+  email: data.user.email || email.trim().toLowerCase(),
+  username: profileData.username,
+  first_name: profileData.first_name,
+  last_name: profileData.last_name,
+  phone_number: profileData.phone_number,
+  birth_date: profileData.birth_date,
+  region: profileData.region,
+  active_plan: 'free',
+  subscription: 'free',
+  billing_cycle: 'monthly',
+};
+
+const { data: updatedProfile, error: updateProfileError } = await supabase
+  .from('users')
+  .update(profilePayload)
+  .eq('id', data.user.id)
+  .select('id')
+  .maybeSingle();
+
+let profileError = updateProfileError;
+
+if (!profileError && !updatedProfile) {
+  const { error: insertProfileError } = await supabase.from('users').insert({
     id: data.user.id,
-    email: data.user.email,
     hashed_password: 'managed_by_supabase',
     is_active: true,
-    username: profileData.username,
-    subscription: 'free',
-    first_name: profileData.first_name,
-    last_name: profileData.last_name,
-    phone_number: profileData.phone_number,
-    birth_date: profileData.birth_date,
-    region: profileData.region,
-    active_plan: 'free',
-    billing_cycle: 'monthly',
-  },
-  { onConflict: 'id' }
-);
+    ...profilePayload,
+  });
 
+  profileError = insertProfileError;
+}
+	
 if (profileError) {
   console.error('Profile upsert error:', profileError);
   setS2GenErr('Акаунт створено, але профіль не записався в таблицю users.');
