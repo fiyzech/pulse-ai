@@ -26,8 +26,8 @@ async def sync_telegram_data(supabase_id: str, telegram_id: int, username: str):
     """
     client = get_supabase()
     try:
-        # Оновлюємо конкретні поля в таблиці users_duplicate
-        response = await client.table("users_duplicate").update({
+        # Оновлюємо конкретні поля в таблиці users
+        response = await client.table("users").update({
             "telegram_id": str(telegram_id), # У тебе в SQL це varchar
             "telegram_username": username
         }).eq("id", supabase_id).execute()
@@ -40,7 +40,7 @@ async def sync_telegram_data(supabase_id: str, telegram_id: int, username: str):
 async def get_user_by_telegram(telegram_id: int):
     client = get_supabase()
     # Шукаємо саме в тій колонці, яка є в базі
-    res = await client.table("users_duplicate") \
+    res = await client.table("users") \
         .select("*") \
         .eq("telegram_id", str(telegram_id)) \
         .execute()
