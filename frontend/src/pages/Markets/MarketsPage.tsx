@@ -113,7 +113,7 @@ export default function MarketsPage() {
 
   const [liveTopData, setLiveTopData] = useState<Record<string, { price: number; change: number }>>({});
   const [allTableMarkets, setAllTableMarkets] = useState<TableMarketItem[]>([]);
-  const [visibleCount, setVisibleCount] = useState<number>(30); 
+  const [visibleCount, setVisibleCount] = useState<number>(30);
   const [apiError, setApiError] = useState<string | null>(null);
   const [favoriteUserId, setFavoriteUserId] = useState<string | null>(null);
   const [favoriteSymbols, setFavoriteSymbols] = useState<Set<string>>(new Set());
@@ -122,7 +122,7 @@ export default function MarketsPage() {
 
   const formatPrice = (price: number | null) => {
     if (!price) return "$0.00";
-    if (price < 0.01) return `$${price}`; 
+    if (price < 0.01) return `$${price}`;
     return `$${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
@@ -149,7 +149,7 @@ export default function MarketsPage() {
 
         if (staleTopData && cachedTopTime && Date.now() - Number(cachedTopTime) < 60000) {
           setLiveTopData(staleTopData);
-          return; 
+          return;
         }
 
         if (isCoinGeckoCoolingDown()) {
@@ -159,7 +159,7 @@ export default function MarketsPage() {
 
         const topIds = Object.values(topCardsIds).join(',');
         const res = await fetch(`/api/coingecko/simple/price?ids=${topIds}&vs_currencies=usd&include_24hr_change=true`);
-        
+
         if (res.status === 429) {
           startCoinGeckoCooldown();
           if (staleTopData) setLiveTopData(staleTopData);
@@ -199,7 +199,7 @@ export default function MarketsPage() {
 
         if (staleTableData && cachedTableTime && Date.now() - Number(cachedTableTime) < 120000) {
           setAllTableMarkets(staleTableData);
-          return; 
+          return;
         }
 
         if (isCoinGeckoCoolingDown() && staleTableData) {
@@ -297,7 +297,7 @@ export default function MarketsPage() {
             rawTotalSupply: coin.total_supply || 0,
             rawMaxSupply: coin.max_supply || 0
           }));
-          
+
           setAllTableMarkets(formattedTable);
           sessionStorage.setItem('pulse_table_cards', JSON.stringify(formattedTable));
           sessionStorage.setItem('pulse_table_time', Date.now().toString());
@@ -308,14 +308,14 @@ export default function MarketsPage() {
     };
 
     fetchTableData();
-    const intervalId = setInterval(fetchTableData, 120000); 
+    const intervalId = setInterval(fetchTableData, 120000);
     return () => clearInterval(intervalId);
   }, []);
 
   const mergeLiveStats = (items: MarketItem[]) => {
     return items.map(item => {
       const live = liveTopData[item.symbol];
-      if (!live) return item; 
+      if (!live) return item;
       return {
         ...item,
         price: formatPrice(live.price),
@@ -495,9 +495,9 @@ export default function MarketsPage() {
   return (
     <section className="w-full text-white font-['Montserrat'] bg-[#000000] min-h-screen pb-10">
       <style>{globalStyles}</style>
-      
+
       <div style={{ width: '546px' }} className="mt-[24px] mb-[24px] ml-[40px] flex items-center">
-        <p className="text-[#FFFFFF] text-[16px] leading-snug font-normal">
+        <p className="text-[#FFFFFF] text-[16px] leading-[28px] font-normal">
           Аналізуйте ринкові показники в реальному часі, зміни цін та додавайте активи до обраних для зручного контролю
         </p>
       </div>
@@ -514,18 +514,16 @@ export default function MarketsPage() {
         </div>
       )}
 
-      <div 
+      <div
         style={{ width: '1116px' }}
-        className="ml-10 p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] transition-all duration-500 ease-out"
+        className="ml-10 p-[1px] rounded-[24px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] transition-all duration-500 ease-out "
       >
-        <div className="relative rounded-[28px] bg-[#050506] flex flex-col overflow-hidden">
-          
-          <div 
-            style={{ height: '57px' }}
-            className="relative grid grid-cols-[1.45fr_1fr_1fr_1.45fr_1fr_116px] gap-4 px-8 text-[14px] text-[#A3A4B0] font-semibold items-center bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)] min-h-[57px] rounded-t-[28px]"
-          >
-            <div className="absolute bottom-0 left-0 w-full h-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))]" />
+        <div className="relative rounded-[24px] bg-[#050506] flex flex-col overflow-hidden">
 
+          <div
+            style={{ height: '57px' }}
+            className="grid grid-cols-[1.45fr_1fr_1fr_1.45fr_1fr_116px] gap-4 px-8 text-[14px] text-[#A3A4B0] font-normal items-center bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)] min-h-[57px] rounded-t-[24px]"
+          >
             <div>Монета</div>
             <div>Ціна</div>
             <div>24год</div>
@@ -534,7 +532,7 @@ export default function MarketsPage() {
               <span>капіталізація</span>
             </div>
             <div>Обсяг</div>
-            <div className="pl-2">Дії</div>
+            <div className="pl-[20px] text-left">Дії</div>
           </div>
 
           <div className="flex flex-col">
@@ -551,61 +549,56 @@ export default function MarketsPage() {
                 const isFavorite = favoriteSymbols.has(coin.symbol);
 
                 return (
-                <div 
-                  key={coin.id} 
-                  className="row-divider grid grid-cols-[1.45fr_1fr_1fr_1.45fr_1fr_116px] gap-4 px-8 items-center h-[68px] min-h-[68px] bg-transparent transition-all duration-300 ease-out hover:bg-white/[0.035] hover:scale-[1.004] hover:shadow-[0_10px_32px_rgba(131,72,193,0.12)] cursor-default"
-                >
-                  <div className="flex items-center gap-3">
-                    <img src={coin.imgUrl} alt={coin.symbol} className="w-7 h-7 object-contain rounded-full" />
-                    <span className="font-semibold text-[15px]">{coin.symbol}</span>
-                  </div>
-                  <div className="text-[15px] text-[#FFFFFF]">{coin.price}</div>
-                  <div className={`text-[15px] font-medium ${coin.isPositive ? 'text-[#36D399]' : 'text-[#F87272]'}`}>
-                    {coin.change}
-                  </div>
-                  <div className="text-[15px] text-[#FFFFFF]">{coin.cap}</div>
-                  <div className="text-[15px] text-[#FFFFFF]">{coin.vol}</div>
-                  
-                  <div className="flex items-center justify-end gap-[16px] pr-[8px]">
-                    <button 
-                      type="button"
-                      title="Переглянути"
-                      className="group relative inline-flex w-8 h-8 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_12px_rgba(131,72,193,0.28)] active:scale-95 cursor-pointer"
-                      onClick={() => handleViewClick(coin)} 
-                    >
-                      <span className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover:bg-[#0B0B0D]">
-                        <img src={eyeIcon} alt="" className="w-4 h-4 opacity-70 grayscale brightness-125 transition-all duration-300 group-hover:scale-110 group-hover:opacity-100 group-hover:grayscale-0 group-hover:brightness-125" />
-                      </span>
-                    </button>
+                  <div
+                    key={coin.id}
+                    className="row-divider grid grid-cols-[1.45fr_1fr_1fr_1.45fr_1fr_116px] gap-4 px-8 items-center h-[68px] min-h-[68px] bg-transparent transition-all duration-300 ease-out  cursor-default"
+                  >
+                    <div className="flex items-center gap-3">
+                      <img src={coin.imgUrl} alt={coin.symbol} className="w-7 h-7 object-contain rounded-full" />
+                      <span className="font-semibold text-[15px]">{coin.symbol}</span>
+                    </div>
+                    <div className="text-[15px] text-[#FFFFFF]">{coin.price}</div>
+                    <div className={`text-[15px] font-medium ${coin.isPositive ? 'text-[#36D399]' : 'text-[#F87272]'}`}>
+                      {coin.change}
+                    </div>
+                    <div className="text-[15px] text-[#FFFFFF]">{coin.cap}</div>
+                    <div className="text-[15px] text-[#FFFFFF]">{coin.vol}</div>
 
-                    <button
-                      type="button"
-                      title={isFavorite ? 'Видалити з обраного' : 'Додати в обране'}
-                      disabled={pendingFavorites.has(coin.symbol)}
-                      onClick={() => handleFavoriteToggle(coin)}
-                      className={`group relative inline-flex w-8 h-8 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer disabled:opacity-60 ${
-                        isFavorite
-                          ? 'hover:bg-[linear-gradient(90deg,#1C102F_0%,#FF4444_100%)] hover:shadow-[0_0_15px_rgba(255,68,68,0.35)]'
-                          : 'hover:bg-gradient-to-r hover:from-[#2C1969] hover:via-[#8348C1] hover:to-[#C38BFF] hover:shadow-[0_0_15px_rgba(131,72,193,0.4)]'
-                      }`}
-                    >
-                      <span className={`flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 ${isFavorite ? 'group-hover:bg-[#140707]' : 'group-hover:bg-[#0B0B0D]'}`}>
-                        <img
-                          src={isFavorite ? trashIcon : bookmarkPlusIcon}
-                          alt=""
-                          className="w-4 h-4 opacity-70 grayscale brightness-125 transition-all duration-300 group-hover:scale-110 group-hover:opacity-100 group-hover:grayscale-0 group-hover:brightness-125"
-                        />
-                      </span>
-                    </button>
+                    <div className="flex items-center justify-start gap-[24px] pl-[20px] pr-[24px]">
+                      {/* Кнопка Око */}
+                      <button
+                        type="button"
+                        className="group relative inline-flex w-8 h-8 flex-shrink-0 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_12px_rgba(131,72,193,0.28)] active:scale-95 cursor-pointer"
+                        onClick={() => handleViewClick(coin)}
+                      >
+                        <span className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover:bg-[#0B0B0D]">
+                          <img src={eyeIcon} alt="" className="w-4 h-4 opacity-70 grayscale brightness-125 transition-all duration-300 group-hover:scale-110 group-hover:opacity-100 group-hover:grayscale-0 group-hover:brightness-125" />
+                        </span>
+                      </button>
+
+                      {/* Кнопка Зберегти */}
+                      <button
+                        type="button"
+                        className="group relative inline-flex w-8 h-8 flex-shrink-0 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_12px_rgba(131,72,193,0.28)] active:scale-95 cursor-pointer"
+                        onClick={() => handleFavoriteToggle(coin)}
+                      >
+                        <span className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover:bg-[#0B0B0D]">
+                          <img
+                            src={isFavorite ? trashIcon : bookmarkPlusIcon}
+                            alt=""
+                            className="w-4 h-4 opacity-70 grayscale brightness-125 transition-all duration-300 group-hover:scale-110 group-hover:opacity-100 group-hover:grayscale-0 group-hover:brightness-125"
+                          />
+                        </span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })
+                );
+              })
             )}
-            
+
             {hasMore && allTableMarkets.length > 0 && !apiError && (
               <div className="flex justify-center items-center py-8">
-                <button 
+                <button
                   className="load-more-btn"
                   onClick={handleLoadMore}
                 >
@@ -613,7 +606,7 @@ export default function MarketsPage() {
                 </button>
               </div>
             )}
-            
+
           </div>
         </div>
       </div>
@@ -623,15 +616,15 @@ export default function MarketsPage() {
 
 function MarketStatsCard({ title, items }: { title: string, items: MarketItem[] }) {
   return (
-    <div 
-      style={{ width: '356px', height: '199px' }} 
-      className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.19),0_8px_25px_rgba(0,0,0,0.5)]"
+    <div
+      style={{ width: '356px', height: '199px' }}
+      className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.4),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-1"
     >
       <div className="relative h-full rounded-[28px] bg-[#050506] pt-[24px] px-[24px] pb-[29px] flex flex-col justify-between">
         <h3 className="text-[16px] font-medium text-[#FFFFFF] leading-none mb-[24px]">
           {title}
         </h3>
-        
+
         <div className="flex flex-col gap-[22px]">
           {items.map((item, idx) => (
             <div key={idx} className="flex items-center justify-between h-[20px]">
@@ -641,7 +634,7 @@ function MarketStatsCard({ title, items }: { title: string, items: MarketItem[] 
               </div>
               <div className="flex gap-4 items-center">
                 <span className="text-[14px] text-[#FFFFFF] font-medium leading-none">{item.price}</span>
-                <span className={`text-[13px] w-[50px] text-right font-medium leading-none ${item.isPositive ? 'text-[#36D399]' : 'text-[#F87272]'}`}>
+                <span className={`text-[14px] w-[50px] text-right font-medium leading-none ${item.isPositive ? 'text-[#36D399]' : 'text-[#F87272]'}`}>
                   {item.change}
                 </span>
               </div>
