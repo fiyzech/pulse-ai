@@ -225,7 +225,7 @@ export default function AlertsPage() {
             <img src={question} alt="Question" className="w-[18px] h-[18px]" />
           </button>
 
-          <div className="absolute right-0 top-[57px] z-50 w-[288px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-300 ease-out">
+          <div className="absolute right-0 top-[58px] z-50 w-[288px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-300 ease-out">
             <div className="rounded-[28px] bg-[#050506] px-[24px] py-[24px]">
               <p className="text-[#A3A4B0] text-[14px] leading-[17px] font-normal">
                 Перейдіть на сторінку потрібної криптовалюти, задайте умову ціни та створіть алерт.
