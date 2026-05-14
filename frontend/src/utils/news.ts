@@ -135,7 +135,58 @@ export const getNewsIcon = (title: string, description = ""): string | null => {
     return "/Tether.svg";
   }
 
-  return null;
+  if (text.includes("solana") || /\bsol\b/.test(text)) {
+    return "https://cryptologos.cc/logos/solana-sol-logo.png";
+  }
+
+  if (text.includes("binance") || /\bbnb\b/.test(text)) {
+    return "https://cryptologos.cc/logos/bnb-bnb-logo.png";
+  }
+
+  if (text.includes("ripple") || /\bxrp\b/.test(text)) {
+    return "https://cryptologos.cc/logos/xrp-xrp-logo.png";
+  }
+
+  if (text.includes("cardano") || /\bada\b/.test(text)) {
+    return "https://cryptologos.cc/logos/cardano-ada-logo.png";
+  }
+
+  if (text.includes("avalanche") || /\bavax\b/.test(text)) {
+    return "https://cryptologos.cc/logos/avalanche-avax-logo.png";
+  }
+
+  if (text.includes("dogecoin") || /\bdoge\b/.test(text)) {
+    return "https://cryptologos.cc/logos/dogecoin-doge-logo.png";
+  }
+
+  if (text.includes("polygon") || /\bmatic\b/.test(text) || /\bpol\b/.test(text)) {
+    return "https://cryptologos.cc/logos/polygon-matic-logo.png";
+  }
+
+  if (text.includes("chainlink") || /\blink\b/.test(text)) {
+    return "https://cryptologos.cc/logos/chainlink-link-logo.png";
+  }
+
+  if (text.includes("toncoin") || text.includes("telegram open network") || /\bton\b/.test(text)) {
+    return "https://cryptologos.cc/logos/toncoin-ton-logo.png";
+  }
+
+  if (
+    text.includes("coinbase") ||
+    text.includes("binance") ||
+    text.includes("exchange") ||
+    text.includes("etf") ||
+    text.includes("sec") ||
+    text.includes("regulation") ||
+    text.includes("defi") ||
+    text.includes("web3") ||
+    text.includes("wallet") ||
+    text.includes("blockchain")
+  ) {
+    return "/NewsDetails.svg";
+  }
+
+  return "/NewsDetails.svg";
 };
 
 export const getNewsTag = (title: string, description = ""): string => {

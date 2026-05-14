@@ -2,6 +2,11 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { LineChart, Line, ResponsiveContainer, YAxis } from "recharts";
 
+import {
+  getAuthenticatedUserId,
+  listFavoriteAssets,
+} from "../../utils/favoriteAssets";
+import type { FavoriteAssetRecord } from "../../utils/favoriteAssets";
 import { fetchCryptoNews, formatNewsTime } from "../../utils/news";
 import type { CryptoNewsItem } from "../../utils/news";
 
@@ -19,6 +24,86 @@ interface CryptoResponse {
 interface ChartDataPoint {
   value: number;
 }
+
+type ChartDotProps = {
+  cx?: number;
+  cy?: number;
+  index?: number;
+};
+
+type DashboardAsset = {
+  id: string;
+  name: string;
+  symbol: string;
+  icon: string;
+};
+
+type BinanceKline = [
+  number,
+  string,
+  string,
+  string,
+  string,
+  string,
+  number,
+  string,
+  number,
+  string,
+  string,
+  string,
+];
+
+const PinIcon = ({ active = false }: { active?: boolean }) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path
+      d="M12 17V22M6 17H18M9 11V17M15 11V17M7 4H17M8.5 4L10 11H14L15.5 4M10 2H14"
+      stroke={active ? "#C38BFF" : "#A3A4B0"}
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const fallbackWatchAsset: DashboardAsset = {
+  id: "bitcoin",
+  name: "Bitcoin",
+  symbol: "BTC",
+  icon: "/Bitcoin.svg",
+};
+
+const knownAssetMeta: Record<string, DashboardAsset> = {
+  BTC: fallbackWatchAsset,
+  ETH: { id: "ethereum", name: "Ethereum", symbol: "ETH", icon: "/Ethereum.svg" },
+  USDT: { id: "tether", name: "Tether", symbol: "USDT", icon: "/Tether.svg" },
+  SOL: { id: "solana", name: "Solana", symbol: "SOL", icon: "https://cryptologos.cc/logos/solana-sol-logo.png" },
+  BNB: { id: "binancecoin", name: "BNB", symbol: "BNB", icon: "https://cryptologos.cc/logos/bnb-bnb-logo.png" },
+  XRP: { id: "ripple", name: "XRP", symbol: "XRP", icon: "https://cryptologos.cc/logos/xrp-xrp-logo.png" },
+  ADA: { id: "cardano", name: "Cardano", symbol: "ADA", icon: "https://cryptologos.cc/logos/cardano-ada-logo.png" },
+  AVAX: { id: "avalanche-2", name: "Avalanche", symbol: "AVAX", icon: "https://cryptologos.cc/logos/avalanche-avax-logo.png" },
+  DOGE: { id: "dogecoin", name: "Dogecoin", symbol: "DOGE", icon: "https://cryptologos.cc/logos/dogecoin-doge-logo.png" },
+};
+
+const pinnedDashboardAssetKey = "pulse_dashboard_pinned_asset";
+
+const getBinancePair = (symbol: string) => {
+  const normalized = symbol.toUpperCase();
+  if (normalized === "USDT") return "USDCUSDT";
+  if (normalized === "USDC") return "USDCUSDT";
+  return `${normalized}USDT`;
+};
+
+const getAssetFromFavorite = (favorite: FavoriteAssetRecord): DashboardAsset => {
+  const symbol = favorite.symbol.toUpperCase();
+  const known = knownAssetMeta[symbol];
+
+  return {
+    id: favorite.coin_id || known?.id || symbol.toLowerCase(),
+    name: favorite.name || known?.name || symbol,
+    symbol,
+    icon: favorite.image_url || known?.icon || `https://cryptologos.cc/logos/${symbol.toLowerCase()}-${symbol.toLowerCase()}-logo.png`,
+  };
+};
 
 // --- ХЕЛПЕРИ ДЛЯ BINANCE API ---
 const getChartParams = (sel: string): { interval: string; limit: number } => {
@@ -69,6 +154,15 @@ export default function DashboardPage() {
     lastMove: 0,
     lastUpdateTime: new Date(),
   });
+  const [watchAssets, setWatchAssets] = useState<DashboardAsset[]>([fallbackWatchAsset]);
+  const [selectedWatchSymbol, setSelectedWatchSymbol] = useState<string>(fallbackWatchAsset.symbol);
+  const [pinnedWatchSymbol, setPinnedWatchSymbol] = useState<string>(() => {
+    try {
+      return localStorage.getItem(pinnedDashboardAssetKey) || "";
+    } catch {
+      return "";
+    }
+  });
 
   // Стан для Секції 3 (Новини)
   const [news, setNews] = useState<CryptoNewsItem[]>([]);
@@ -83,6 +177,14 @@ export default function DashboardPage() {
   const positionPercent =
     activeIndex >= 0 ? (activeIndex / (timeline.length - 1)) * 100 : 0;
 
+  const selectedWatchAsset =
+    watchAssets.find((asset) => asset.symbol === selectedWatchSymbol) ||
+    watchAssets[0] ||
+    fallbackWatchAsset;
+
+  const isFallbackWatchAsset =
+    watchAssets.length === 1 && watchAssets[0].symbol === fallbackWatchAsset.symbol;
+
   const timeLabelMap: Record<string, string> = {
     "15 хв": "15 хвилин",
     "1 год": "1 година",
@@ -95,7 +197,7 @@ export default function DashboardPage() {
     const fetchPrices = async () => {
       try {
         const res = await fetch(
-          "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether&vs_currencies=usd&include_24hr_change=true&include_1h_change=true&precision=2"
+          "/api/coingecko/simple/price?ids=bitcoin,ethereum,tether&vs_currencies=usd&include_24hr_change=true&include_1h_change=true&precision=2"
         );
         const data: CryptoResponse = await res.json();
         if (data && Object.keys(data).length > 0) {
@@ -125,7 +227,7 @@ export default function DashboardPage() {
         const results = await Promise.all(
           symbols.map((s) =>
             fetch(
-              `https://api.binance.com/api/v3/klines?symbol=${s.symbol}&interval=${interval}&limit=${limit}`
+              `/api/binance/klines?symbol=${s.symbol}&interval=${interval}&limit=${limit}`
             )
               .then((res) => res.json())
               .then((data) => ({ id: s.id, data }))
@@ -135,7 +237,7 @@ export default function DashboardPage() {
         const newCharts: Record<string, ChartDataPoint[]> = {};
         results.forEach((res) => {
           if (Array.isArray(res.data)) {
-            newCharts[res.id] = res.data.map((candle: any) => ({
+            newCharts[res.id] = (res.data as BinanceKline[]).map((candle) => ({
               value: parseFloat(candle[4]),
             }));
           }
@@ -151,15 +253,65 @@ export default function DashboardPage() {
     return () => clearInterval(intervalId);
   }, [selected]);
 
+  useEffect(() => {
+    let active = true;
+
+    const loadWatchAssets = async () => {
+      try {
+        const userId = await getAuthenticatedUserId();
+        if (!active) return;
+
+        if (!userId) {
+          setWatchAssets([fallbackWatchAsset]);
+          setSelectedWatchSymbol(fallbackWatchAsset.symbol);
+          return;
+        }
+
+        const favorites = await listFavoriteAssets(userId);
+        if (!active) return;
+
+        const nextAssets = favorites.length > 0
+          ? favorites.map(getAssetFromFavorite)
+          : [fallbackWatchAsset];
+
+        const pinned = pinnedWatchSymbol
+          ? nextAssets.find((asset) => asset.symbol === pinnedWatchSymbol)
+          : null;
+
+        setWatchAssets(nextAssets);
+        setSelectedWatchSymbol((current) => {
+          if (pinned) return pinned.symbol;
+          if (nextAssets.some((asset) => asset.symbol === current)) return current;
+          return nextAssets[0].symbol;
+        });
+      } catch (error) {
+        console.error("Помилка завантаження обраних активів для Dashboard:", error);
+        if (active) {
+          setWatchAssets([fallbackWatchAsset]);
+          setSelectedWatchSymbol(fallbackWatchAsset.symbol);
+        }
+      }
+    };
+
+    loadWatchAssets();
+    window.addEventListener("focus", loadWatchAssets);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", loadWatchAssets);
+    };
+  }, [pinnedWatchSymbol]);
+
   // 3. Отримання даних для Секції 2 в реальному часі (Binance)
   useEffect(() => {
     const fetchSection2Data = async () => {
       const { interval, limit } = getSection2Params(periodSelected);
+      const pair = getBinancePair(selectedWatchAsset.symbol);
+
       try {
         const res = await fetch(
-          `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=${limit}`
+          `/api/binance/klines?symbol=${pair}&interval=${interval}&limit=${limit}`
         );
-        const data = await res.json();
+        const data = await res.json() as BinanceKline[];
 
         if (Array.isArray(data) && data.length > 0) {
           const currentPrice = parseFloat(data[data.length - 1][4]); // Закриття останньої свічки
@@ -169,7 +321,7 @@ export default function DashboardPage() {
           let high = parseFloat(data[0][2]);
 
           // Знаходимо мінімум і максимум за обраний період
-          data.forEach((candle: any) => {
+          data.forEach((candle) => {
             const cLow = parseFloat(candle[3]);
             const cHigh = parseFloat(candle[2]);
             if (cLow < low) low = cLow;
@@ -194,6 +346,15 @@ export default function DashboardPage() {
         }
       } catch (error) {
         console.error("Помилка Binance API (Секція 2):", error);
+        setBtcSection2Stats((prev) => ({
+          ...prev,
+          price: 0,
+          changePercent: 0,
+          low: 0,
+          high: 0,
+          lastMove: 0,
+          lastUpdateTime: new Date(),
+        }));
       }
     };
 
@@ -201,7 +362,7 @@ export default function DashboardPage() {
     // Оновлюємо кожні 15 секунд
     const intervalId = setInterval(fetchSection2Data, 15000);
     return () => clearInterval(intervalId);
-  }, [periodSelected]);
+  }, [periodSelected, selectedWatchAsset.symbol]);
 
   // 4. Отримання новин
   useEffect(() => {
@@ -229,21 +390,21 @@ export default function DashboardPage() {
       name: "Bitcoin",
       symbol: "BTC",
       icon: "/Bitcoin.svg",
-      path: "/asset/btc",
+      path: "/asset/bitcoin",
       id: "bitcoin",
     },
     {
       name: "Ethereum",
       symbol: "ETH",
       icon: "/Ethereum.svg",
-      path: "/asset/eth",
+      path: "/asset/ethereum",
       id: "ethereum",
     },
     {
       name: "Tether",
       symbol: "USDT",
       icon: "/Tether.svg",
-      path: "/asset/usdt",
+      path: "/asset/tether",
       id: "tether",
     },
   ];
@@ -261,6 +422,31 @@ export default function DashboardPage() {
     btcSection2Stats.price > 0
       ? `Оновлено: ${btcSection2Stats.lastUpdateTime.toLocaleTimeString("uk-UA")}`
       : "Оновлення даних...";
+
+  const openAsset = (asset: DashboardAsset) => {
+    navigate(`/asset/${asset.id}`, {
+      state: {
+        coin: {
+          id: asset.id,
+          symbol: asset.symbol,
+          imgUrl: asset.icon,
+          name: asset.name,
+        },
+      },
+    });
+  };
+
+  const togglePinnedWatchAsset = () => {
+    const nextPinned = pinnedWatchSymbol === selectedWatchAsset.symbol ? "" : selectedWatchAsset.symbol;
+    setPinnedWatchSymbol(nextPinned);
+
+    try {
+      if (nextPinned) localStorage.setItem(pinnedDashboardAssetKey, nextPinned);
+      else localStorage.removeItem(pinnedDashboardAssetKey);
+    } catch {
+      // ignore storage errors
+    }
+  };
 
   // Хелпер для скорочення чисел
   const formatK = (num: number) => {
@@ -424,7 +610,12 @@ export default function DashboardPage() {
                 className="h-[305px] w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.01),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.2),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-1"
               >
                 <div
-                  onClick={() => navigate(coin.path)}
+                  onClick={() => openAsset({
+                    id: coin.id,
+                    name: coin.name,
+                    symbol: coin.symbol,
+                    icon: coin.icon,
+                  })}
                   className="relative h-full w-full cursor-pointer rounded-[28px] bg-[#050506] transition-all overflow-hidden group/card"
                 >
                   <div className="absolute right-6 top-6 h-[40px] w-[40px] transition-all duration-300 group-hover/card:scale-110 z-20">
@@ -528,8 +719,8 @@ export default function DashboardPage() {
                           stroke={isPositive ? `url(#${lineGradientId})` : "#7A0E0E"}
                           strokeWidth={2.5}
                           isAnimationActive={true}
-                          dot={(props: any) => {
-                            const { cx, cy, index } = props;
+                          dot={(props: ChartDotProps) => {
+                            const { cx = 0, cy = 0, index = 0 } = props;
 
                             if (chartData.length === 0) return null;
 
@@ -719,9 +910,43 @@ export default function DashboardPage() {
 
       {/* СЕКЦІЯ 2 */}
       <div className="-mt-[63px] mb-[24px]">
-        <h2 className="w-[255px] h-[28px] mb-6 font-montserrat text-[24px] leading-[28px] font-semibold text-white/95">
-          Варто відстежувати
-        </h2>
+        <div className="mb-6 flex max-w-[1116px] flex-col items-start gap-[18px]">
+          <div>
+            <h2 className="font-montserrat text-[24px] leading-[28px] font-semibold text-white/95">
+              Варто відстежувати
+            </h2>
+            <p className="mt-1 text-[12px] text-[#A3A4B0]">
+              {isFallbackWatchAsset
+                ? "Поки в обраному пусто, показуємо найпопулярніший актив"
+                : "Перемикайте активи з обраного і закріплюйте головний"}
+            </p>
+          </div>
+
+          <div className="flex w-full max-w-full flex-wrap items-center gap-x-[8px] gap-y-[10px]">
+            {watchAssets.map((asset) => {
+              const isActive = asset.symbol === selectedWatchAsset.symbol;
+
+              return (
+                <button
+                  key={asset.symbol}
+                  type="button"
+                  onClick={() => setSelectedWatchSymbol(asset.symbol)}
+                  className={`flex h-[36px] min-w-[104px] items-center gap-2 rounded-full p-[1px] transition-all duration-300 hover:scale-105 ${
+                    isActive
+                      ? "bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] shadow-[0_0_18px_rgba(131,72,193,0.28)]"
+                      : "bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]"
+                  }`}
+                >
+                  <span className="flex h-full w-full items-center justify-center gap-2 rounded-full bg-[#050506] px-3 text-[12px] font-medium text-white">
+                    <img src={asset.icon} alt={asset.symbol} className="h-[18px] w-[18px] rounded-full object-contain" />
+                    {asset.symbol}
+                  </span>
+                </button>
+              );
+            })}
+
+          </div>
+        </div>
 
         <div className="w-full max-w-[1116px] h-[354px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
           <div className="relative flex h-full w-full items-start justify-center rounded-[28px] bg-[#050506]">
@@ -734,18 +959,18 @@ export default function DashboardPage() {
 
               <div className="flex items-center">
                 <img
-                  src="/Bitcoin.svg"
-                  alt="Bitcoin"
+                  src={selectedWatchAsset.icon}
+                  alt={selectedWatchAsset.name}
                   className="w-[40px] h-[40px]"
                 />
 
-                <p className="ml-[8px] h-[32px] text-[28px] leading-[32px] font-medium text-white whitespace-nowrap">
-                  Bitcoin(BTC)
+                <p className="ml-[8px] h-[32px] max-w-[360px] truncate text-[28px] leading-[32px] font-medium text-white whitespace-nowrap">
+                  {selectedWatchAsset.name}({selectedWatchAsset.symbol})
                 </p>
 
                 <button
-                  onClick={() => navigate("/asset/btc")}
-                  className="ml-[12px] h-[40px] w-[40px] transition-all duration-300 hover:scale-110 group"
+                  onClick={() => openAsset(selectedWatchAsset)}
+                  className="relative ml-[12px] h-[40px] w-[40px] transition-all duration-300 hover:scale-110 group"
                 >
                   <div className="absolute inset-0 rounded-full bg-[#7c3aed]/40 blur-md opacity-0 group-hover:opacity-100 transition-all" />
                   <img
@@ -753,6 +978,22 @@ export default function DashboardPage() {
                     alt="btn"
                     className="relative z-10 h-[40px] w-[40px]"
                   />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={togglePinnedWatchAsset}
+                  title={pinnedWatchSymbol === selectedWatchAsset.symbol ? "Відкріпити актив" : "Закріпити актив"}
+                  aria-label={pinnedWatchSymbol === selectedWatchAsset.symbol ? "Відкріпити актив" : "Закріпити актив"}
+                  className={`group ml-[10px] flex h-[40px] w-[40px] items-center justify-center rounded-full p-[1px] transition-all duration-300 hover:scale-110 ${
+                    pinnedWatchSymbol === selectedWatchAsset.symbol
+                      ? "bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] shadow-[0_0_18px_rgba(131,72,193,0.34)]"
+                      : "bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]"
+                  }`}
+                >
+                  <span className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-colors group-hover:bg-[#0B0B0D]">
+                    <PinIcon active={pinnedWatchSymbol === selectedWatchAsset.symbol} />
+                  </span>
                 </button>
               </div>
 
@@ -995,11 +1236,11 @@ export default function DashboardPage() {
                     className="flex flex-col gap-[8px] min-h-[82px] cursor-pointer p-3 -mx-3 -my-2 rounded-[16px] transition-all duration-300 hover:bg-white/5"
                   >
                     <div className="flex items-center gap-[8px] h-[24px]">
-                      <div className="flex h-[24px] w-[24px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10">
+                      <div className="flex h-[24px] w-[24px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#9A5A00]/45">
                         <img
                           src={item.icon || "/NewsDetails.svg"}
                           alt={item.tag || "Новина"}
-                          className="h-[24px] w-[24px] object-contain"
+                          className="h-[18px] w-[18px] object-contain"
                           onError={(e) => {
                             e.currentTarget.onerror = null;
                             e.currentTarget.src = "/NewsDetails.svg";
@@ -1007,7 +1248,7 @@ export default function DashboardPage() {
                         />
                       </div>
 
-                      <span className="font-montserrat text-[12px] text-white/80 leading-none">
+                      <span className="font-montserrat text-[12px] text-[#A3A4B0] leading-none">
                         {formatNewsTime(item.publishedAt)} · {item.source}
                       </span>
                     </div>
