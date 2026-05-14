@@ -66,7 +66,7 @@ async def process_password(message: Message, state: FSMContext):
         
         try:
             # Оновлюємо саме telegram_id
-            response = await client.table("users_duplicate").upsert({
+            response = await client.table("users").upsert({
                 "id": result.user.id,                # Обов'язково додаємо ID для upsert
                 "email": result.user.email,          # Додаємо email для нового запису
                 "telegram_id": str(message.from_user.id),
@@ -77,7 +77,7 @@ async def process_password(message: Message, state: FSMContext):
             if response.data:
                 await message.answer(f"✅ Успішно! Вітаємо, {result.user.email}\nТепер я впізнаю тебе автоматично!")
             else:
-                await message.answer("⚠ Авторизація ок, але твій профіль не знайдено в users_duplicate по UUID.")
+                await message.answer("⚠ Авторизація ок, але твій профіль не знайдено в users по UUID.")
         except Exception as e:
             await message.answer(f"✅ Авторизація успішна, але сталася помилка БД: {e}")
     else:
