@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import PhoneInput from 'react-phone-input-2';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const Phone = (PhoneInput as any).default ?? PhoneInput;
+import 'react-phone-input-2/lib/style.css';
 import { supabase } from "../../supabaseClient";
 import { getPlanLabel, mergeAccountCache, readAccountCache } from "../../utils/accountCache";
 import userAvatar from "../../assets/images/user_avatar.png";
@@ -27,6 +31,45 @@ type EditForm = {
   phone: string;
   birthDate: string;
   region: string;
+};
+
+type CountryOption = {
+  name: string;
+  code: string;
+  region: string;
+};
+
+interface ApiCountry {
+  name: { common: string };
+  cca2: string;
+  region?: string;
+}
+
+const BANNED_COUNTRIES = ['ru', 'by', 'RU', 'BY'];
+
+const useCountries = () => {
+  const [countries, setCountries] = useState<CountryOption[]>([]);
+  const [loadingCountries, setLoadingCountries] = useState(true);
+
+  useEffect(() => {
+    fetch('https://restcountries.com/v3.1/all?fields=name,cca2,region')
+      .then(r => r.json())
+      .then((data: ApiCountry[]) => {
+        const mapped: CountryOption[] = data
+          .filter(c => !BANNED_COUNTRIES.includes(c.cca2))
+          .map(c => ({
+            name: c.name.common,
+            code: c.cca2,
+            region: c.region || 'Інше',
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        setCountries(mapped);
+      })
+      .catch(() => setCountries([]))
+      .finally(() => setLoadingCountries(false));
+  }, []);
+
+  return { countries, loadingCountries };
 };
 
 const cardWrapper =
@@ -105,63 +148,188 @@ const writeCachedProfile = (profile: ProfileUser) => {
   });
 };
 
-const inputStyle = (hasError?: boolean): React.CSSProperties => ({
-  background: hasError
-    ? "linear-gradient(#050506,#050506) padding-box,linear-gradient(90deg,rgba(248,113,113,0.6),rgba(239,68,68,0.4)) border-box"
-    : "linear-gradient(#050506,#050506) padding-box,linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32)) border-box",
-  border: "1px solid transparent",
-});
-
 const Modal = ({
-  title,
   children,
-  onClose,
+  widthClass = "w-[560px]",
+  heightClass = "h-auto",
 }: {
-  title: string;
   children: React.ReactNode;
-  onClose: () => void;
+  widthClass?: string;
+  heightClass?: string;
 }) => (
   <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-    <div className="w-full max-w-[560px] rounded-[24px] border border-white/10 bg-[#050506] p-7 shadow-[0_20px_70px_rgba(0,0,0,0.5)]">
-      <div className="mb-6 flex items-center justify-between">
-        <h3 className="text-[22px] font-semibold text-white">{title}</h3>
-        <button type="button" onClick={onClose} className="h-9 w-9 rounded-full border border-white/10 bg-white/5 text-[#A3A4B0] hover:text-white">
-          ×
-        </button>
+    <div className={`p-[1px] rounded-[24px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]`}>
+      <div className={`${widthClass} ${heightClass} rounded-[24px] bg-[#050506] flex flex-col relative overflow-visible`}>
+        {children}
       </div>
-      {children}
     </div>
   </div>
 );
 
-const Field = ({
-  label,
-  value,
-  onChange,
-  placeholder,
+const ProfileInput = ({ 
+  label, 
+  value, 
+  onChange, 
+  placeholder, 
+  icon, 
   type = "text",
-  readOnly,
+  options,
+  isCountrySelect,
+  countries = [],
+  loadingCountries
 }: {
   label: string;
   value: string;
-  onChange?: (value: string) => void;
+  onChange: (v: string) => void;
   placeholder?: string;
+  icon?: React.ReactNode;
   type?: string;
-  readOnly?: boolean;
-}) => (
-  <div className="text-left">
-    <label className="mb-2 block text-[12px] text-[#A3A4B0]">{label}</label>
-    <input
-      type={type}
-      value={value}
-      readOnly={readOnly}
-      onChange={(e) => onChange?.(e.target.value)}
-      placeholder={placeholder}
-      className="h-[44px] w-full rounded-full px-5 text-[14px] text-white outline-none placeholder:text-[#A3A4B0]/50 read-only:text-white/45"
-      style={inputStyle(false)}
-    />
-  </div>
-);
+  options?: string[];
+  isCountrySelect?: boolean;
+  countries?: CountryOption[];
+  loadingCountries?: boolean;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={wrapperRef} className="flex flex-col text-left w-[360px] h-[72px] relative z-20">
+      <label className="mb-[12px] block font-montserrat text-[12px] font-normal leading-[16px] text-[#A3A4B0] m-0 p-0">
+        {label}
+      </label>
+      
+      <div className="w-[360px] h-[44px] p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
+        <div className="relative flex items-center w-full h-full rounded-full bg-[#050506] m-0 p-0">
+
+          {isCountrySelect ? (
+            <div className="flex-1 h-full w-full relative cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+              <div className="flex-1 h-full bg-transparent px-5 font-montserrat text-[14px] font-normal leading-[18px] text-white flex items-center justify-between">
+                <span>{value || <span className="text-[#A3A4B0]/50">{placeholder}</span>}</span>
+                <span className={`text-[#A3A4B0] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
+                  {icon}
+                </span>
+              </div>
+              {isOpen && (
+                <div className="absolute left-0 bottom-[calc(100%+8px)] z-[100] w-[360px] p-[1px] rounded-[16px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-lg" onClick={e => e.stopPropagation()}>
+                  <div className="bg-[#050506] rounded-[16px] p-2 flex flex-col max-h-[220px] overflow-y-auto">
+                    <div className="p-2 border-b border-[rgba(82,46,139,0.3)] sticky top-0 bg-[#050506] z-10">
+                      <input
+                        type="text"
+                        value={countrySearch}
+                        onChange={e => setCountrySearch(e.target.value)}
+                        placeholder="Пошук країни..."
+                        autoFocus
+                        className="w-full bg-[#0a0a0d] rounded-lg px-3 py-2 text-[13px] text-white placeholder:text-[#A3A4B0]/50 outline-none border border-[rgba(82,46,139,0.4)] focus:border-[rgba(131,72,193,0.6)]"
+                      />
+                    </div>
+                    
+                    {loadingCountries ? (
+                      <div className="flex items-center justify-center py-6 gap-2 text-[13px] text-[#A3A4B0]">
+                        <div className="w-4 h-4 rounded-full border-2 border-[#8348C1] border-t-transparent animate-spin" />
+                        Завантаження...
+                      </div>
+                    ) : (() => {
+                      const filtered = countries.filter(c => c.name.toLowerCase().includes(countrySearch.toLowerCase()));
+                      const grouped = filtered.reduce<Record<string, CountryOption[]>>((acc, c) => {
+                        const r = c.region;
+                        if (!acc[r]) acc[r] = [];
+                        acc[r].push(c);
+                        return acc;
+                      }, {});
+                      const regionOrder = ['Europe', 'Asia', 'Americas', 'Africa', 'Oceania', 'Antarctic', 'Інше'];
+                      const sorted = Object.entries(grouped).sort(
+                        ([a], [b]) => regionOrder.indexOf(a) - regionOrder.indexOf(b)
+                      );
+                      const regionLabels: Record<string, string> = {
+                        Europe: 'Європа', Asia: 'Азія', Americas: 'Америка',
+                        Africa: 'Африка', Oceania: 'Океанія', Antarctic: 'Антарктика', Інше: 'Інше',
+                      };
+                      if (sorted.length === 0) {
+                        return <div className="py-4 text-center text-[13px] text-[#A3A4B0]/60">Країну не знайдено</div>;
+                      }
+                      return sorted.map(([region, items]) => (
+                        <div key={region}>
+                          <div className="px-4 py-[6px] text-[10px] font-semibold text-[#8348C1] uppercase tracking-wider bg-[rgba(82,46,139,0.08)]">
+                            {regionLabels[region] ?? region}
+                          </div>
+                          {items.map(c => (
+                            <button
+                              key={c.code}
+                              type="button"
+                              onClick={() => {
+                                onChange(c.name);
+                                setIsOpen(false);
+                                setCountrySearch('');
+                              }}
+                              className={`w-full px-5 py-[9px] text-left text-[13px] transition-colors hover:bg-[#8348C1]/20 flex items-center gap-2 ${value === c.name ? 'text-[#C38BFF]' : 'text-[#A3A4B0]'}`}
+                            >
+                              {c.name}
+                            </button>
+                          ))}
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : options ? (
+            <div className="flex-1 h-full w-full relative cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+              <div className="flex-1 h-full bg-transparent px-5 font-montserrat text-[14px] font-normal leading-[18px] text-white flex items-center justify-between">
+                <span>{value || <span className="text-[#A3A4B0]/50">{placeholder}</span>}</span>
+                <span className={`text-[#A3A4B0] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
+                  {icon}
+                </span>
+              </div>
+              {isOpen && (
+                <div className="absolute left-0 bottom-[calc(100%+8px)] z-[100] w-[360px] p-[1px] rounded-[16px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-lg">
+                  <div className="bg-[#050506] rounded-[16px] p-2 flex flex-col gap-1 max-h-[200px] overflow-y-auto">
+                    {options.map(opt => (
+                      <button 
+                        key={opt} 
+                        type="button" 
+                        onClick={() => { onChange(opt); setIsOpen(false); }} 
+                        className="px-4 py-3 text-left font-montserrat text-[14px] font-normal text-white/80 hover:bg-white/10 hover:text-white rounded-[12px] transition-colors"
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <input
+              type={type}
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder={placeholder}
+              style={{ colorScheme: "dark" }}
+              className="flex-1 h-full w-full bg-transparent px-5 font-montserrat text-[14px] font-normal leading-[18px] text-white outline-none placeholder:text-[#A3A4B0]/50 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+            />
+          )}
+
+          {!isCountrySelect && !options && icon && (
+            <div className="pr-5 text-[#A3A4B0] pointer-events-none">
+              {icon}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const EditButton = ({ onClick }: { onClick: () => void }) => (
   <button type="button" onClick={onClick} className={editButtonOuter}>
@@ -184,6 +352,9 @@ export default function ProfilePage() {
     birthDate: "",
     region: "",
   });
+  
+  const { countries, loadingCountries } = useCountries();
+
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [securityModalOpen, setSecurityModalOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -193,12 +364,25 @@ export default function ProfilePage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    if (profileModalOpen || securityModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [profileModalOpen, securityModalOpen]);
+
   const openProfileModal = () => {
+    const savedPhone = user.phone === "-" ? "" : user.phone;
+    
     setEditForm({
       firstName: user.firstName === "Ім'я" || user.firstName === "Завантаження..." ? "" : user.firstName,
       lastName: user.lastName === "Прізвище" ? "" : user.lastName,
       username: user.username.replace(/^@/, "") === "username" ? "" : user.username.replace(/^@/, ""),
-      phone: user.phone === "-" ? "" : user.phone,
+      phone: savedPhone,
       birthDate: user.birthDate === "-" ? "" : user.birthDate,
       region: user.region === "Не вказано" ? "" : user.region,
     });
@@ -265,7 +449,6 @@ useEffect(() => {
     cancelled = true;
   };
 }, [navigate]);
-
 
   const handleAvatarChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -348,12 +531,14 @@ useEffect(() => {
       return;
     }
 
+    const fullPhone = editForm.phone.trim() ? (editForm.phone.startsWith('+') ? editForm.phone : `+${editForm.phone.replace(/\D/g, '')}`) : null;
+
     try {
       const payload = {
         first_name: editForm.firstName.trim(),
         last_name: editForm.lastName.trim(),
         username: username || null,
-        phone_number: editForm.phone.trim() || null,
+        phone_number: fullPhone,
         birth_date: editForm.birthDate.trim() || null,
         region: editForm.region.trim() || null,
       };
@@ -482,15 +667,7 @@ useEffect(() => {
                     className="w-[60px] h-[60px] shrink-0 object-cover rounded-full border border-white/10"
                     alt="Avatar"
                   />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingAvatar}
-                    className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full border border-white/10 bg-[#0D0D0D] text-[#A3A4B0] hover:text-white flex items-center justify-center"
-                    title="Змінити аватар"
-                  >
-                    <img src={editIcon} className="w-3.5 h-3.5 opacity-80" alt="" />
-                  </button>
+
                   <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
                 </div>
 
@@ -504,7 +681,6 @@ useEffect(() => {
                   <span className="text-sm font-extralight text-white/70">{user.username}</span>
                 </div>
               </div>
-              <EditButton onClick={openProfileModal} />
             </div>
           </div>
         </section>
@@ -563,55 +739,337 @@ useEffect(() => {
       </div>
 
       {profileModalOpen && (
-        <Modal title="Редагувати профіль" onClose={() => setProfileModalOpen(false)}>
-          <form onSubmit={handleSaveProfile} className="flex flex-col gap-4">
-            <div className="flex items-center gap-4 rounded-[20px] border border-white/10 bg-white/[0.02] p-4">
-              <img src={user.avatarUrl || userAvatar} alt="Avatar" className="h-16 w-16 rounded-full object-cover border border-white/10" />
-              <div>
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded-full px-5 py-2 text-[13px] text-white" style={{ background: "linear-gradient(90deg,#2C1969,#8348C1,#C38BFF)" }}>
-                  {uploadingAvatar ? "Завантаження..." : "Змінити аватар"}
+        <Modal 
+          widthClass="w-[792px]" 
+          heightClass="h-[556px]"
+        >
+          <form onSubmit={handleSaveProfile} className="relative w-full h-full m-0 p-0">
+            
+            <div className="absolute left-0 top-0 w-[792px] h-[76px] bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)] border-b border-white/10 rounded-t-[24px]">
+              <h3 className="absolute left-[24px] top-[24px] text-[24px] font-semibold leading-[28px] text-white m-0 p-0">
+                Редагування персональної інформації
+              </h3>
+              <div className="absolute right-[24px] top-[16px] w-[44px] h-[44px] p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-transform duration-150 hover:scale-105">
+                <button 
+                  type="button" 
+                  onClick={() => setProfileModalOpen(false)} 
+                  className="w-full h-full flex items-center justify-center rounded-full bg-[#050506] text-[#A3A4B0] hover:text-white transition-colors"
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M13 1L1 13M1 1L13 13" />
+                  </svg>
                 </button>
-                <p className="mt-2 text-[12px] text-[#A3A4B0]">PNG, JPG, WEBP або GIF до 5 MB</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Ім'я" value={editForm.firstName} onChange={(v) => setEditForm((p) => ({ ...p, firstName: v }))} />
-              <Field label="Прізвище" value={editForm.lastName} onChange={(v) => setEditForm((p) => ({ ...p, lastName: v }))} />
-            </div>
-            <Field label="E-mail" value={user.email} readOnly />
-            <Field label="Ім'я користувача" value={editForm.username} onChange={(v) => setEditForm((p) => ({ ...p, username: v }))} placeholder="username" />
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Телефон" value={editForm.phone} onChange={(v) => setEditForm((p) => ({ ...p, phone: v }))} placeholder="+380..." />
-              <Field label="Дата народження" value={editForm.birthDate} onChange={(v) => setEditForm((p) => ({ ...p, birthDate: v }))} placeholder="YYYY-MM-DD" />
-            </div>
-            <Field label="Регіон" value={editForm.region} onChange={(v) => setEditForm((p) => ({ ...p, region: v }))} />
+            <div className="absolute left-0 top-[76px] w-[792px] h-[480px] overflow-visible">
+              
+              <img 
+                src={user.avatarUrl || userAvatar} 
+                alt="Avatar" 
+                className="absolute left-[24px] top-[24px] h-[60px] w-[60px] rounded-full object-cover border border-white/10" 
+              />
+              
+              <div className="absolute left-[96px] top-[33px] flex flex-col gap-[8px]">
+                <span className="text-[20px] font-semibold text-white leading-[20px] m-0 p-0">
+                  {user.firstName} {user.lastName}
+                </span>
+                <span className="text-[14px] font-extralight text-[#A3A4B0] leading-[14px] m-0 p-0">
+                  {user.username}
+                </span>
+              </div>
+              
+              <div className="absolute right-[84px] top-[32px] w-[201px] h-[44px] p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-transform duration-150 hover:scale-105">
+                <button 
+                  type="button" 
+                  onClick={() => fileInputRef.current?.click()} 
+                  className="w-full h-full flex items-center justify-center gap-[8px] rounded-full bg-[#050506] text-[14px] font-medium leading-[18px] text-white transition-colors"
+                >
+                  {uploadingAvatar ? "Завантаження..." : "Завантажити фото"}
+                  {!uploadingAvatar && (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                  )}
+                </button>
+              </div>
 
-            <div className="mt-2 flex gap-4">
-              <button type="button" onClick={() => setProfileModalOpen(false)} className="h-[44px] flex-1 rounded-full border border-white/10 text-[#A3A4B0] hover:text-white">
-                Скасувати
-              </button>
-              <button type="submit" disabled={saving} className="h-[44px] flex-1 rounded-full text-white disabled:opacity-60" style={{ background: "linear-gradient(90deg,#2C1969,#8348C1,#C38BFF)" }}>
-                {saving ? "Збереження..." : "Зберегти"}
-              </button>
+              <div className="absolute right-[24px] top-[32px] w-[44px] h-[44px] p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-transform duration-150 hover:scale-105">
+                <button 
+                  type="button" 
+                  className="w-full h-full flex items-center justify-center rounded-full bg-[#050506] text-[#A3A4B0] hover:text-[#FF4D4D] transition-colors"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
+                  </svg>
+                </button>
+              </div>
+
+              <div className="absolute left-[24px] top-[108px] grid grid-cols-2 gap-x-[24px] gap-y-[24px] overflow-visible">
+                <ProfileInput label="Ім'я" value={editForm.firstName} onChange={(v) => setEditForm((p) => ({ ...p, firstName: v }))} placeholder="Вкажіть ім'я" />
+                <ProfileInput label="Прізвище" value={editForm.lastName} onChange={(v) => setEditForm((p) => ({ ...p, lastName: v }))} placeholder="Вкажіть прізвище" />
+                <ProfileInput label="Ім'я користувача" value={editForm.username} onChange={(v) => setEditForm((p) => ({ ...p, username: v }))} placeholder="Вкажіть ім'я користувача" />
+                
+                <div className="flex flex-col text-left w-[360px] h-[72px] relative z-20 phone-profile-wrapper">
+                  <label className="mb-[12px] block font-montserrat text-[12px] font-normal leading-[16px] text-[#A3A4B0] m-0 p-0">
+                    Номер телефону
+                  </label>
+                  <style>{`
+                    .phone-profile-wrapper .react-tel-input .form-control {
+                      width: 100% !important;
+                      height: 44px !important;
+                      background: #050506 !important;
+                      border-radius: 28px !important;
+                      border: 1px solid transparent !important;
+                      color: white !important;
+                      font-family: 'Montserrat', sans-serif !important;
+                      font-size: 14px !important;
+                      padding-left: 58px !important;
+                      background-image: linear-gradient(#050506,#050506), linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32)) !important;
+                      background-origin: padding-box, border-box !important;
+                      background-clip: padding-box, border-box !important;
+                      outline: none !important;
+                      box-shadow: 0 20px 70px rgba(131,72,193,0.10), 0 8px 25px rgba(0,0,0,0.35) !important;
+                    }
+                    .phone-profile-wrapper .react-tel-input .form-control:focus {
+                      border-color: #8348C1 !important; 
+                    }
+                    .phone-profile-wrapper .react-tel-input .flag-dropdown {
+                      background: transparent !important;
+                      border: none !important;
+                      border-radius: 28px 0 0 28px !important;
+                    }
+                    .phone-profile-wrapper .react-tel-input .selected-flag {
+                      background: transparent !important;
+                      padding-left: 15px !important;
+                      border-radius: 28px 0 0 28px !important;
+                    }
+                    .phone-profile-wrapper .react-tel-input .selected-flag:hover,
+                    .phone-profile-wrapper .react-tel-input .selected-flag:focus,
+                    .phone-profile-wrapper .react-tel-input .flag-dropdown.open .selected-flag {
+                      background: transparent !important;
+                    }
+                    .phone-profile-wrapper .react-tel-input .country-list {
+                      bottom: calc(100% + 8px) !important; 
+                      top: auto !important;
+                      margin-bottom: 0 !important;
+                      background-color: #0d0d10 !important;
+                      color: #A3A4B0 !important;
+                      border: 1px solid rgba(82,46,139,0.4) !important;
+                      border-radius: 16px !important;
+                      box-shadow: 0 -8px 32px rgba(0,0,0,0.6) !important;
+                    }
+                    .phone-profile-wrapper .react-tel-input .country-list .search {
+                      background-color: #0d0d10 !important;
+                      border-bottom: 1px solid rgba(82,46,139,0.3) !important;
+                      padding: 10px !important;
+                    }
+                    .phone-profile-wrapper .react-tel-input .country-list .search-box {
+                      background-color: #050506 !important;
+                      border: 1px solid rgba(82,46,139,0.4) !important;
+                      color: white !important;
+                      border-radius: 8px !important;
+                      padding: 8px 12px 8px 30px !important;
+                      margin: 0 !important;
+                      width: 100% !important;
+                    }
+                    .phone-profile-wrapper .react-tel-input .country-list .country {
+                      padding: 10px 16px !important;
+                    }
+                    .phone-profile-wrapper .react-tel-input .country-list .country:hover {
+                      background: rgba(131,72,193,0.2) !important;
+                    }
+                    .phone-profile-wrapper .react-tel-input .country-list .country.highlight {
+                      background: rgba(131,72,193,0.15) !important;
+                    }
+                    .phone-profile-wrapper .react-tel-input .country-list .country-name {
+                      color: #A3A4B0 !important;
+                    }
+                    .phone-profile-wrapper .react-tel-input .country-list .dial-code {
+                      color: #8348C1 !important;
+                    }
+                  `}</style>
+                  <div className="w-[360px] h-[44px] rounded-full relative">
+                    <Phone
+                      country={'ua'}
+                      value={editForm.phone}
+                      onChange={(v: string) => setEditForm((p) => ({ ...p, phone: v }))}
+                      enableSearch={true}
+                      placeholder="Введіть номер"
+                      searchPlaceholder="Пошук країни..."
+                      excludeCountries={['ru', 'by']}
+                    />
+                  </div>
+                </div>
+                
+                <ProfileInput 
+                  label="Країна проживання" 
+                  value={editForm.region} 
+                  onChange={(v) => setEditForm((p) => ({ ...p, region: v }))} 
+                  placeholder="Оберіть країну" 
+                  isCountrySelect={true}
+                  countries={countries}
+                  loadingCountries={loadingCountries}
+                  icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>} 
+                />
+
+                <ProfileInput 
+                  label="Дата народження" 
+                  value={editForm.birthDate} 
+                  onChange={(v) => setEditForm((p) => ({ ...p, birthDate: v }))} 
+                  placeholder="ДД/ММ/РР" 
+                  type="date"
+                />
+              </div>
+
+              <div className="absolute left-[24px] top-[412px] flex gap-[24px]">
+                <button 
+                  type="submit" 
+                  disabled={saving} 
+                  className="w-[360px] h-[44px] flex items-center justify-center rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium disabled:opacity-60 transition-transform duration-150 hover:scale-105 m-0 p-0"
+                >
+                  {saving ? "Збереження..." : "Зберегти"}
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setProfileModalOpen(false)} 
+                  className="group relative flex w-[360px] h-[44px] items-center justify-center rounded-[28px] text-[14px] font-medium leading-[20px] text-white transition-transform hover:scale-105 m-0 p-0"
+                >
+                  <svg className="absolute inset-0 h-full w-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="1" y="1" width="358" height="42" rx="21" fill="none" stroke="url(#gradient-border-cancel-prof)" strokeWidth="1.5" />
+                    <defs>
+                      <linearGradient id="gradient-border-cancel-prof" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#2C1969" />
+                        <stop offset="50%" stopColor="#8348C1" />
+                        <stop offset="100%" stopColor="#C38BFF" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <span className="relative z-10">Відмінити</span>
+                </button>
+              </div>
             </div>
           </form>
         </Modal>
       )}
 
       {securityModalOpen && (
-        <Modal title="Змінити пароль" onClose={() => setSecurityModalOpen(false)}>
-          <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
-            <Field label="Новий пароль" type="password" value={newPassword} onChange={setNewPassword} placeholder="Мінімум 8 символів" />
-            <Field label="Повторіть пароль" type="password" value={confirmPassword} onChange={setConfirmPassword} placeholder="Мінімум 8 символів" />
-            <div className="mt-2 flex gap-4">
-              <button type="button" onClick={() => setSecurityModalOpen(false)} className="h-[44px] flex-1 rounded-full border border-white/10 text-[#A3A4B0] hover:text-white">
-                Скасувати
-              </button>
-              <button type="submit" disabled={saving} className="h-[44px] flex-1 rounded-full text-white disabled:opacity-60" style={{ background: "linear-gradient(90deg,#2C1969,#8348C1,#C38BFF)" }}>
-                {saving ? "Збереження..." : "Оновити пароль"}
-              </button>
+        <Modal 
+          widthClass="w-[792px]" 
+          heightClass="h-[506px]"
+        >
+          <form onSubmit={handleChangePassword} className="relative w-full h-full m-0 p-0">
+            
+            {/* ШАПКА ПОП-АПУ */}
+            <div className="absolute left-0 top-0 w-[792px] h-[76px] bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)] border-b border-white/10 rounded-t-[24px]">
+              <h3 className="absolute left-[24px] top-[24px] h-[20px] text-[24px] font-semibold leading-[28px] text-white m-0 p-0">
+                Редагування безпеки
+              </h3>
+              <div className="absolute right-[24px] top-[16px] w-[44px] h-[44px] p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-transform duration-150 hover:scale-105">
+                <button 
+                  type="button" 
+                  onClick={() => setSecurityModalOpen(false)} 
+                  className="w-full h-full flex items-center justify-center rounded-full bg-[#050506] text-[#A3A4B0] hover:text-white transition-colors"
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M13 1L1 13M1 1L13 13" />
+                  </svg>
+                </button>
+              </div>
             </div>
+
+            {/* КОНТЕНТ НИЖЧЕ ШАПКИ */}
+            <div className="absolute left-0 top-[76px] w-[792px] h-[430px]">
+              
+              <h4 className="absolute left-[24px] top-[24px] h-[20px] font-montserrat text-[20px] font-semibold text-white leading-[20px] m-0 p-0">
+                Зміна пароля
+              </h4>
+
+              {/* СІТКА ІНПУТІВ */}
+              <div className="absolute left-[24px] top-[68px] grid grid-cols-2 gap-x-[24px] gap-y-[24px]">
+                <ProfileInput 
+                  label="Пароль" 
+                  type="password" 
+                  value={newPassword} 
+                  onChange={setNewPassword} 
+                  placeholder="Введіть пароль" 
+                />
+                <ProfileInput 
+                  label="Підтвердження паролю" 
+                  type="password" 
+                  value={confirmPassword} 
+                  onChange={setConfirmPassword} 
+                  placeholder="Підтвердіть пароль" 
+                />
+              </div>
+
+              {/* Заголовок "Активні пристрої" */}
+              <h4 className="absolute left-[24px] top-[164px] h-[20px] text-[20px] font-semibold font-montserrat text-white leading-[20px] m-0 p-0">
+                Активні пристрої
+              </h4>
+
+              {/* Прямокутник пристроїв */}
+              <div className="absolute left-[24px] top-[208px] w-[744px] h-[98px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
+                <div className="relative w-full h-full rounded-[28px] bg-[#050506] flex items-center justify-between px-[24px]">
+                  
+                  {/* Текст зліва */}
+                  <div className="flex flex-col gap-[8px]">
+                    <span className="text-[18px] font-medium text-white leading-none m-0 p-0 block">
+                      MacBook Air M1
+                    </span>
+                    <span className="text-[14px] font-normal text-[#A3A4B0] leading-none m-0 p-0 block">
+                      Україна, Київ, в мережі
+                    </span>
+                  </div>
+
+                  {/* Кнопка "Завершити сеанс" СПРАВА */}
+                  <div className="relative w-[190px] h-[44px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-transform duration-150 hover:scale-105 shrink-0">
+                    <button 
+                      type="button" 
+                      className="w-full h-full flex items-center justify-center gap-[8px] rounded-[28px] bg-[#050506] text-[14px] font-medium leading-[20px] text-white transition-colors m-0 p-0"
+                    >
+                      <span>Завершити сеанс</span>
+                      <svg className="rotate-90" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                      </svg>
+                    </button>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* КНОПКИ "ЗБЕРЕГТИ" / "ВІДМІНИТИ" */}
+              <div className="absolute left-[24px] top-[362px] flex gap-[24px]">
+                {/* Кнопка "Зберегти" */}
+                <button 
+                  type="submit" 
+                  disabled={saving} 
+                  className="w-[360px] h-[44px] flex items-center justify-center rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium disabled:opacity-60 transition-transform duration-150 hover:scale-105 m-0 p-0"
+                >
+                  {saving ? "Збереження..." : "Зберегти"}
+                </button>
+                
+                {/* Кнопка "Відмінити" */}
+                <button 
+                  type="button" 
+                  onClick={() => setSecurityModalOpen(false)} 
+                  className="group relative flex w-[360px] h-[44px] items-center justify-center rounded-[28px] text-[14px] font-medium leading-[20px] text-white transition-transform hover:scale-105 m-0 p-0"
+                >
+                  <svg className="absolute inset-0 h-full w-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="1" y="1" width="358" height="42" rx="21" fill="none" stroke="url(#gradient-border-cancel-sec)" strokeWidth="1.5" />
+                    <defs>
+                      <linearGradient id="gradient-border-cancel-sec" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#2C1969" />
+                        <stop offset="50%" stopColor="#8348C1" />
+                        <stop offset="100%" stopColor="#C38BFF" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <span className="relative z-10">Відмінити</span>
+                </button>
+              </div>
+            </div>
+            
           </form>
         </Modal>
       )}
