@@ -4,8 +4,7 @@ import LandingPage from "../pages/Landing/LandingPage";
 import AuthPage from "../pages/Auth/AuthPage";
 import LoginPage from "../pages/Login/LoginPage";
 import RegisterPage from "../pages/Register/RegisterPage";
-// Додаємо імпорт нової сторінки
-import SelectPlanPage from "../pages/Select/SelectPlanPage"; 
+import SelectPlanPage from "../pages/Select/SelectPlanPage";
 import PricingPage from "../pages/Pricing/PricingPage";
 
 import MainLayout from "../layouts/MainLayout";
@@ -19,33 +18,18 @@ import AssetPage from "../pages/Asset/AssetPage";
 import MarketsPage from "../pages/Markets/MarketsPage";
 import SupportPage from "../pages/Support/SupportPage";
 import NewsPage from "../pages/News/NewsPage";
+import TradingPage from "../pages/Trading/TradingPage";
 
 export const router = createBrowserRouter([
-  {
-    path: "/",
-    element: <LandingPage />,
-  },
-  {
-    path: "/login",
-    element: <LoginPage />,
-  },
-  {
-    path: "/register",
-    element: <RegisterPage />,
-  },
-  {
-    // Підключаємо роут для вибору плану
-    path: "/select-plan",
-    element: <SelectPlanPage />,
-  },
-  {
-    path: "/auth",
-    element: <AuthPage />,
-  },
-  {
-    path: "/pricing",
-    element: <PricingPage />,
-  },
+  { path: "/", element: <LandingPage /> },
+  { path: "/login", element: <LoginPage /> },
+  { path: "/register", element: <RegisterPage /> },
+  { path: "/select-plan", element: <SelectPlanPage /> },
+  { path: "/auth", element: <AuthPage /> },
+  { path: "/pricing", element: <PricingPage /> },
+  // Trading is a standalone fullscreen page — no layout wrapper
+  { path: "/trading", element: <TradingPage /> },
+  { path: "/trading/:symbol", element: <TradingPage /> },
   {
     path: "/",
     element: <MainLayout />,

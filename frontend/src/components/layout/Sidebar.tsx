@@ -3,9 +3,10 @@ import { NavLink } from "react-router-dom";
 // Імпорти іконок
 import dashboardIcon from "../../assets/icons/dashboard-icon.svg";
 import watchlistIcon from "../../assets/icons/watchlist-icon.svg";
-import marketsIcon from "../../assets/icons/markets-icon.svg"; 
+import marketsIcon from "../../assets/icons/markets-icon.svg";
+import tradingIcon from "../../assets/icons/trading-icon.svg";
 import alertsIcon from "../../assets/icons/alerts-icon.svg";
-import profileIcon from "../../assets/icons/user.svg"; 
+import profileIcon from "../../assets/icons/user.svg";
 import settingsIcon from "../../assets/icons/settings-icon.svg";
 import supportIcon from "../../assets/icons/support-icon.svg";
 import pulseAiIcon from "../../assets/images/activate-pulse-ai.svg";
@@ -15,6 +16,7 @@ export default function Sidebar() {
     { label: "Головна", icon: dashboardIcon, path: "/dashboard", iconSize: "16px" },
     { label: "Обране", icon: watchlistIcon, path: "/assets", iconSize: "24px" }, 
     { label: "Ринки", icon: marketsIcon, path: "/markets", iconSize: "22px" }, 
+    { label: "Торгівля", icon: tradingIcon, path: "/trading", iconSize: "22px" },
     { label: "Алерти", icon: alertsIcon, path: "/alerts", iconSize: "20px" },
     { label: "Профіль", icon: profileIcon, path: "/profile", iconSize: "20px" },
   ];

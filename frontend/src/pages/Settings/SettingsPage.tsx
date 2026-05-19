@@ -31,9 +31,6 @@ type SettingsCache = {
   savedCardLast4: string | null;
 };
 
-const gradientBorder =
-  "linear-gradient(#0A0A0A, #0A0A0A) padding-box, linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%) border-box";
-
 const gradientFill = "linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%)";
 const quietInputBorder = "1px solid rgba(255,255,255,0.1)";
 const errorInputBorder = "1px solid rgba(248,113,113,0.72)";
@@ -261,7 +258,6 @@ export default function SettingsPage() {
   const [cardName, setCardName] = useState("");
   const [cardErrors, setCardErrors] = useState<CardErrors>({});
 
-  const [hoveredPlan, setHoveredPlan] = useState<number | null>(null);
   const [hoveredEditBtn, setHoveredEditBtn] = useState(false);
   const [hoveredAddCard, setHoveredAddCard] = useState(false);
   const [hoveredSave, setHoveredSave] = useState(false);
@@ -531,12 +527,6 @@ export default function SettingsPage() {
     setIsYearly(false);
   };
 
-  const displayCardNumber = isEditingCard
-    ? cardNumber
-    : savedCardLast4
-      ? `**** **** **** ${savedCardLast4}`
-      : "";
-
   return (
     <div style={{ minHeight: "100%", width: "100%", background: "transparent", color: "#fff", fontFamily: "'Montserrat', sans-serif", letterSpacing: 0 }}>
       <div style={{ padding: "32px 40px", maxWidth: 1240 }}>
@@ -587,8 +577,6 @@ export default function SettingsPage() {
                     <div
                       key={plan.name}
                       onClick={() => handleUpdatePlan(index)}
-                      onMouseEnter={() => setHoveredPlan(index)}
-                      onMouseLeave={() => setHoveredPlan(null)}
                       style={{
                         position: "relative",
                         display: "flex",
