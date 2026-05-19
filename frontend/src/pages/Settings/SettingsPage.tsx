@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
 import { supabase } from "../../supabaseClient";
 import { mergeAccountCache, readAccountCache } from "../../utils/accountCache";
-import visaLogo from "../../assets/icons/visa.svg";
+import visaLogo from '../../assets/icons/visa.svg';
+import uploadicon from '../../assets/icons/share upload alt..svg';
+import uploadicon2 from '../../assets/icons/Vector.svg';
 
 interface Plan {
   name: string;
@@ -35,7 +37,14 @@ const gradientBorder =
 const gradientFill = "linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%)";
 const quietInputBorder = "1px solid rgba(255,255,255,0.1)";
 const errorInputBorder = "1px solid rgba(248,113,113,0.72)";
+const inputBgQuiet = "linear-gradient(#0A0A0A, #0A0A0A) padding-box, linear-gradient(90deg, rgba(82, 46, 139, 0.32) 0%, rgba(179, 179, 179, 0.32) 100%) border-box";
+const inputBgError = "linear-gradient(#0A0A0A, #0A0A0A) padding-box, linear-gradient(90deg, rgba(248, 113, 113, 0.72) 0%, rgba(248, 113, 113, 0.72) 100%) border-box";
 const settingsCacheKey = "cryptopulse_settings_cache";
+
+const tableGradientBorder = "linear-gradient(rgba(10, 10, 10, 0.55), rgba(10, 10, 10, 0.55)) padding-box, linear-gradient(90deg, rgba(82, 46, 139, 0.32) 0%, rgba(179, 179, 179, 0.32) 100%) border-box";
+
+const cancelGradientBorder =
+  "linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%) border-box";
 
 const FEATURE_LINES_WITHOUT_BULLET = new Set(["Все з Free +", "Все з Pro, +:"]);
 
@@ -43,47 +52,6 @@ const defaultSettingsCache: SettingsCache = {
   selectedPlan: 0,
   isYearly: false,
   savedCardLast4: null,
-};
-
-const readCachedSettings = (): SettingsCache => {
-  const account = readAccountCache();
-  if (account) {
-    const selectedPlan = plansData.findIndex((plan) => plan.key === account.planKey);
-    return {
-      userId: account.userId,
-      selectedPlan: selectedPlan >= 0 ? selectedPlan : 0,
-      isYearly: account.billingCycle === "yearly",
-      savedCardLast4: account.cardLast4,
-    };
-  }
-
-  if (typeof window === "undefined") return defaultSettingsCache;
-
-  try {
-    const raw = window.localStorage.getItem(settingsCacheKey);
-    if (!raw) return defaultSettingsCache;
-
-    const parsed = JSON.parse(raw) as Partial<SettingsCache>;
-    return {
-      selectedPlan: typeof parsed.selectedPlan === "number" ? parsed.selectedPlan : 0,
-      isYearly: Boolean(parsed.isYearly),
-      savedCardLast4: parsed.savedCardLast4 || null,
-      userId: parsed.userId,
-    };
-  } catch {
-    return defaultSettingsCache;
-  }
-};
-
-const writeCachedSettings = (settings: SettingsCache) => {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(settingsCacheKey, JSON.stringify(settings));
-  mergeAccountCache({
-    userId: settings.userId,
-    planKey: plansData[settings.selectedPlan]?.key || "free",
-    billingCycle: settings.isYearly ? "yearly" : "monthly",
-    cardLast4: settings.savedCardLast4,
-  });
 };
 
 const plansData: Plan[] = [
@@ -144,14 +112,55 @@ const plansData: Plan[] = [
   },
 ];
 
+const readCachedSettings = (): SettingsCache => {
+  const account = readAccountCache();
+  if (account) {
+    const selectedPlan = plansData.findIndex((plan) => plan.key === account.planKey);
+    return {
+      userId: account.userId,
+      selectedPlan: selectedPlan >= 0 ? selectedPlan : 0,
+      isYearly: account.billingCycle === "yearly",
+      savedCardLast4: account.cardLast4,
+    };
+  }
+
+  if (typeof window === "undefined") return defaultSettingsCache;
+
+  try {
+    const raw = window.localStorage.getItem(settingsCacheKey);
+    if (!raw) return defaultSettingsCache;
+
+    const parsed = JSON.parse(raw) as Partial<SettingsCache>;
+    return {
+      selectedPlan: typeof parsed.selectedPlan === "number" ? parsed.selectedPlan : 0,
+      isYearly: Boolean(parsed.isYearly),
+      savedCardLast4: parsed.savedCardLast4 || null,
+      userId: parsed.userId,
+    };
+  } catch {
+    return defaultSettingsCache;
+  }
+};
+
+const writeCachedSettings = (settings: SettingsCache) => {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(settingsCacheKey, JSON.stringify(settings));
+  mergeAccountCache({
+    userId: settings.userId,
+    planKey: plansData[settings.selectedPlan]?.key || "free",
+    billingCycle: settings.isYearly ? "yearly" : "monthly",
+    cardLast4: settings.savedCardLast4,
+  });
+};
+
 const VisaBadge = ({ width, height }: { width: number; height: number }) => (
   <div
     style={{
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      width,
-      height,
+      width: width,
+      height: height,
       borderRadius: 4,
       background: "#fff",
       overflow: "hidden",
@@ -207,7 +216,7 @@ function SwitchToggle({ checked, onChange }: { checked: boolean; onChange: (v: b
         width: trackW,
         height: trackH,
         borderRadius: 999,
-        background: checked ? "rgba(60, 60, 67, 0.35)" : "rgba(255, 255, 255, 0.1)",
+        background: checked ? "rgba(255, 255, 255, 0.15)" : "rgba(255, 255, 255, 0.1)",
         border: "none",
         padding: pad,
         cursor: "pointer",
@@ -221,10 +230,10 @@ function SwitchToggle({ checked, onChange }: { checked: boolean; onChange: (v: b
           width: knob,
           height: knob,
           borderRadius: "50%",
-          background: "#8348C1",
+          background: checked ? "#8348C1" : "#A3A4B0",
           transform: checked ? `translateX(${travel}px)` : "translateX(0)",
-          transition: "transform 0.2s ease",
-          boxShadow: "0 0 8px rgba(131, 72, 193, 0.4)",
+          transition: "transform 0.2s ease, background-color 0.2s ease",
+          boxShadow: checked ? "0 0 8px rgba(131, 72, 193, 0.6)" : "none",
           flexShrink: 0,
         }}
       />
@@ -245,7 +254,7 @@ export default function SettingsPage() {
 
   const [selectedPlan, setSelectedPlan] = useState<number>(cachedSettings.selectedPlan);
   const [savedCardLast4, setSavedCardLast4] = useState<string | null>(cachedSettings.savedCardLast4);
-  const [isEditingCard, setIsEditingCard] = useState(false);
+  const [isEditingCard, setIsEditingCard] = useState(!cachedSettings.savedCardLast4);
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCVV, setCardCVV] = useState("");
@@ -257,6 +266,7 @@ export default function SettingsPage() {
   const [hoveredAddCard, setHoveredAddCard] = useState(false);
   const [hoveredSave, setHoveredSave] = useState(false);
   const [hoveredIconBtn, setHoveredIconBtn] = useState<string | null>(null);
+  const [isEditActive, setIsEditActive] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -528,8 +538,10 @@ export default function SettingsPage() {
       : "";
 
   return (
-    <div style={{ minHeight: "100%", width: "100%", background: "transparent", color: "#fff", fontFamily: "'Montserrat', sans-serif" }}>
+    <div style={{ minHeight: "100%", width: "100%", background: "transparent", color: "#fff", fontFamily: "'Montserrat', sans-serif", letterSpacing: 0 }}>
       <div style={{ padding: "32px 40px", maxWidth: 1240 }}>
+
+        {/* TABS */}
         <div style={{ display: "flex", gap: 24, borderBottom: "1px solid rgba(255,255,255,0.08)", marginBottom: 28 }}>
           {([["subscriptions", "Підписки"], ["notifications", "Сповіщення"]] as const).map(([id, label]) => (
             <button
@@ -541,18 +553,17 @@ export default function SettingsPage() {
                 fontSize: 16,
                 lineHeight: "24px",
                 fontWeight: 400,
+                letterSpacing: 0,
                 color: activeTab === id ? "#fff" : "rgba(255,255,255,0.35)",
                 background: "none",
                 border: "none",
-                borderBottom: activeTab === id ? "2px solid #8b5cf6" : "2px solid transparent",
+                borderBottom: activeTab === id ? "2px solid #522E8B" : "2px solid transparent",
                 cursor: "pointer",
                 marginBottom: -1,
                 filter: activeTab === id ? "drop-shadow(0 0 8px rgba(139,92,246,0.6))" : "none",
                 transition: "color 0.2s, filter 0.2s",
               }}
-            >
-              {label}
-            </button>
+            >{label}</button>
           ))}
         </div>
 
@@ -560,18 +571,17 @@ export default function SettingsPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             <section>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 34, width: 1116 }}>
-                <h2 style={{ fontSize: 24, fontWeight: 400, margin: 0 }}>Підписки</h2>
+                <h2 style={{ fontSize: 24, fontWeight: 400, margin: 0, letterSpacing: 0 }}>Підписки</h2>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 16, lineHeight: "24px", fontWeight: 400, color: !isYearly ? "#fff" : "rgba(255,255,255,0.35)" }}>Місяць</span>
+                  <span style={{ fontSize: 16, lineHeight: "24px", fontWeight: 400, letterSpacing: 0, color: !isYearly ? "#fff" : "rgba(255,255,255,0.35)" }}>Місяць</span>
                   <SwitchToggle checked={isYearly} onChange={handleToggleCycle} />
-                  <span style={{ fontSize: 16, lineHeight: "24px", fontWeight: 400, color: isYearly ? "#fff" : "rgba(255,255,255,0.35)" }}>Рік</span>
+                  <span style={{ fontSize: 16, lineHeight: "24px", fontWeight: 400, letterSpacing: 0, color: isYearly ? "#fff" : "rgba(255,255,255,0.35)" }}>Рік</span>
                 </div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 356px)", gap: 24 }}>
                 {plansData.map((plan, index) => {
                   const isSelected = selectedPlan === index;
-                  const isHovered = hoveredPlan === index && !isSelected;
 
                   return (
                     <div
@@ -585,29 +595,21 @@ export default function SettingsPage() {
                         flexDirection: "column",
                         width: 356,
                         height: 644,
-                        borderRadius: 20,
-                        border: isSelected
-                          ? "1px solid rgba(131,72,193,0.85)"
-                          : isHovered
-                            ? "1px solid rgba(131,72,193,0.4)"
-                            : "1px solid rgba(255,255,255,0.08)",
-                        background: "#050508",
+                        borderRadius: 28,
                         padding: "28px 24px",
                         cursor: "pointer",
+                        background: "linear-gradient(#050508, #050508) padding-box, linear-gradient(90deg, rgba(82, 46, 139, 0.32), rgba(179, 179, 179, 0.32)) border-box",
+                        border: "1px solid transparent",
+                        boxShadow: "0 20px 70px rgba(131, 72, 193, 0.10), 0 8px 25px rgba(0, 0, 0, 0.35)",
                         transform: isSelected ? "scale(1.04)" : "scale(1)",
-                        boxShadow: isSelected
-                          ? "0 0 32px rgba(131,72,193,0.28)"
-                          : isHovered
-                            ? "0 0 14px rgba(131,72,193,0.12)"
-                            : "none",
                         transition: "transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease",
                         zIndex: isSelected ? 2 : 1,
                       }}
                     >
-                      <p style={{ fontSize: 13, fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.25em", color: "#fff", marginBottom: 16 }}>{plan.name}</p>
+                      <p style={{ fontSize: 13, fontWeight: 400, letterSpacing: 0, color: "#fff", marginBottom: 16 }}>{plan.name}</p>
                       <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 4 }}>
-                        <span style={{ fontSize: 42, fontWeight: 400, letterSpacing: "-1px", color: "#fff" }}>€{isYearly ? plan.yearlyPrice : plan.monthlyPrice}</span>
-                        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: 500 }}>{isYearly ? "/рік" : "/місяць"}</span>
+                        <span style={{ fontSize: 42, fontWeight: 400, letterSpacing: 0, color: "#fff" }}>€{isYearly ? plan.yearlyPrice : plan.monthlyPrice}</span>
+                        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: 500, letterSpacing: 0 }}>{isYearly ? "/рік" : "/місяць"}</span>
                       </div>
                       <div style={{ height: 1, background: "linear-gradient(90deg, #2C1969, #8348C1, #C38BFF)", opacity: 0.4, marginBottom: 20 }} />
                       <ul style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12, marginBottom: 24, padding: 0, listStyle: "none" }}>
@@ -621,12 +623,13 @@ export default function SettingsPage() {
                                 gap: showBullet ? 10 : 0,
                                 alignItems: "flex-start",
                                 fontSize: 13,
+                                letterSpacing: 0,
                                 color: "#fff",
                                 lineHeight: 1.5,
                               }}
                             >
                               {showBullet ? (
-                                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#8348C1", flexShrink: 0, marginTop: 6 }} />
+                                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", flexShrink: 0, marginTop: 6 }} />
                               ) : null}
                               {f}
                             </li>
@@ -640,8 +643,9 @@ export default function SettingsPage() {
               </div>
             </section>
 
+            {/* PAYMENT SECTION */}
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <h2 style={{ fontSize: 22, fontWeight: 400, margin: 0 }}>Платіжні дані</h2>
+              <h2 style={{ fontSize: 22, fontWeight: 400, margin: 0, letterSpacing: 0 }}>Платіжні дані</h2>
               <section style={{
                 position: "relative",
                 width: 1116,
@@ -652,7 +656,7 @@ export default function SettingsPage() {
                 padding: "32px 28px",
                 overflow: "hidden",
               }}>
-                <div style={{ position: "absolute", right: 28, top: 26, zIndex: 2 }}>
+                <div style={{ position: "absolute", right: 24, top: 192, zIndex: 10 }}>
                   <button
                     type="button"
                     onClick={() => {
@@ -660,28 +664,62 @@ export default function SettingsPage() {
                       setIsEditingCard(true);
                     }}
                     onMouseEnter={() => setHoveredEditBtn(true)}
-                    onMouseLeave={() => setHoveredEditBtn(false)}
+                    onMouseLeave={() => {
+                      setHoveredEditBtn(false);
+                      setIsEditActive(false);
+                    }}
+                    onMouseDown={() => setIsEditActive(true)}
+                    onMouseUp={() => setIsEditActive(false)}
                     style={{
-                      display: "flex", alignItems: "center", gap: 8,
-                      width: 135, height: 36, borderRadius: 999,
-                      border: "1px solid transparent",
-                      background: gradientBorder,
-                      color: hoveredEditBtn ? "#C38BFF" : "#A3A4B0",
-                      fontSize: 14, fontWeight: 400, cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
                       justifyContent: "center",
-                      boxShadow: hoveredEditBtn ? "0 0 16px rgba(131,72,193,0.45)" : "none",
-                      transform: hoveredEditBtn ? "translateY(-1px)" : "none",
-                      transition: "color 0.2s, box-shadow 0.2s, transform 0.15s",
+                      gap: 8,
+                      width: 135,
+                      height: 36,
+                      borderRadius: 28,
+                      border: "1px solid transparent",
+                      cursor: "pointer",
+                      background: hoveredEditBtn
+                        ? "linear-gradient(#0B0B0D, #0B0B0D) padding-box, linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%) border-box"
+                        : "linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%) border-box",
+                      color: hoveredEditBtn || isEditActive ? "#FFFFFF" : "#A3A4B0",
+                      transition: "all 0.3s ease",
+                      transform: isEditActive ? "scale(0.95)" : hoveredEditBtn ? "scale(1.05)" : "scale(1)",
+                      boxShadow: hoveredEditBtn ? "0 0 15px rgba(131, 72, 193, 0.4)" : "none",
+                      outline: "none",
                     }}
                   >
-                    Редагувати <EditIcon />
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 8,
+                        width: "100%",
+                        height: "100%",
+                        borderRadius: 999,
+                        background: hoveredEditBtn ? "#0B0B0D" : "#050506",
+                        color: hoveredEditBtn || isEditActive ? "#FFFFFF" : "#A3A4B0",
+                        transition: "all 0.3s ease",
+                      }}
+                    >
+                      <span style={{ fontSize: 14, fontWeight: 400 }}>Редагувати</span>
+                      <div style={{
+                        display: "flex",
+                        color: hoveredEditBtn || isEditActive ? "#FFFFFF" : "#A3A4B0",
+                        transition: "color 0.3s ease"
+                      }}>
+                        <EditIcon />
+                      </div>
+                    </div>
                   </button>
                 </div>
-
+                
                 <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 520, position: "relative" }}>
                   <div>
-                    <p style={{ fontSize: 11, fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.18em", color: "rgba(255,255,255,0.35)", marginBottom: 6 }}>Наступна оплата</p>
-                    <p style={{ fontSize: 16, fontWeight: 400, marginBottom: 10 }}>
+                    <p style={{ fontSize: 11, fontWeight: 400, letterSpacing: 0, color: "rgba(255,255,255,0.35)", marginBottom: 6 }}>Наступна оплата</p>
+                    <p style={{ fontSize: 16, fontWeight: 400, letterSpacing: 0, marginBottom: 10 }}>
                       {selectedPlan === 0 ? "Не заплановано" : isYearly ? "17 травня 2027 р." : "17 червня 2026 р."}
                     </p>
                     <div style={{
@@ -694,7 +732,7 @@ export default function SettingsPage() {
                       padding: "8px 16px",
                     }}>
                       <VisaBadge width={24.48} height={14.53} />
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.65)", letterSpacing: "0.06em" }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0, color: "rgba(255,255,255,0.65)" }}>
                         {savedCardLast4 ? `**** **** **** ${savedCardLast4}` : "Картку не додано"}
                       </span>
                     </div>
@@ -710,25 +748,25 @@ export default function SettingsPage() {
                   }} />
 
                   <div>
-                    <label style={{ display: "block", fontSize: 11, fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.18em", color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>Номер картки</label>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 300, letterSpacing: 0, color: "white", marginBottom: 8 }}>Номер картки</label>
                     <div style={{
                       position: "relative",
                       width: 448,
                       borderRadius: 28,
-                      border: cardErrors.cardNumber ? errorInputBorder : quietInputBorder,
-                      background: "rgba(255,255,255,0.02)",
+                      border: "1px solid transparent",
+                      background: cardErrors.cardNumber ? inputBgError : inputBgQuiet,
                       boxShadow: cardErrors.cardNumber ? "0 0 14px rgba(239,68,68,0.14)" : "none",
-                      transition: "border-color 0.2s, box-shadow 0.2s",
+                      transition: "background 0.2s, box-shadow 0.2s",
                     }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 18px", height: 42, width: 448 }}>
-                        <input
+                       <input
                           type="text"
-                          readOnly={!isEditingCard}
-                          value={displayCardNumber}
+                          value={isEditingCard ? cardNumber : savedCardLast4 ? `**** **** **** ${savedCardLast4}` : cardNumber}
                           onChange={handleCardNumberChange}
+                          onFocus={() => setIsEditingCard(true)}
                           maxLength={19}
-                          placeholder={isEditingCard ? "1111 2222 3333 4444" : ""}
-                          style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "rgba(255,255,255,0.65)", fontSize: 14, fontWeight: 400 }}
+                          placeholder="1111 2222 3333 4444"
+                          style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "rgba(255,255,255,0.65)", fontSize: 14, fontWeight: 400, letterSpacing: 0 }}
                         />
                         <VisaBadge width={30} height={20} />
                       </div>
@@ -738,29 +776,29 @@ export default function SettingsPage() {
 
                   <div style={{ display: "grid", gridTemplateColumns: "216px 216px", gap: 16, width: 448 }}>
                     <div>
-                      <label style={{ display: "block", fontSize: 11, fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.18em", color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>Термін дії</label>
+                      <label style={{ display: "block", fontSize: 12, fontWeight: 400, letterSpacing: 0, color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>Термін дії</label>
                       <div style={{
                         width: 216,
                         borderRadius: 28,
-                        border: cardErrors.cardExpiry ? errorInputBorder : quietInputBorder,
-                        background: "rgba(255,255,255,0.02)",
+                        border: "1px solid transparent",
+                        background: cardErrors.cardExpiry ? inputBgError : inputBgQuiet,
                         boxShadow: cardErrors.cardExpiry ? "0 0 14px rgba(239,68,68,0.14)" : "none",
-                        transition: "border-color 0.2s, box-shadow 0.2s",
+                        transition: "background 0.2s, box-shadow 0.2s",
                       }}>
                         <input
                           type="text"
-                          readOnly={!isEditingCard}
-                          value={isEditingCard ? cardExpiry : savedCardLast4 ? "**/**" : ""}
+                          value={isEditingCard ? cardExpiry : savedCardLast4 ? "**/**" : cardExpiry}
                           onChange={handleExpiryChange}
+                          onFocus={() => setIsEditingCard(true)}
                           maxLength={5}
-                          placeholder={isEditingCard ? "ММ/РР" : ""}
-                          style={{ width: 216, height: 44, background: "transparent", border: "none", outline: "none", color: "#fff", fontSize: 14, fontWeight: 400, padding: "0 18px", boxSizing: "border-box" }}
+                          placeholder="ММ/РР"
+                          style={{ width: 216, height: 44, background: "transparent", border: "none", outline: "none", color: "#fff", fontSize: 14, fontWeight: 400, letterSpacing: 0, padding: "0 18px", boxSizing: "border-box" }}
                         />
                       </div>
                       <FieldError message={cardErrors.cardExpiry} />
                     </div>
                     <div>
-                      <label style={{ display: "block", fontSize: 11, fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.18em", color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>CVV</label>
+                      <label style={{ display: "block", fontSize: 12, fontWeight: 400, letterSpacing: 0, color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>CVV</label>
                       <div style={{
                         width: 216,
                         borderRadius: 28,
@@ -775,15 +813,15 @@ export default function SettingsPage() {
                       }}>
                         <input
                           type="password"
-                          readOnly={!isEditingCard}
-                          value={isEditingCard ? cardCVV : ""}
+                          value={isEditingCard ? cardCVV : cardCVV}
                           onChange={(e) => {
                             setCardCVV(e.target.value.replace(/\D/g, "").slice(0, 3));
                             setCardErrors((prev) => ({ ...prev, cardCVV: undefined, general: undefined }));
                           }}
-                          placeholder={isEditingCard ? "****" : savedCardLast4 ? "****" : ""}
+                          onFocus={() => setIsEditingCard(true)}
+                          placeholder="***"
                           maxLength={3}
-                          style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#fff", fontSize: 14, fontWeight: 400 }}
+                          style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#fff", fontSize: 14, fontWeight: 400, letterSpacing: 0 }}
                         />
                       </div>
                       <FieldError message={cardErrors.cardCVV} />
@@ -793,32 +831,31 @@ export default function SettingsPage() {
                   <div>
                     <label style={{
                       display: "block",
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: 400,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.18em",
+                      letterSpacing: 0,
                       color: "rgba(255,255,255,0.35)",
                       marginBottom: 8,
                     }}>
                       Ім'я на картці
                     </label>
-                    <div style={{
+                   <div style={{
                       width: 448,
                       borderRadius: 28,
-                      border: cardErrors.cardName ? errorInputBorder : quietInputBorder,
-                      background: "rgba(255,255,255,0.02)",
+                      border: "1px solid transparent",
+                      background: cardErrors.cardName ? inputBgError : inputBgQuiet,
                       boxShadow: cardErrors.cardName ? "0 0 14px rgba(239,68,68,0.14)" : "none",
-                      transition: "border-color 0.2s, box-shadow 0.2s",
+                      transition: "background 0.2s, box-shadow 0.2s",
                     }}>
                       <input
                         type="text"
-                        readOnly={!isEditingCard}
-                        value={isEditingCard ? cardName : savedCardLast4 ? "Власник картки" : ""}
+                        value={isEditingCard ? cardName : savedCardLast4 ? "Власник картки" : cardName}
                         onChange={(e) => {
                           setCardName(e.target.value.toUpperCase());
                           setCardErrors((prev) => ({ ...prev, cardName: undefined, general: undefined }));
                         }}
-                        placeholder={isEditingCard ? "Текст" : ""}
+                        onFocus={() => setIsEditingCard(true)}
+                        placeholder="Ім'я на картці"
                         style={{
                           height: 42,
                           width: 448,
@@ -828,6 +865,7 @@ export default function SettingsPage() {
                           color: "#fff",
                           fontSize: 14,
                           fontWeight: 400,
+                          letterSpacing: 0,
                           padding: "0 20px",
                           boxSizing: "border-box",
                         }}
@@ -856,8 +894,7 @@ export default function SettingsPage() {
                         color: "#fff",
                         fontSize: 12,
                         fontWeight: 600,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.1em",
+                        letterSpacing: 0,
                         cursor: "pointer",
                         display: "flex",
                         alignItems: "center",
@@ -880,7 +917,7 @@ export default function SettingsPage() {
                           height: "44px",
                           borderRadius: 999,
                           border: "1px solid transparent",
-                          background: gradientBorder,
+                          background: cancelGradientBorder,
                           color: "#A3A4B0",
                           fontSize: 13,
                           fontWeight: 500,
@@ -914,266 +951,262 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </section>
+
             </div>
 
+            {/* HISTORY SECTION (З використанням методу обгортки) */}
             <section>
-              <h2 style={{ fontSize: 22, fontWeight: 400, margin: "0 0 12px 0" }}>Історія платежів</h2>
+              <h2 style={{ fontSize: 22, fontWeight: 400, margin: "0 0 12px 0", letterSpacing: 0 }}>Історія платежів</h2>
+              
               <div style={{
                 width: 1116,
-                height: 141,
-                boxSizing: "border-box",
-                borderRadius: 20,
-                border: "1px solid rgba(255,255,255,0.08)",
-                background: "rgba(10,10,10,0.6)",
-                overflow: "auto",
+                padding: 1, // Це товщина нашої градієнтною рамки
+                borderRadius: 28,
+                background: "linear-gradient(90deg, rgba(82, 46, 139, 0.32) 0%, rgba(179, 179, 179, 0.32) 100%)",
+                boxSizing: "border-box"
               }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-                  <thead>
-                    <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)" }}>
-                      {["Назва плану", "Вартість", "Картка", "Дата покупки", "Дата завершення", "Дії"].map((h) => (
-                        <th key={h} style={{ padding: "16px 24px", fontSize: 11, fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.18em", color: "rgba(255,255,255,0.35)", whiteSpace: "nowrap" }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedPlan !== 0 && savedCardLast4 ? (
-                      <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                        <td style={{ padding: "20px 24px", fontSize: 14, color: "rgba(255,255,255,0.6)" }}>План "{plansData[selectedPlan].name}"</td>
-                        <td style={{ padding: "20px 24px", fontSize: 14, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{isYearly ? plansData[selectedPlan].yearlyPrice : plansData[selectedPlan].monthlyPrice} EUR</td>
-                        <td style={{ padding: "20px 24px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.55)" }}>**** **** **** {savedCardLast4}</span>
-                          </div>
-                        </td>
-                        <td style={{ padding: "20px 24px", fontSize: 14, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>17.05.2026</td>
-                        <td style={{ padding: "20px 24px", fontSize: 14, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{isYearly ? "17.05.2027" : "17.06.2026"}</td>
-                        <td style={{ padding: "20px 24px", textAlign: "center" }}>
-                          <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-                            {["download", "link"].map((key) => (
-                              <button
-                                key={key}
-                                type="button"
-                                onMouseEnter={() => setHoveredIconBtn(key)}
-                                onMouseLeave={() => setHoveredIconBtn(null)}
-                                style={{
-                                  display: "inline-flex",
-                                  borderRadius: 10,
-                                  border: hoveredIconBtn === key ? "1px solid rgba(131,72,193,0.5)" : "1px solid rgba(255,255,255,0.08)",
-                                  background: hoveredIconBtn === key ? "rgba(131,72,193,0.08)" : "rgba(255,255,255,0.04)",
-                                  padding: 8,
-                                  cursor: "pointer",
-                                  boxShadow: hoveredIconBtn === key ? "0 0 10px rgba(131,72,193,0.25)" : "none",
-                                  transition: "border-color 0.2s, background 0.2s, box-shadow 0.2s",
-                                }}
-                              >
-                                {key === "download" ? (
-                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
-                                  </svg>
-                                ) : (
-                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2">
-                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" />
-                                  </svg>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        </td>
+                <div style={{
+                  width: "100%",
+                  height: "100%",
+                  borderRadius: 27, // 28 - 1
+                  background: "rgba(5, 5, 6, 0.72)", // Точний колір з вашої фігми (050506 72%)
+                  backdropFilter: "blur(18px)",
+                  overflow: "hidden",
+                }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+                    <thead>
+                      <tr style={{
+                        position: "relative",
+                        height: "57px",
+                        color: "#A3A4B0",
+                        fontSize: "14px",
+                        fontWeight: 400,
+                        background: "linear-gradient(90deg, rgba(96, 67, 164, 0.2) 0%, rgba(1, 3, 21, 0.2) 100%)",
+                        borderBottom: "1px solid rgba(255,255,255,0.08)"
+                      }}>
+                        {["Назва плану", "Вартість", "Картка", "Дата покупки", "Дата завершення", "Дії"].map((h) => (
+                          <th
+                            key={h}
+                            style={{
+                              padding: "0 24px",
+                              fontSize: 14,
+                              fontWeight: 400,
+                              letterSpacing: 0,
+                              whiteSpace: "nowrap",
+                              verticalAlign: "middle"
+                            }}
+                          >
+                            {h}
+                          </th>
+                        ))}
                       </tr>
-                    ) : (
-                      <tr>
-                        <td colSpan={6} style={{ padding: "40px", textAlign: "center", color: "rgba(255,255,255,0.4)" }}>Немає історій транзакцій</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {selectedPlan !== 0 && (
-                <div style={{ marginTop: 20 }}>
-                  <button
-                    type="button"
-                    onClick={handleCancelSubscription}
-                    onMouseEnter={() => setIsCancelHovered(true)}
-                    onMouseLeave={() => setIsCancelHovered(false)}
-                    style={{
-                      borderRadius: 999,
-                      border: isCancelHovered
-                        ? "1px solid rgba(239, 68, 68, 1)"
-                        : "1px solid rgba(239, 68, 68, 0.4)",
-                      background: isCancelHovered
-                        ? "rgba(239, 68, 68, 0.05)"
-                        : "transparent",
-                      color: isCancelHovered
-                        ? "rgb(255, 100, 100)"
-                        : "rgb(239, 68, 68)",
-                      padding: "10px 20px",
-                      fontSize: 13,
-                      fontWeight: 400,
-                      cursor: "pointer",
-                      boxShadow: isCancelHovered ? "0 0 16px rgba(239,68,68,0.3)" : "none",
-                      transition: "all 0.25s ease",
-                      outline: "none",
-                    }}
-                  >
-                    Скасувати підписку
-                  </button>
+                    </thead>
+                    <tbody>
+                      {selectedPlan !== 0 && savedCardLast4 ? (
+                        <tr>
+                          <td style={{ padding: "20px 24px", fontSize: 14, letterSpacing: 0, color: "rgba(255,255,255,0.6)" }}>План "{plansData[selectedPlan].name}"</td>
+                          <td style={{ padding: "20px 24px", fontSize: 14, letterSpacing: 0, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{isYearly ? plansData[selectedPlan].yearlyPrice : plansData[selectedPlan].monthlyPrice} EUR</td>
+                          <td style={{ padding: "20px 24px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <span style={{ fontSize: 13, letterSpacing: 0, color: "rgba(255,255,255,0.55)" }}>**** **** **** {savedCardLast4}</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: "20px 24px", fontSize: 14, letterSpacing: 0, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>17.05.2026</td>
+                          <td style={{ padding: "20px 24px", fontSize: 14, letterSpacing: 0, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{isYearly ? "17.05.2027" : "17.06.2026"}</td>
+                          <td style={{ padding: "20px 24px", textAlign: "center" }}>
+                            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                              {["download", "link"].map((key) => (
+                                <button
+                                  key={key}
+                                  type="button"
+                                  onMouseEnter={() => setHoveredIconBtn(key)}
+                                  onMouseLeave={() => setHoveredIconBtn(null)}
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    width: 40,
+                                    height: 40,
+                                    padding: "1px",
+                                    borderRadius: "50%",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    background: "linear-gradient(90deg, rgba(179, 179, 179, 0.32), rgba(82, 46, 139, 0.32))",
+                                    transition: "transform 0.3s ease, box-shadow 0.3s ease",
+                                    transform: hoveredIconBtn === key ? "scale(1.1)" : "scale(1)",
+                                    boxShadow: hoveredIconBtn === key ? "0 0 12px rgba(131, 72, 193, 0.28)" : "none",
+                                  }}
+                                >
+                                  <div style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    width: "100%",
+                                    height: "100%",
+                                    borderRadius: "50%",
+                                    background: hoveredIconBtn === key ? "#0B0B0D" : "#050506",
+                                    transition: "background 0.3s ease",
+                                  }}>
+                                    {key === "download" ? (
+                                      <img src={uploadicon2} alt="download" style={{ width: "16px", height: "16px" }} />
+                                    ) : (
+                                      <img src={uploadicon} alt="link" style={{ width: "16px", height: "16px" }} />
+                                    )}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        <tr>
+                          <td colSpan={6} style={{ padding: "40px", textAlign: "center", color: "rgba(255,255,255,0.4)" }}>Немає історій транзакцій</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              )}
+              </div>
             </section>
+
+            {selectedPlan !== 0 && (
+              <div style={{ marginTop: 24, display: "flex", justifyContent: "flex-start" }}>
+                <button
+                  type="button"
+                  onClick={handleCancelSubscription}
+                  onMouseEnter={() => setIsCancelHovered(true)}
+                  onMouseLeave={() => setIsCancelHovered(false)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 201,
+                    height: 44,
+                    borderRadius: 28,
+                    border: "1px solid transparent",
+                    cursor: "pointer",
+                    background: isCancelHovered
+                      ? "linear-gradient(#0B0B0D, #0B0B0D) padding-box, linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%) border-box"
+                      : "linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%) border-box",
+                    color: "#F40000",
+                    fontSize: 13,
+                    fontWeight: 400,
+                    fontFamily: "'Montserrat', sans-serif",
+                    transition: "all 0.3s ease",
+                    transform: isCancelHovered ? "scale(1.02)" : "scale(1)",
+                    outline: "none",
+                  }}
+                >
+                  Скасувати підписку
+                </button>
+              </div>
+            )}
+            
           </div>
         )}
 
+        {/* СЕКЦІЯ 4: СПОВІЩЕННЯ (З використанням методу обгортки) */}
         {activeTab === "notifications" && (
-          <div style={{ width: "100%", maxWidth: 1116 }}>
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 24,
+        <section style={{ width: "100%", maxWidth: 1116 }}>
+          <div style={{ display: "flex", alignItems: "center", marginBottom: 24 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 400, margin: 0 }}>Сповіщення</h2>
+          </div>
+
+          <div style={{
+            width: 1116,
+            padding: 1, // Це товщина нашої градієнтною рамки
+            borderRadius: 28,
+            background: tableGradientBorder,
+            marginBottom: 24
+          }}>
+            <div style={{ 
+              width: "100%", 
+              height: "100%", 
+              borderRadius: 27, // 28 - 1
+              background: "rgba(5, 5, 6, 0.72)", // Точний колір з вашої фігми (050506 72%)
+              backdropFilter: "blur(18px)", 
+              overflow: "hidden", 
+              display: "flex", 
+              flexDirection: "column", 
             }}>
-              <h2 style={{ fontSize: 24, fontWeight: 400, margin: 0 }}>Сповіщення</h2>
-
-              <button
-                type="button"
-                onMouseEnter={() => setHoveredSave(true)}
-                onMouseLeave={() => setHoveredSave(false)}
-                style={{
-                  marginRight: 24,
-                  height: 36,
-                  width: 92,
-                  borderRadius: 999,
-                  boxSizing: "border-box",
-                  fontSize: 12,
-                  lineHeight: "20px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  color: "#fff",
-                  border: "1px solid transparent",
-                  background: `linear-gradient(#0A0A0A, #0A0A0A) padding-box, ${gradientFill} border-box`,
-                  boxShadow: hoveredSave ? "0 0 16px rgba(131,72,193,0.5)" : "none",
-                  transform: hoveredSave ? "translateY(-1px)" : "none",
-                  transition: "box-shadow 0.2s, transform 0.15s",
-                }}
-              >
-                Зберегти
-              </button>
-            </div>
-
-            <div style={{
-              position: "relative",
-              width: 1116,
-              height: 270,
-              borderRadius: 20,
-              border: "1px solid rgba(255,255,255,0.1)",
-              background: "rgba(10,10,10,0.55)",
-              backdropFilter: "blur(18px)",
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-            }}>
-              <div style={{
-                position: "absolute",
-                inset: "auto -120px -220px -120px",
-                height: 360,
-                background: "radial-gradient(closest-side, rgba(131,72,193,0.35), rgba(131,72,193,0) 70%)",
-                filter: "blur(8px)",
-                pointerEvents: "none",
-              }} />
-
-              <div style={{ position: "relative" }}>
-                {[
-                  { label: "Отримувати сповіщення на цьому веб-сайті", checked: notifyWeb, onChange: setNotifyWeb },
-                  { label: "Telegram сповіщення", checked: notifyTelegram, onChange: setNotifyTelegram },
-                  { label: "Сповіщення електронною поштою", checked: notifyEmail, onChange: setNotifyEmail },
-                ].map((item) => (
-                  <div key={item.label} style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "12px 24px",
-                    borderBottom: "1px solid rgba(255,255,255,0.06)",
-                  }}>
-                    <span style={{ fontSize: 16, lineHeight: "24px", color: "#fff", fontWeight: 400 }}>{item.label}</span>
-                    <SwitchToggle checked={item.checked} onChange={item.onChange} />
-                  </div>
-                ))}
-
-                <div style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "12px 24px",
-                  borderBottom: "1px solid rgba(255,255,255,0.06)",
-                }}>
-                  <span style={{ fontSize: 16, lineHeight: "24px", color: "#fff", fontWeight: 400 }}>Мова сповіщень</span>
-                  <div style={{ position: "relative", minWidth: 160 }}>
-                    <select
-                      value={notifyLang}
-                      onChange={(e) => setNotifyLang(e.target.value)}
-                      style={{
-                        width: "100%",
-                        height: 36,
-                        borderRadius: 12,
-                        border: "1px solid rgba(255,255,255,0.12)",
-                        background: "rgba(255,255,255,0.04)",
-                        color: "#fff",
-                        padding: "0 34px 0 14px",
-                        fontSize: 13,
-                        fontWeight: 500,
-                        outline: "none",
-                        appearance: "none",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <option value="uk" style={{ background: "#fff", color: "#000" }}>Українська</option>
-                      <option value="en" style={{ background: "#fff", color: "#000" }}>English</option>
-                    </select>
-                    <svg style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", opacity: 0.6 }} width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth="2">
-                      <path d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </div>
-
-                <div style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "12px 24px",
-                }}>
-                  <span style={{ fontSize: 16, lineHeight: "24px", color: "#fff", fontWeight: 400 }}>Валюта</span>
-                  <div style={{ position: "relative", minWidth: 160 }}>
-                    <select
-                      value={notifyCurrency}
-                      onChange={(e) => setNotifyCurrency(e.target.value)}
-                      style={{
-                        width: "100%",
-                        height: 36,
-                        borderRadius: 12,
-                        border: "1px solid rgba(255,255,255,0.12)",
-                        background: "rgba(255,255,255,0.04)",
-                        color: "#fff",
-                        padding: "0 34px 0 14px",
-                        fontSize: 13,
-                        fontWeight: 500,
-                        outline: "none",
-                        appearance: "none",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <option value="usd" style={{ background: "#fff", color: "#000" }}>Долар, $</option>
-                      <option value="eur" style={{ background: "#fff", color: "#000" }}>Євро, €</option>
-                      <option value="uah" style={{ background: "#fff", color: "#000" }}>Гривня, ₴</option>
-                    </select>
-                    <svg style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", opacity: 0.6 }} width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth="2">
-                      <path d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
+              
+              {/* Рядок 1 */}
+              <div style={{ display: "flex", alignItems: "center", padding: "0 24px", height: 84, boxSizing: "border-box", flexShrink: 0 }}>
+                <span style={{ fontSize: 16, color: "#fff", fontWeight: 400, flex: 1 }}>Отримувати сповіщення на цьому веб-сайті</span>
+                <div style={{ marginLeft: 84 }}>
+                  <SwitchToggle checked={notifyWeb} onChange={setNotifyWeb} />
                 </div>
               </div>
+
+              {/* ЛІНІЯ 1 (Жорсткий блок) */}
+              <div style={{ height: 1, minHeight: 1, margin: "0 24px", opacity: 0.32, background: "linear-gradient(90deg, #522E8B 0%, rgba(179, 179, 179, 0.1) 100%)", flexShrink: 0 }} />
+
+              {/* Рядок 2 */}
+              <div style={{ display: "flex", alignItems: "center", padding: "0 24px", height: 84, boxSizing: "border-box", flexShrink: 0 }}>
+                <span style={{ fontSize: 16, color: "#fff", fontWeight: 400, flex: 1 }}>Telegram сповіщення</span>
+                <div style={{ marginLeft: 84 }}>
+                  <SwitchToggle checked={notifyTelegram} onChange={setNotifyTelegram} />
+                </div>
+              </div>
+
+              {/* ЛІНІЯ 2 */}
+              <div style={{ height: 1, minHeight: 1, margin: "0 24px", opacity: 0.32, background: "linear-gradient(90deg, #522E8B 0%, rgba(179, 179, 179, 0.1) 100%)", flexShrink: 0 }} />
+
+              {/* Рядок 3 */}
+              <div style={{ display: "flex", alignItems: "center", padding: "0 24px", height: 84, boxSizing: "border-box", flexShrink: 0 }}>
+                <span style={{ fontSize: 16, color: "#fff", fontWeight: 400, flex: 1 }}>Сповіщення електронною поштою</span>
+                <div style={{ marginLeft: 84 }}>
+                  <SwitchToggle checked={notifyEmail} onChange={setNotifyEmail} />
+                </div>
+              </div>
+
+              {/* ЛІНІЯ 3 */}
+              <div style={{ height: 1, minHeight: 1, margin: "0 24px", opacity: 0.32, background: "linear-gradient(90deg, #522E8B 0%, rgba(179, 179, 179, 0.1) 100%)", flexShrink: 0 }} />
+
+              {/* Рядок 4 */}
+              <div style={{ display: "flex", alignItems: "center", padding: "0 24px", height: 84, boxSizing: "border-box", flexShrink: 0 }}>
+                <span style={{ fontSize: 16, color: "#fff", fontWeight: 400, flex: 1 }}>Мова сповіщень</span>
+                <div style={{ position: "relative", minWidth: 160, marginLeft: 84 }}>
+                  <select value={notifyLang} onChange={(e) => setNotifyLang(e.target.value)} style={{ width: "100%", height: 36, borderRadius: 28, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)", color: "#fff", padding: "0 34px 0 14px", fontSize: 13, appearance: "none", cursor: "pointer" }}>
+                    <option value="uk" style={{ background: "#111" }}>Українська</option>
+                    <option value="en" style={{ background: "#111" }}>English</option>
+                  </select>
+                  <svg style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth="2"><path d="M19 9l-7 7-7-7" /></svg>
+                </div>
+              </div>
+              
+              {/* ЛІНІЯ 4 */}
+              <div style={{ height: 1, minHeight: 1, margin: "0 24px", opacity: 0.32, background: "linear-gradient(90deg, #522E8B 0%, rgba(179, 179, 179, 0.1) 100%)", flexShrink: 0 }} />
+
+              {/* Рядок 5 */}
+              <div style={{ display: "flex", alignItems: "center", padding: "0 24px", height: 84, boxSizing: "border-box", flexShrink: 0 }}>
+                <span style={{ fontSize: 16, color: "#fff", fontWeight: 400, flex: 1 }}>Валюта</span>
+                <div style={{ position: "relative", minWidth: 160, marginLeft: 84 }}>
+                  <select value={notifyCurrency} onChange={(e) => setNotifyCurrency(e.target.value)} style={{ width: "100%", height: 36, borderRadius: 28, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)", color: "#fff", padding: "0 34px 0 14px", fontSize: 13, appearance: "none", cursor: "pointer" }}>
+                    <option value="usd" style={{ background: "#111" }}>Долар, $</option>
+                    <option value="eur" style={{ background: "#111" }}>Євро, €</option>
+                    <option value="uah" style={{ background: "#111" }}>Гривня, ₴</option>
+                  </select>
+                  <svg style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth="2"><path d="M19 9l-7 7-7-7" /></svg>
+                </div>
+              </div>
+
             </div>
           </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-start" }}>
+            <button
+              type="button" onMouseEnter={() => setHoveredSave(true)} onMouseLeave={() => setHoveredSave(false)}
+              style={{
+                height: 44, width: 216, borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: "pointer", color: "#fff", border: "none",
+                background: "linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%)", boxShadow: "none",
+                transform: hoveredSave ? "translateY(-1px) scale(1.02)" : "none", transition: "all 0.2s ease", fontFamily: "'Montserrat', sans-serif",
+              }}
+            >
+              Зберегти
+            </button>
+          </div>
+        </section>
         )}
       </div>
     </div>
@@ -1182,6 +1215,8 @@ export default function SettingsPage() {
 
 function PlanButton({ isSelected, cta, onSelect }: { isSelected: boolean; cta: string; onSelect: () => void }) {
   const [hovered, setHovered] = useState(false);
+
+  const gradientFill = "linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%)";
   const gradientBorder = "linear-gradient(#050508, #050508) padding-box, linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%) border-box";
 
   return (
@@ -1189,27 +1224,21 @@ function PlanButton({ isSelected, cta, onSelect }: { isSelected: boolean; cta: s
       type="button"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onClick={(event) => {
-        event.stopPropagation();
-        onSelect();
-      }}
+      onClick={(e) => { e.stopPropagation(); onSelect(); }}
       style={{
         width: "100%",
         padding: "14px 0",
-        borderRadius: 14,
-        fontSize: 11,
-        fontWeight: 800,
-        textTransform: "uppercase",
-        letterSpacing: "0.15em",
+        borderRadius: 28,
+        fontWeight: 500,
+        letterSpacing: 0,
         cursor: "pointer",
         border: isSelected ? "none" : "1px solid transparent",
         background: isSelected ? gradientFill : gradientBorder,
         color: "#fff",
         fontFamily: "'Montserrat', sans-serif",
-        boxShadow: hovered ? "0 0 18px rgba(131,72,193,0.55)" : "none",
-        transform: hovered ? "translateY(-1px)" : "none",
-        opacity: hovered ? 0.92 : 1,
-        transition: "box-shadow 0.2s, transform 0.15s, opacity 0.2s",
+        boxShadow: "none",
+        transform: hovered ? "translateY(-1px) scale(1.02)" : "none",
+        transition: "all 0.2s ease",
       }}
     >
       {isSelected ? "Поточний план" : cta}
