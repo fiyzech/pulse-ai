@@ -39,7 +39,10 @@ const formatSupply = (value: number, isMax: boolean = false) => {
 
 type ModelPrediction = {
   signal?: string;
+  raw_prediction?: string;
   confidence?: number | null;
+  accuracy?: number | null;
+  created_at?: string;
 };
 
 const getBinancePairSymbol = (symbol: string) => {
@@ -307,6 +310,7 @@ export default function AssetPage(props: AssetPageProps) {
     longPercent: 50,
     shortPercent: 50,
     signal: 'NO TRADE',
+    hasPrediction: false,
     isLoading: true
   });
   
@@ -533,6 +537,7 @@ const handleFavoriteToggle = async () => {
           longPercent: 50,
           shortPercent: 50,
           signal: 'NOISY',
+          hasPrediction: false,
           isLoading: false
         });
         return;
@@ -549,57 +554,70 @@ const handleFavoriteToggle = async () => {
         const dbInterval = dbIntervalMap[timeframe] || '4h';
 
         const predictionSymbols = buildPredictionSymbolVariants(coinShort, binancePairSymbol, cgId);
-        const params = new URLSearchParams({
-          select: '*',
-          symbol: `in.(${predictionSymbols.join(',')})`,
-          interval: `eq.${dbInterval}`,
-          order: 'created_at.desc',
-          limit: '1',
-        });
 
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/model_predictions?${params.toString()}`, {
-          headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-          }
-        });
-
-        if (res.ok) {
+        // Спочатку шукаємо для конкретного TF, при відсутності — беремо 4h як fallback
+        const fetchInterval = async (interval: string): Promise<ModelPrediction | null> => {
+          const params = new URLSearchParams({
+            select: 'signal,raw_prediction,confidence,accuracy,created_at',
+            symbol: `in.(${predictionSymbols.join(',')})`,
+            interval: `eq.${interval}`,
+            order: 'created_at.desc',
+            limit: '1',
+          });
+          const res = await fetch(`${SUPABASE_URL}/rest/v1/model_predictions?${params.toString()}`, {
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+          });
+          if (!res.ok) return null;
           const data = await res.json() as ModelPrediction[];
-          if (data && data.length > 0) {
-            const latest = data[0];
-            const conf = latest.confidence || 50;
-            const signal = latest.signal || 'NO TRADE';
-            const normalizedSignal = signal.toUpperCase();
-            const isLong = normalizedSignal.includes('LONG');
-            const isShort = normalizedSignal.includes('SHORT');
+          return data?.[0] ?? null;
+        };
 
-            let longP = 50;
-            let shortP = 50;
+        let latest = await fetchInterval(dbInterval);
+        // Якщо для вибраного TF немає даних — пробуємо 4h
+        if (!latest && dbInterval !== '4h') latest = await fetchInterval('4h');
 
-            if (isLong) {
-              longP = conf;
-              shortP = 100 - conf;
-            } else if (isShort) {
-              shortP = conf;
-              longP = 100 - conf;
-            }
+        if (latest) {
+          const conf = latest.confidence ?? 50;
+          const signal = latest.signal || 'NO TRADE';
+          const normalizedSignal = signal.toUpperCase();
+          const isLong = normalizedSignal.includes('LONG');
+          const isShort = normalizedSignal.includes('SHORT');
+          const isNoTrade = !isLong && !isShort;
 
-            setAiData({
-              longPercent: longP,
-              shortPercent: shortP,
-              signal,
-              isLoading: false
-            });
+          // Для NO TRADE: показуємо нахил з raw_prediction (якщо є) зі зниженою впевненістю
+          const rawDir = (latest.raw_prediction || '').toUpperCase();
+          const rawIsLong  = rawDir.includes('LONG');
+          const rawIsShort = rawDir.includes('SHORT');
+
+          let longP: number;
+          let shortP: number;
+
+          if (isLong) {
+            longP = conf; shortP = 100 - conf;
+          } else if (isShort) {
+            shortP = conf; longP = 100 - conf;
+          } else if (isNoTrade && rawIsLong) {
+            // NO TRADE але модель схилилась до LONG — показуємо слабкий нахил
+            longP = Math.min(conf, 55); shortP = 100 - longP;
+          } else if (isNoTrade && rawIsShort) {
+            shortP = Math.min(conf, 55); longP = 100 - shortP;
           } else {
-            setAiData({ longPercent: 50, shortPercent: 50, signal: 'NO TRADE', isLoading: false });
+            longP = 50; shortP = 50;
           }
+
+          setAiData({
+            longPercent: longP,
+            shortPercent: shortP,
+            signal,
+            hasPrediction: isLong || isShort,  // true тільки для реальних сигналів
+            isLoading: false
+          });
         } else {
-          setAiData({ longPercent: 50, shortPercent: 50, signal: 'NO TRADE', isLoading: false });
+          setAiData({ longPercent: 50, shortPercent: 50, signal: 'NO TRADE', hasPrediction: false, isLoading: false });
         }
       } catch (error) {
         console.error("Помилка завантаження AI сигналу:", error);
-        setAiData({ longPercent: 50, shortPercent: 50, signal: 'NO TRADE', isLoading: false });
+        setAiData({ longPercent: 50, shortPercent: 50, signal: 'NO TRADE', hasPrediction: false, isLoading: false });
       }
     };
 
@@ -799,15 +817,26 @@ const handleFavoriteToggle = async () => {
     : '---';
 
   // ВИПРАВЛЕННЯ 2: Задаємо змінні і реально їх використовуємо в JSX
-  let signalText = "Недостатньо даних у БД\nдля цього таймфрейму";
+  let signalText = "Немає прогнозу для\nцього таймфрейму";
   let signalColorClass = "text-[#8E8E8E]";
-  
+
   if (aiData.signal.includes("LONG")) {
     signalText = "Ймовірне зростання ціни\nна цьому таймфреймі";
     signalColorClass = "text-[#00E676]";
   } else if (aiData.signal.includes("SHORT")) {
     signalText = "Ймовірне зниження ціни\nна цьому таймфреймі";
     signalColorClass = "text-[#E53232]";
+  } else if (aiData.longPercent > 50) {
+    // NO TRADE але є нахил до LONG
+    signalText = "Слабкий сигнал до зростання,\nвисока невизначеність";
+    signalColorClass = "text-[#86efac]";
+  } else if (aiData.shortPercent > 50) {
+    // NO TRADE але є нахил до SHORT
+    signalText = "Слабкий сигнал до зниження,\nвисока невизначеність";
+    signalColorClass = "text-[#fca5a5]";
+  } else if (aiData.signal !== 'NO TRADE' || aiData.longPercent !== 50) {
+    signalText = "Модель не бачить переваги\nдля Long або Short";
+    signalColorClass = "text-[#fbbf24]";
   }
 
   const handleRelatedCoinClick = (coin: RelatedCoinCard) => {
@@ -823,6 +852,18 @@ const handleFavoriteToggle = async () => {
 
     requestAnimationFrame(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  };
+
+  const handleOpenTradingWorkspace = () => {
+    navigate(`/trading/${coinShort}`, {
+      state: {
+        coin: {
+          id: cgId,
+          symbol: coinShort,
+          imgUrl: coinIcon,
+        },
+      },
     });
   };
 
@@ -870,6 +911,17 @@ const handleFavoriteToggle = async () => {
 
               <div className="flex flex-col items-end gap-4 mt-1 shrink-0">
                 <div className="flex items-center justify-end gap-4">
+                  <button
+                    type="button"
+                    onClick={handleOpenTradingWorkspace}
+                    className="group inline-flex h-[36px] items-center gap-2 rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] px-4 text-[13px] font-medium text-white shadow-[0_4px_15px_rgba(131,72,193,0.24)] transition-all duration-300 hover:scale-[1.03] active:scale-95"
+                  >
+                    Торговий термінал
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M7 17L17 7M10 7H17V14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+
                   <button
                     type="button"
                     onClick={handleFavoriteToggle}

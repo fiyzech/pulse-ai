@@ -28,6 +28,7 @@ const pageSearchItems: SearchResult[] = [
   { type: "page", label: "Головна", description: "Dashboard", path: "/dashboard" },
   { type: "page", label: "Обране", description: "Ваші збережені активи", path: "/assets" },
   { type: "page", label: "Ринки", description: "Усі криптоактиви", path: "/markets" },
+  { type: "page", label: "Торгівля", description: "Trading workspace та demo угоди", path: "/trading" },
   { type: "page", label: "Алерти", description: "Цінові сповіщення", path: "/alerts" },
   { type: "page", label: "Профіль", description: "Дані акаунта", path: "/profile" },
   { type: "page", label: "Налаштування", description: "Підписка, карта, сповіщення", path: "/settings" },
@@ -92,6 +93,7 @@ export default function Topbar() {
     if (path.includes("dashboard")) return "Головна";
     if (path.includes("assets") || path.includes("watchlist")) return "Обране";
     if (path.includes("markets")) return "Ринки";
+    if (path.includes("trading")) return "Торгівля";
     if (path.includes("alerts")) return "Алерти";
     if (path.includes("settings")) return "Налаштування";
     if (path.includes("profile")) return "Профіль";
