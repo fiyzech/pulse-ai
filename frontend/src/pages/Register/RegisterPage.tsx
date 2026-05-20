@@ -8,8 +8,12 @@ import { supabase } from '../../supabaseClient';
 import { mergeAccountCache } from '../../utils/accountCache';
 
 
-import firstGradPic from '../../assets/images/first-grad-pic.svg?url';
-import secondGradPic from '../../assets/images/second-grad-pic.svg?url';
+// @ts-ignore
+import thirdGradPic from '../../assets/images/third-grad-pic.svg?url';
+// @ts-ignore
+import seventhGridPic from '../../assets/images/seventh-grid-pic.svg?url';
+// @ts-ignore
+import eighthGridPic from '../../assets/images/eighth-grid-pic.svg?url';
 
 // ─── Змінні оточення Supabase ────────────────────────────────────────────────
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -506,15 +510,27 @@ setTimeout(() => navigate('/select-plan'), 1500);
         </div>
       </div>
 
-      <img src={firstGradPic} alt="" className="absolute top-[-10%] -left-[10%] w-[600px] opacity-60 pointer-events-none mix-blend-screen z-0" />
-      <img src={secondGradPic} alt="" className="absolute bottom-0 -right-[5%] w-[500px] opacity-50 pointer-events-none mix-blend-screen z-0" />
-
+     <img src={eighthGridPic} alt="" className="absolute top-[-10%] -left-[10%] w-[600px] opacity-60 pointer-events-none mix-blend-screen z-0" />
+      <img src={seventhGridPic} alt="" className="absolute bottom-0 -right-[5%] w-[500px] opacity-50 pointer-events-none mix-blend-screen z-0" />
       <div className="flex-1 flex flex-col items-center justify-center z-10 p-4 py-12">
 
         {step === 1 && (
           <Card>
             <Stepper step={step} />
             <h1 className="text-white text-[32px] font-bold">Вітаємо</h1>
+            {/* Верхній лівий градієнт */}
+            <img
+              src={thirdGradPic}
+              alt=""
+              className="absolute top-0 left-0 w-[300px] h-[220px] object-cover object-left opacity-60 pointer-events-none mix-blend-screen z-0 block"
+            />
+            {/* Нижній правий градієнт */}
+            <img
+              src={thirdGradPic}
+              alt=""
+              className="absolute bottom-0 right-0 w-[240px] h-[240px] object-cover object-right-bottom pointer-events-none z-0 select-none transform rotate-180 mix-blend-screen opacity-80"
+            />
+            {/* ============================================================== */}
             <p className="font-light text-[16px] text-[#A3A4B0] mt-[4px] mb-[48px]">Створіть свій акаунт</p>
 
             <div className="px-[60px] pb-[60px]">
@@ -961,8 +977,8 @@ setTimeout(() => navigate('/select-plan'), 1500);
         )}
 
         <div className="w-full text-center py-6 z-10 relative">
-          <span className="text-[13px] text-[#A3A4B0]">Вже зареєстровані? </span>
-          <Link to="/login" className="text-[13px] text-[#22C55E] hover:text-[#1ea84f] transition-all">Увійти</Link>
+          <span className="text-[14px] text-[#A3A4B0]">Вже зареєстровані? </span>
+          <Link to="/login" className="text-[14px] text-[#25DE28] hover:text-[#1ea84f] transition-all">Увійти</Link>
         </div>
       </div>
     </div>
