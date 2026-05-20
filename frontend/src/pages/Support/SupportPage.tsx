@@ -164,17 +164,17 @@ export default function SupportPage() {
                    <label className="text-[12px] font-normal text-[#A3A4B0] w-[235px]">Прізвище</label>
                 </div>
                 <div className="flex gap-[24px]">
-                  <div className="gradient-border-box group w-[237px] h-[40px] rounded-[28px] overflow-hidden transition-colors hover:bg-white/[0.08]">
+                  <div className="gradient-border-box group w-[237px] h-[44px] rounded-[28px] overflow-hidden transition-colors hover:bg-white/[0.08]">
                     <input 
                       type="text" 
-                      placeholder="Введіть Ваше імʼя" 
+                      placeholder="Введіть імʼя" 
                       className="w-full h-full bg-transparent pl-[13px] py-[13px] text-[14px] text-[#9E9E9E] focus:outline-none placeholder:text-[#9E9E9E]" 
                     />
                   </div>
-                  <div className="gradient-border-box group w-[237px] h-[40px] rounded-[28px] overflow-hidden transition-colors hover:bg-white/[0.08]">
+                  <div className="gradient-border-box group w-[237px] h-[44px] rounded-[28px] overflow-hidden transition-colors hover:bg-white/[0.08]">
                     <input 
                       type="text" 
-                      placeholder="Введіть Ваше прізвище" 
+                      placeholder="Введіть прізвище" 
                       className="w-full h-full bg-transparent pl-[13px] py-[13px] text-[14px] text-[#9E9E9E] focus:outline-none placeholder:text-[#9E9E9E]" 
                     />
                   </div>
@@ -183,7 +183,7 @@ export default function SupportPage() {
 
               <div className="px-[24px] mb-[24px]">
                 <label className="text-[12px] font-normal text-[#A3A4B0] block mb-[8px]">Тема</label>
-                <div className="gradient-border-box group relative w-[498px] h-[40px] rounded-[28px] overflow-hidden transition-colors hover:bg-white/[0.08]">
+                <div className="gradient-border-box group relative w-[498px] h-[44px] rounded-[28px] overflow-hidden transition-colors hover:bg-white/[0.08]">
                   <select 
                     className="w-full h-[44px] bg-transparent py-[13px] pl-[13px]  text-[14px] text-[#9E9E9E] focus:outline-none cursor-pointer"
                     defaultValue=""
@@ -202,7 +202,7 @@ export default function SupportPage() {
 
               <div className="px-[24px] mb-[24px]">
                 <label className="text-[12px] font-normal text-[#A3A4B0] block mb-[8px]">Опишіть проблему</label>
-                <div className="gradient-border-box group w-[498px] h-[100px] rounded-[20px] overflow-hidden transition-colors hover:bg-white/[0.08]">
+                <div className="gradient-border-box group w-[498px] h-[132px] rounded-[28px] overflow-hidden transition-colors hover:bg-white/[0.08]">
                   <textarea 
                     placeholder="Повідомлення..." 
                     className="w-full h-full bg-transparent pl-[13px] pt-[13px] text-[14px] text-[#9E9E9E] focus:outline-none placeholder:text-[#9E9E9E] resize-none"
@@ -212,7 +212,7 @@ export default function SupportPage() {
 
               <div className="px-[24px] pb-[24px]">
                 <button 
-                  className="w-[498px] h-[44px] rounded-full text-[16px] font-medium text-[#FFFFFF] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] 
+                  className="w-[498px] h-[44px] rounded-[28px] text-[16px] font-medium text-[#FFFFFF] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] 
                   transition-all duration-500 ease-out 
                   hover:shadow-[0_20px_80px_rgba(131,72,193,0.4),0_8px_25px_rgba(0,0,0,0.5)] 
                   hover:-translate-y-1 
