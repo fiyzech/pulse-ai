@@ -9,6 +9,8 @@ import { supabase } from "../../supabaseClient";
 import { getPlanLabel, mergeAccountCache, readAccountCache } from "../../utils/accountCache";
 import userAvatar from "../../assets/images/user_avatar.png";
 import editIcon from "../../assets/icons/pencil-edit.svg";
+import shareUploadIcon from "../../assets/icons/share-upload.svg";
+import logOutWhiteIcon from "../../assets/icons/log-out-white.svg";
 
 type ProfileUser = {
   id: string;
@@ -73,10 +75,16 @@ const useCountries = () => {
 };
 
 const cardWrapper =
-  "p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_100px_rgba(131,72,193,0.3),0_8px_25px_rgba(0,0,0,0.4)]";
+  "w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] ";
+
+const profileInfoGrid =
+  "grid grid-cols-[120px_220px_220px] gap-x-[52px] gap-y-[24px] pr-[170px]";
+
+const securityInfoGrid =
+  "grid grid-cols-[120px_220px] gap-x-[52px] gap-y-[24px] pr-[170px]";
 
 const editButtonOuter =
-  "h-9 min-w-[135px] rounded-full p-[1px] bg-[linear-gradient(90deg,#2C1969_0%,#8348C1_50%,#C38BFF_100%)] transition-all hover:shadow-[0_0_16px_rgba(131,72,193,0.35)] cursor-pointer";
+  "h-9 min-w-[135px] rounded-full p-[1px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-95 cursor-pointer disabled:opacity-60";
 
 const editButtonInner =
   "flex h-full w-full items-center justify-center gap-2 rounded-full bg-[#050506] px-4 text-[#A3A4B0] text-sm transition-colors hover:text-white";
@@ -692,13 +700,14 @@ useEffect(() => {
               <div className="absolute top-6 right-6">
                 <EditButton onClick={openProfileModal} />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-y-6 gap-x-12">
+
+              <div className={profileInfoGrid}>
                 <div><p className="text-[#A3A4B0] text-sm mb-1">Ім'я</p><p className="text-white text-sm">{user.firstName}</p></div>
                 <div><p className="text-[#A3A4B0] text-sm mb-1">E-mail</p><p className="text-white text-sm">{user.email}</p></div>
                 <div><p className="text-[#A3A4B0] text-sm mb-1">День народження</p><p className="text-white text-sm">{user.birthDate}</p></div>
                 <div><p className="text-[#A3A4B0] text-sm mb-1">Прізвище</p><p className="text-white text-sm">{user.lastName}</p></div>
                 <div><p className="text-[#A3A4B0] text-sm mb-1">Телефон</p><p className="text-white text-sm">{user.phone}</p></div>
-                <div><p className="text-[#A3A4B0] text-sm mb-1">Регіон</p><p className="text-white text-sm">{user.region}</p></div>
+                <div><p className="text-[#A3A4B0] text-sm mb-1">Країна</p><p className="text-white text-sm">{user.region}</p></div>
               </div>
             </div>
           </div>
@@ -711,7 +720,8 @@ useEffect(() => {
               <div className="absolute top-6 right-6">
                 <EditButton onClick={() => setSecurityModalOpen(true)} />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+              <div className={securityInfoGrid}>
                 <div><p className="text-[#A3A4B0] text-sm mb-1">Пароль</p><p className="text-white text-sm tracking-widest">********</p></div>
                 <div><p className="text-[#A3A4B0] text-sm mb-1">Остання зміна</p><p className="text-white text-sm">{user.passwordLastChanged}</p></div>
                 <div><p className="text-[#A3A4B0] text-sm mb-1">Пристрої</p><p className="text-white text-sm">1 активний</p></div>
@@ -726,17 +736,30 @@ useEffect(() => {
             type="button"
             onClick={handleDeleteAccount}
             disabled={saving}
-            className="w-[210px] h-[44px] rounded-full bg-transparent border-none p-[1.5px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] transition-all hover:scale-105 cursor-pointer disabled:opacity-60"
-          >
-            <div className="w-full h-full rounded-full bg-[#050506] flex items-center justify-center gap-2 text-[#FF0000] text-sm">
+            className="group relative inline-flex w-[210px] h-[44px] items-center justify-center rounded-full p-[1.5px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-95 cursor-pointer disabled:opacity-60">
+
+            <div className="flex h-full w-full items-center justify-center gap-2 rounded-full bg-[#050506] text-[#F40000] text-[14px] font-normal">
               <span>{saving ? "Обробка..." : "Видалити акаунт"}</span>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M8.333 9.167V14.167M11.667 9.167V14.167M3.333 5.833H16.667M7.5 5.833V4.167C7.5 3.706 7.873 3.333 8.333 3.333H11.667C12.127 3.333 12.5 3.706 12.5 4.167V5.833M15.833 5.833L15.111 15.944C15.052 16.766 14.368 17.5 13.544 17.5H6.456C5.632 17.5 4.948 16.766 4.889 15.944L4.167 5.833" stroke="#FF0000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                className="shrink-0">
+
+                <path
+                  d="M10.375 14.4444V10.8889M14.125 14.4444V10.8889M9.4381 4.72212C9.4377 4.70368 9.4375 4.68519 9.4375 4.66667C9.4375 3.19391 10.6967 2 12.25 2C13.4645 2 14.4993 2.72994 14.8928 3.75238M14.8928 3.75238L9.4381 4.72212L4.75 5.55556M14.8928 3.75238L19.75 2.88889M18.8125 7.33333V16.2222C18.8125 17.2041 17.973 18 16.9375 18H7.5625C6.52697 18 5.6875 17.2041 5.6875 16.2222V7.33333H18.8125Z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />  
               </svg>
             </div>
-          </button>
+         </button>
         </div>
-      </div>
+
 
       {profileModalOpen && (
         <Modal 
@@ -749,14 +772,26 @@ useEffect(() => {
               <h3 className="absolute left-[24px] top-[24px] text-[24px] font-semibold leading-[28px] text-white m-0 p-0">
                 Редагування персональної інформації
               </h3>
-              <div className="absolute right-[24px] top-[16px] w-[44px] h-[44px] p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-transform duration-150 hover:scale-105">
+              <div className="absolute right-[24px] top-[16px] w-[44px] h-[44px] p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-300 hover:scale-105 active:scale-95">
                 <button 
                   type="button" 
                   onClick={() => setProfileModalOpen(false)} 
-                  className="w-full h-full flex items-center justify-center rounded-full bg-[#050506] text-[#A3A4B0] hover:text-white transition-colors"
+                  className="w-full h-full flex items-center justify-center rounded-full bg-[#050506] text-[#A3A4B0] hover:text-white transition-colors cursor-pointer"
                 >
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M13 1L1 13M1 1L13 13" />
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    className="shrink-0"
+                  >
+                    <path
+                      d="M5 5L15 15M5 15L15 5"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                 </button>
               </div>
@@ -779,29 +814,45 @@ useEffect(() => {
                 </span>
               </div>
               
-              <div className="absolute right-[84px] top-[32px] w-[201px] h-[44px] p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-transform duration-150 hover:scale-105">
+              <div className="absolute right-[84px] top-[32px] w-[201px] h-[44px] p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-300 hover:scale-105 active:scale-95">
                 <button 
                   type="button" 
                   onClick={() => fileInputRef.current?.click()} 
-                  className="w-full h-full flex items-center justify-center gap-[8px] rounded-full bg-[#050506] text-[14px] font-medium leading-[18px] text-white transition-colors"
+                  className="w-full h-full flex items-center justify-center gap-[8px] rounded-full bg-[#050506] text-[14px] font-medium leading-[18px] text-white transition-colors cursor-pointer"
                 >
                   {uploadingAvatar ? "Завантаження..." : "Завантажити фото"}
                   {!uploadingAvatar && (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                    </svg>
+                          <img
+                            src={shareUploadIcon}
+                            alt=""
+                            className="w-[24px] h-[24px] shrink-0 object-contain"
+                          />
                   )}
                 </button>
               </div>
 
-              <div className="absolute right-[24px] top-[32px] w-[44px] h-[44px] p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-transform duration-150 hover:scale-105">
+              <div className="absolute right-[24px] top-[32px] w-[44px] h-[44px] p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-300 hover:scale-105 active:scale-95">
                 <button 
                   type="button" 
-                  className="w-full h-full flex items-center justify-center rounded-full bg-[#050506] text-[#A3A4B0] hover:text-[#FF4D4D] transition-colors"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
-                  </svg>
+                  className="w-full h-full flex items-center justify-center rounded-full bg-[#050506] text-[#A3A4B0] hover:text-[#F40000] transition-colors cursor-pointer">
+
+                  <svg 
+                    width="20"
+                    height="20"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    className="shrink-0">
+
+                    <g transform="translate(-2.25 0)">
+                      <path
+                        d="M10.375 14.4444V10.8889M14.125 14.4444V10.8889M9.4381 4.72212C9.4377 4.70368 9.4375 4.68519 9.4375 4.66667C9.4375 3.19391 10.6967 2 12.25 2C13.4645 2 14.4993 2.72994 14.8928 3.75238M14.8928 3.75238L9.4381 4.72212L4.75 5.55556M14.8928 3.75238L19.75 2.88889M18.8125 7.33333V16.2222C18.8125 17.2041 17.973 18 16.9375 18H7.5625C6.52697 18 5.6875 17.2041 5.6875 16.2222V7.33333H18.8125Z"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </g>
+                 </svg>
                 </button>
               </div>
 
@@ -903,7 +954,7 @@ useEffect(() => {
                 </div>
                 
                 <ProfileInput 
-                  label="Країна проживання" 
+                  label="Країна" 
                   value={editForm.region} 
                   onChange={(v) => setEditForm((p) => ({ ...p, region: v }))} 
                   placeholder="Оберіть країну" 
@@ -926,14 +977,14 @@ useEffect(() => {
                 <button 
                   type="submit" 
                   disabled={saving} 
-                  className="w-[360px] h-[44px] flex items-center justify-center rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium disabled:opacity-60 transition-transform duration-150 hover:scale-105 m-0 p-0"
-                >
+                  className="w-[360px] h-[44px] flex items-center justify-center rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium disabled:opacity-60 transition-all duration-300 hover:scale-105 active:scale-95 m-0 p-0">
+
                   {saving ? "Збереження..." : "Зберегти"}
                 </button>
                 <button 
                   type="button" 
                   onClick={() => setProfileModalOpen(false)} 
-                  className="group relative flex w-[360px] h-[44px] items-center justify-center rounded-[28px] text-[14px] font-medium leading-[20px] text-white transition-transform hover:scale-105 m-0 p-0"
+                  className="group relative flex w-[360px] h-[44px] items-center justify-center rounded-[28px] text-[14px] font-medium leading-[20px] text-white transition-all duration-300 hover:scale-105 active:scale-95t m-0 p-0"
                 >
                   <svg className="absolute inset-0 h-full w-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
                     <rect x="1" y="1" width="358" height="42" rx="21" fill="none" stroke="url(#gradient-border-cancel-prof)" strokeWidth="1.5" />
@@ -945,7 +996,7 @@ useEffect(() => {
                       </linearGradient>
                     </defs>
                   </svg>
-                  <span className="relative z-10">Відмінити</span>
+                  <span className="relative z-10">Скасувати</span>
                 </button>
               </div>
             </div>
@@ -965,14 +1016,26 @@ useEffect(() => {
               <h3 className="absolute left-[24px] top-[24px] h-[20px] text-[24px] font-semibold leading-[28px] text-white m-0 p-0">
                 Редагування безпеки
               </h3>
-              <div className="absolute right-[24px] top-[16px] w-[44px] h-[44px] p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-transform duration-150 hover:scale-105">
+              <div className="absolute right-[24px] top-[16px] w-[44px] h-[44px] p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-300 hover:scale-105 active:scale-95">
                 <button 
                   type="button" 
                   onClick={() => setSecurityModalOpen(false)} 
-                  className="w-full h-full flex items-center justify-center rounded-full bg-[#050506] text-[#A3A4B0] hover:text-white transition-colors"
+                  className="w-full h-full flex items-center justify-center rounded-full bg-[#050506] text-[#A3A4B0] hover:text-white transition-colors cursor-pointer"
                 >
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M13 1L1 13M1 1L13 13" />
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    className="shrink-0"
+                  >
+                    <path
+                      d="M5 5L15 15M5 15L15 5"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                 </button>
               </div>
@@ -1023,15 +1086,18 @@ useEffect(() => {
                   </div>
 
                   {/* Кнопка "Завершити сеанс" СПРАВА */}
-                  <div className="relative w-[190px] h-[44px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-transform duration-150 hover:scale-105 shrink-0">
+                  <div className="relative w-[190px] h-[44px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-300 hover:scale-105 active:scale-95">
                     <button 
                       type="button" 
-                      className="w-full h-full flex items-center justify-center gap-[8px] rounded-[28px] bg-[#050506] text-[14px] font-medium leading-[20px] text-white transition-colors m-0 p-0"
+                      className="w-full h-full flex items-center justify-center gap-[8px] rounded-[28px] bg-[#050506] text-[14px] font-medium leading-[20px] text-white transition-colors m-0 p-0 cursor-pointer"
                     >
                       <span>Завершити сеанс</span>
-                      <svg className="rotate-90" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                      </svg>
+
+                      <img
+                        src={logOutWhiteIcon}
+                        alt=""
+                        className="w-5 h-5 shrink-0 object-contain"
+                      />
                     </button>
                   </div>
 
@@ -1044,8 +1110,8 @@ useEffect(() => {
                 <button 
                   type="submit" 
                   disabled={saving} 
-                  className="w-[360px] h-[44px] flex items-center justify-center rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium disabled:opacity-60 transition-transform duration-150 hover:scale-105 m-0 p-0"
-                >
+                  className="w-[360px] h-[44px] flex items-center justify-center rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium disabled:opacity-60 transition-all duration-300 hover:scale-105 active:scale-95 m-0 p-0 cursor-pointer">
+
                   {saving ? "Збереження..." : "Зберегти"}
                 </button>
                 
@@ -1053,8 +1119,8 @@ useEffect(() => {
                 <button 
                   type="button" 
                   onClick={() => setSecurityModalOpen(false)} 
-                  className="group relative flex w-[360px] h-[44px] items-center justify-center rounded-[28px] text-[14px] font-medium leading-[20px] text-white transition-transform hover:scale-105 m-0 p-0"
-                >
+                  className="group relative flex w-[360px] h-[44px] items-center justify-center rounded-[28px] text-[14px] font-medium leading-[20px] text-white transition-all duration-300 hover:scale-105 active:scale-95 m-0 p-0 cursor-pointer">
+
                   <svg className="absolute inset-0 h-full w-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
                     <rect x="1" y="1" width="358" height="42" rx="21" fill="none" stroke="url(#gradient-border-cancel-sec)" strokeWidth="1.5" />
                     <defs>
@@ -1065,7 +1131,7 @@ useEffect(() => {
                       </linearGradient>
                     </defs>
                   </svg>
-                  <span className="relative z-10">Відмінити</span>
+                  <span className="relative z-10">Скасувати</span>
                 </button>
               </div>
             </div>
@@ -1074,5 +1140,6 @@ useEffect(() => {
         </Modal>
       )}
     </div>
+  </div>
   );
 }
