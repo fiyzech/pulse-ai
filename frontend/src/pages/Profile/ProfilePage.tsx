@@ -977,14 +977,14 @@ useEffect(() => {
                 <button 
                   type="submit" 
                   disabled={saving} 
-                  className="w-[360px] h-[44px] flex items-center justify-center rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium disabled:opacity-60 transition-all duration-300 hover:scale-105 active:scale-95 m-0 p-0">
+                  className="w-[360px] h-[44px] flex items-center justify-center rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium disabled:opacity-60 transition-all duration-300 hover:scale-105 active:scale-95 m-0 p-0 cursor-pointer">
 
                   {saving ? "Збереження..." : "Зберегти"}
                 </button>
                 <button 
                   type="button" 
                   onClick={() => setProfileModalOpen(false)} 
-                  className="group relative flex w-[360px] h-[44px] items-center justify-center rounded-[28px] text-[14px] font-medium leading-[20px] text-white transition-all duration-300 hover:scale-105 active:scale-95t m-0 p-0"
+                  className="group relative flex w-[360px] h-[44px] items-center justify-center rounded-[28px] text-[14px] font-medium leading-[20px] text-white transition-all duration-300 hover:scale-105 active:scale-95t m-0 p-0 cursor-pointer"
                 >
                   <svg className="absolute inset-0 h-full w-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
                     <rect x="1" y="1" width="358" height="42" rx="21" fill="none" stroke="url(#gradient-border-cancel-prof)" strokeWidth="1.5" />
