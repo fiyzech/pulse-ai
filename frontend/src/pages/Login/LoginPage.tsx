@@ -2,6 +2,13 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAccount } from "../../context/accountContextValue";
 import { supabase } from "../../supabaseClient";
+// @ts-ignore
+import thirdGradPic from '../../assets/images/third-grad-pic.svg?url';
+// @ts-ignore
+import seventhGridPic from '../../assets/images/seventh-grid-pic.svg?url';
+// @ts-ignore
+import eighthGridPic from '../../assets/images/eighth-grid-pic.svg?url';
+
 
 type LoginFieldErrors = {
   email?: string;
@@ -133,6 +140,9 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#000008] flex flex-col relative overflow-hidden font-montserrat">
+      <img src={eighthGridPic} alt="" className="absolute top-[-10%] -left-[10%] w-[600px] opacity-60 pointer-events-none mix-blend-screen z-0" />
+      <img src={seventhGridPic} alt="" className="absolute bottom-0 -right-[5%] w-[500px] opacity-50 pointer-events-none mix-blend-screen z-0" />
+
       <div className="absolute top-8 left-8 flex items-center gap-3 cursor-pointer z-20" onClick={() => navigate("/")}>
         <img src="/logo-crypro-pulse.svg" alt="CryptoPulse" className="w-7 h-7 object-contain" />
         <div className="text-[18px] tracking-wide">
@@ -146,8 +156,21 @@ const LoginPage: React.FC = () => {
 
       <div className="flex-1 flex flex-col items-center pt-[120px] z-10 p-4">
         <div className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] w-[480px] h-[680px]">
-          <div className="relative h-full rounded-[28px] bg-[#050506] px-[60px] py-[60px] text-center shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] overflow-hidden">
+          <div className="relative h-full w-full rounded-[28px] bg-[#050506] px-[60px] py-[60px] text-center shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] overflow-hidden">
             <h1 className="text-white text-[32px] font-bold font-montserrat text-center">Вітаємо</h1>
+            {/* Верхній лівий градієнт */}
+            <img
+              src={thirdGradPic}
+              alt=""
+              className="absolute top-0 left-0 w-[300px] h-[220px] object-cover object-left opacity-60 pointer-events-none mix-blend-screen z-0 block"
+            />
+            {/* Нижній правий градієнт */}
+            <img
+              src={thirdGradPic}
+              alt=""
+              className="absolute bottom-0 right-0 w-[240px] h-[240px] object-cover object-right-bottom pointer-events-none z-0 select-none transform rotate-180 mix-blend-screen opacity-80"
+            />
+            {/* ============================================================== */}
             <p className="w-[200px] h-[24px] mx-auto font-light text-[16px] text-[#A3A4B0] mt-[4px] mb-[48px] flex items-center justify-center font-montserrat">Увійдіть у свій акаунт</p>
 
             {(generalError || generalSuccess) && (
@@ -256,8 +279,8 @@ const LoginPage: React.FC = () => {
           </div>
         </div>
       </div>
-      
-    
+
+
 
       <div className="w-full text-center mt-[40px] z-10">
         <span className="text-[14px] text-[#A3A4B0]">Не маєте акаунту? </span>
