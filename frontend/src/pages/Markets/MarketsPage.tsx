@@ -516,13 +516,13 @@ export default function MarketsPage() {
 
       <div
         style={{ width: '1116px' }}
-        className="ml-10 p-[1px] rounded-[24px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] transition-all duration-500 ease-out "
+        className="ml-10 p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] transition-all duration-500 ease-out "
       >
-        <div className="relative rounded-[24px] bg-[#050506] flex flex-col overflow-hidden">
+        <div className="relative rounded-[28px] bg-[#050506] flex flex-col overflow-hidden">
 
           <div
             style={{ height: '57px' }}
-            className="relative grid grid-cols-[1.45fr_1fr_1fr_1.45fr_1fr_116px] items-center px-[24px] text-[#A3A4B0] text-[14px] font-normal font-['Montserrat'] bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)] min-h-[57px] rounded-t-[24px]"
+            className="relative grid grid-cols-[1.45fr_1fr_1fr_1.45fr_1fr_116px] items-center px-[24px] text-[#A3A4B0] text-[14px] font-normal font-['Montserrat'] bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)] min-h-[57px] rounded-t-[28px]"
           >
             {/* Лінія розмежування (вона залишається на місці) */}
             <div className="absolute bottom-0 left-0 w-full h-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))]" />
@@ -556,7 +556,7 @@ export default function MarketsPage() {
                   <div key={coin.id} className="relative group">
                     {/* Основний контейнер рядка */}
                     <div
-                      className="grid grid-cols-[1.45fr_1fr_1fr_1.45fr_1fr_116px] items-center px-[24px] h-[68px] hover:bg-[#ffffff03] transition-colors"
+                      className="grid grid-cols-[1.45fr_1fr_1fr_1.45fr_1fr_116px] items-center px-[24px] h-[68px]"
                     >
                       {/* 1. Стовпчик Монета */}
                       <div className="flex items-center gap-3">
