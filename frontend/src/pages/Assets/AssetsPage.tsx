@@ -5,6 +5,7 @@ import bookmarkPlusIcon from "../../assets/icons/bookmark-plus.svg";
 import arrowUpOutlineIcon from "../../assets/icons/arrow-up-outline.svg";
 import arrowDownOutlineIcon from "../../assets/icons/arrow-down-outline.svg";
 import trashIcon from "../../assets/icons/trash.svg";
+import trashIconRed from "../../assets/icons/trash-red.svg";
 import eyeIcon from "../../assets/icons/eye.svg";
 import {
   addFavoriteAsset,
@@ -137,6 +138,7 @@ export default function FavoritesContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [pendingSymbol, setPendingSymbol] = useState<string | null>(null);
+  const [hoveredTrash, setHoveredTrash] = useState<string | null>(null);
 
   const loadFavorites = useCallback(async () => {
     setLoading(true);
@@ -355,7 +357,7 @@ export default function FavoritesContent() {
                 className={`relative ${tableGrid} items-center px-[24px] h-[57px] text-[#A3A4B0] text-[14px] font-normal bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)]`}
               >
                 <div className="absolute bottom-0 left-0 w-full h-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))]" />
-                <span>Монета</span>
+                <span>Актив</span>
                 <span>Ціна</span>
                 <span>24год</span>
                 <span className="block leading-[18px]">
@@ -422,21 +424,27 @@ export default function FavoritesContent() {
                           <button
                             type="button"
                             onClick={() => handleViewAsset(asset)}
-                            className="group relative inline-flex w-8 h-8 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_12px_rgba(131,72,193,0.28)] active:scale-95 cursor-pointer"
+                            className="group relative inline-flex w-8 h-8 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_12px_rgba(131,72,193,0.28)] active:scale-95 cursor-pointer"
                           >
                             <div className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover:bg-[#0B0B0D]">
-                              <img src={eyeIcon} alt="" className="w-4 h-4 transition-all duration-300 group-hover:scale-110 group-hover:brightness-125" />
+                              <img src={eyeIcon} alt="" className="w-4 h-4 transition-all duration-300 group-hover:scale-105 group-hover:brightness-125" />
                             </div>
                           </button>
 
                           <button
-                            type="button"
+                           type="button"
                             disabled={pendingSymbol === asset.symbol}
                             onClick={() => handleRemoveAsset(asset.symbol)}
-                            className="group relative inline-flex w-8 h-8 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] hover:bg-[linear-gradient(90deg,#1C102F_0%,#FF4444_100%)] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_15px_rgba(255,68,68,0.35)] active:scale-95 cursor-pointer disabled:opacity-60"
+                            onMouseEnter={() => setHoveredTrash(asset.symbol)}
+                            onMouseLeave={() => setHoveredTrash(null)}
+                            className="group relative inline-flex w-8 h-8 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(255,68,68,0.35)] active:scale-95 cursor-pointer disabled:opacity-60"
                           >
                             <div className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover:bg-[#140707]">
-                              <img src={trashIcon} alt="" className="w-4 h-4 transition-all duration-300 group-hover:scale-110 group-hover:brightness-125" />
+                              <img
+                                src={hoveredTrash === asset.symbol ? trashIconRed : trashIcon}
+                                alt=""
+                                className="w-4 h-4 transition-all duration-300 opacity-70 grayscale brightness-125 group-hover:opacity-100 group-hover:grayscale-0 group-hover:brightness-125"
+                              />
                             </div>
                           </button>
                         </div>
