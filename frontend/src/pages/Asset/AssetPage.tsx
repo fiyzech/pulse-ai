@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { createChart, ColorType, CrosshairMode, AreaSeries, CandlestickSeries } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, Time } from 'lightweight-charts';
-import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
 import {
   addFavoriteAsset,
   getAuthenticatedUserId,
@@ -57,7 +56,20 @@ type RelatedCoinCard = {
   image: string;
   price: number;
   change: number;
-  chartData: { value: number }[];
+  chartData: { point: number; value: number }[];
+};
+
+type RelatedCoinGeckoMarketCoin = {
+  id: string;
+  symbol: string;
+  name: string;
+  image: string;
+  current_price: number | null;
+  price_change_percentage_24h: number | null;
+  price_change_percentage_24h_in_currency?: number | null;
+  sparkline_in_7d?: {
+    price?: number[];
+  };
 };
 
 type MarketCacheItem = {
@@ -67,12 +79,6 @@ type MarketCacheItem = {
   price: string;
   change: string;
   imgUrl: string;
-};
-
-type BinanceTicker24h = {
-  symbol: string;
-  lastPrice: string;
-  priceChangePercent: string;
 };
 
 type RelatedBaseAsset = {
@@ -114,8 +120,43 @@ const buildMiniChartData = (change: number) => {
   const base = 100;
   const direction = change >= 0 ? 1 : -1;
   return [0, -2, -2.5, -7, -3, -2, 1, 2, 5, 3, 7, 8].map((point, index) => ({
+    point: index,
     value: base + point + direction * index * Math.min(Math.abs(change), 8) * 0.12,
   }));
+};
+
+const buildCoinGeckoChartData = (prices?: number[]) => {
+  const validPrices = (prices || []).filter((price) => Number.isFinite(price));
+
+  if (validPrices.length === 0) {
+    return [];
+  }
+
+  const step = Math.max(1, Math.floor(validPrices.length / 44));
+  return validPrices
+    .filter((_, index) => index % step === 0)
+    .slice(-48)
+    .map((value, point) => ({ point, value }));
+};
+
+const buildRelatedSparklinePoints = (data: RelatedCoinCard['chartData']) => {
+  if (data.length < 2) return '';
+
+  const width = 260;
+  const minY = 18;
+  const maxY = 84;
+  const values = data.map((item) => item.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+
+  return data
+    .map((item, index) => {
+      const x = (index / (data.length - 1)) * width;
+      const y = maxY - ((item.value - min) / range) * (maxY - minY);
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(' ');
 };
 
 const formatRelatedPrice = (price: number) => {
@@ -380,29 +421,33 @@ export default function AssetPage(props: AssetPageProps) {
   useEffect(() => {
     let active = true;
 
-    const loadRelatedCoins = async () => {
+    const loadRelatedCoins = async (silent = false) => {
       const baseAssets = getRelatedBaseAssets(cgId, coinShort, readMarketCache());
 
       try {
-        setRelatedLoading(true);
-        const binanceRes = await fetch('/api/binance/ticker/24hr');
-        const binanceData = binanceRes.ok ? await binanceRes.json() as BinanceTicker24h[] : [];
-        const tickerByPair = new Map(binanceData.map((ticker) => [ticker.symbol, ticker]));
+        if (!silent) setRelatedLoading(true);
+        const ids = baseAssets.map((coin) => coin.id).filter(Boolean).join(',');
+        const cgRes = ids
+          ? await fetch(`/api/coingecko/coins/markets?vs_currency=usd&ids=${encodeURIComponent(ids)}&sparkline=true&price_change_percentage=24h`)
+          : null;
+        const cgData = cgRes && cgRes.ok ? await cgRes.json() as RelatedCoinGeckoMarketCoin[] : [];
+        const cgById = new Map(cgData.map((coin) => [coin.id, coin]));
         if (!active) return;
 
         setRelatedCoins(baseAssets.map((coin) => {
-          const ticker = tickerByPair.get(`${coin.symbol}USDT`);
-          const price = Number(ticker?.lastPrice ?? coin.price ?? 0);
-          const change = Number(ticker?.priceChangePercent ?? coin.change ?? 0);
+          const cgCoin = cgById.get(coin.id);
+          const price = Number(cgCoin?.current_price ?? coin.price ?? 0);
+          const change = Number(cgCoin?.price_change_percentage_24h_in_currency ?? cgCoin?.price_change_percentage_24h ?? coin.change ?? 0);
+          const chartData = buildCoinGeckoChartData(cgCoin?.sparkline_in_7d?.price);
 
           return {
             id: coin.id,
-            symbol: coin.symbol,
-            name: coin.name,
-            image: coin.image,
+            symbol: (cgCoin?.symbol || coin.symbol).toUpperCase(),
+            name: cgCoin?.name || coin.name,
+            image: cgCoin?.image || coin.image,
             price,
             change,
-            chartData: buildMiniChartData(change),
+            chartData: chartData.length > 0 ? chartData : buildMiniChartData(change),
           };
         }));
       } catch (error) {
@@ -422,13 +467,18 @@ export default function AssetPage(props: AssetPageProps) {
           }));
         }
       } finally {
-        if (active) setRelatedLoading(false);
+        if (active && !silent) setRelatedLoading(false);
       }
     };
 
     loadRelatedCoins();
+    const relatedRefreshTimer = window.setInterval(() => {
+      loadRelatedCoins(true);
+    }, 60000);
+
     return () => {
       active = false;
+      window.clearInterval(relatedRefreshTimer);
     };
   }, [cgId, coinShort]);
 
@@ -836,6 +886,30 @@ const handleFavoriteToggle = async () => {
                     <span className="text-white/50 text-[18px] shrink-0">({coinShort})</span>
                   </h2>
 
+                  <button
+                    type="button"
+                    onClick={handleFavoriteToggle}
+                    disabled={favoriteLoading}
+                    className={`group ml-[8px] inline-flex shrink-0 items-center gap-2 text-[14px] font-medium transition-all duration-300 hover:scale-[1.03] active:scale-95 disabled:opacity-60 pb-1 border-b-2 border-transparent ${
+                      isFavorite ? 'text-[#C38BFF] hover:text-[#C38BFF]' : 'text-white hover:text-white/80'
+                    }`}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill={isFavorite ? '#C38BFF' : 'none'}
+                      stroke={isFavorite ? '#C38BFF' : '#FFFFFF'}
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mb-[1px]"
+                    >
+                      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                    </svg>
+                    {favoriteLoading ? 'Оновлення...' : isFavorite ? 'В обраному' : 'В обране'}
+                  </button>
+
                   <div className="absolute left-10 -bottom-9 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 bg-[#1A1A1D] border border-white/10 text-white text-[14px] py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap pointer-events-none">
                     {coinName} ({coinShort})
                   </div>
@@ -871,18 +945,6 @@ const handleFavoriteToggle = async () => {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <path d="M7 17L17 7M10 7H17V14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleFavoriteToggle}
-                    disabled={favoriteLoading}
-                    className="group inline-flex items-center gap-2 text-[14px] font-medium text-[#C38BFF] transition-all duration-300 hover:text-white hover:scale-[1.03] active:scale-95 disabled:opacity-60 pb-1 border-b-2 border-transparent"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill={isFavorite ? '#C38BFF' : 'none'} stroke="#C38BFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="mb-[1px]">
-                      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                    </svg>
-                    {favoriteLoading ? 'Оновлення...' : isFavorite ? 'В обраному' : 'В обране'}
                   </button>
 
                   <div className="flex gap-4 items-center">
@@ -931,31 +993,31 @@ const handleFavoriteToggle = async () => {
         <div>
           <h3 className="text-[24px] font-semibold text-[#FFF9F9] mb-6">Основні дані</h3>
           <div className="w-full h-[300px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10)]">
-            <div className="w-full h-full rounded-[27px] bg-[#050506] p-8 flex flex-col justify-between">
+            <div className="w-full h-full rounded-[27px] bg-[#050506] p-6 flex flex-col justify-between">
               <h4 className="text-[20px] font-medium text-[#FFF9F9] mb-6 font-montserrat">Графік ефективності {coinName}</h4>
-              <div className="flex flex-col md:flex-row justify-between items-start gap-8 md:gap-4 flex-grow">
-                <div className="flex flex-col gap-[22px] w-full md:w-[280px] shrink-0">
+              <div className="flex flex-col md:flex-row items-start gap-8 md:gap-[12px] flex-grow">
+                <div className="flex flex-col gap-[12px] w-full md:w-[280px] md:pr-[34px] shrink-0">
                   <div className="flex justify-between items-center">
-                    <span className="text-[14px] font-normal text-[#8E8E8E] font-montserrat">Макс. за весь час</span>
-                    <span className="text-[14px] font-normal text-[#FFF9F9] font-montserrat">{fundamentals.ath > 0 ? `${fundamentals.ath.toLocaleString('en-US')}$` : '---'}</span>
+                    <span className="text-[14px] font-normal text-[#FFF9F9] font-montserrat">Макс. за весь час</span>
+                    <span className="inline-block text-[14px] font-normal text-[#FFF9F9] font-montserrat md:translate-x-[34px]">{fundamentals.ath > 0 ? `${fundamentals.ath.toLocaleString('en-US')}$` : '---'}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-[14px] font-normal text-[#8E8E8E] font-montserrat">Зміна ціни (1 год)</span>
-                    <span className={`text-[14px] font-normal font-montserrat ${stats.priceChange1h >= 0 ? 'text-[#00E676]' : 'text-[#FF2E2E]'}`}>
+                    <span className="text-[14px] font-normal text-[#FFF9F9] font-montserrat">Зміна ціни (1 год)</span>
+                    <span className={`inline-block text-[14px] font-normal font-montserrat md:translate-x-[34px] ${stats.priceChange1h >= 0 ? 'text-[#00E676]' : 'text-[#FF2E2E]'}`}>
                       {stats.priceChange1h !== 0 ? `${stats.priceChange1h > 0 ? '+' : ''}${stats.priceChange1h.toFixed(2)}%` : '---'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-[14px] font-normal text-[#8E8E8E] font-montserrat">Зміна ціни (24 год)</span>
-                    <span className={`text-[14px] font-normal font-montserrat ${stats.priceChange24h >= 0 ? 'text-[#00E676]' : 'text-[#FF2E2E]'}`}>
+                    <span className="text-[14px] font-normal text-[#FFF9F9] font-montserrat">Зміна ціни (24 год)</span>
+                    <span className={`inline-block text-[14px] font-normal font-montserrat md:translate-x-[34px] ${stats.priceChange24h >= 0 ? 'text-[#00E676]' : 'text-[#FF2E2E]'}`}>
                         {stats.priceChange24h !== 0 ? `${stats.priceChange24h > 0 ? '+' : ''}${stats.priceChange24h.toFixed(2)}%` : '---'}
                     </span>
                   </div>
-                  <div className="pt-1">
-                    <div className="flex justify-between text-[14px] font-medium text-[#FFF9F9] mb-3 font-montserrat">
+                  <div>
+                    <div className="flex justify-between text-[14px] font-medium text-[#FFF9F9] mb-[12px] font-montserrat">
                       <span>Макс. та мін. за 24 год</span>
                     </div>
-                    <div className="relative w-full h-[6px] rounded-full bg-gradient-to-r from-[#FF2E2E] to-[#00E676] mb-3">
+                    <div className="relative h-[6px] w-[calc(100%+20px)] rounded-full bg-gradient-to-r from-[#FF2E2E] to-[#00E676] mb-[12px]">
                         {stats.high24h > 0 && (
                           <div 
                             className="absolute top-1/2 -translate-y-1/2 w-2 h-3 bg-white rounded-full shadow-[0_0_5px_rgba(255,255,255,0.8)] transition-all duration-300" 
@@ -969,8 +1031,8 @@ const handleFavoriteToggle = async () => {
                     </div>
                   </div>
                 </div>
-                <div className="hidden md:block w-[1px] h-[228px] bg-gradient-to-b from-[#522E8B] to-[#B3B3B3]/10 opacity-40"></div>
-                <div className="flex flex-col gap-6 w-full md:w-auto">
+                <div className="hidden md:block w-[1px] h-[228px] bg-gradient-to-b from-[#B3B3B3]/10 to-[#522E8B] opacity-40 md:-mt-[32px] md:translate-x-[34px]"></div>
+                <div className="flex flex-col gap-[24px] w-full md:w-[220px] md:pl-[22px] md:translate-x-[34px]">
                   <div>
                     <p className="text-[12px] font-medium text-[#8E8E8E] mb-1.5 font-montserrat">Ринкова капіталізація</p>
                     <p className="text-[14px] font-medium text-[#FFF9F9] font-montserrat">{formatCurrency(fundamentals.mcap)}</p>
@@ -984,8 +1046,8 @@ const handleFavoriteToggle = async () => {
                     <p className="text-[14px] font-medium text-[#FFF9F9] font-montserrat">{volMcapRatio}</p>
                   </div>
                 </div>
-                <div className="hidden md:block w-[1px] h-[228px] bg-gradient-to-b from-[#522E8B] to-[#B3B3B3]/10 opacity-40"></div>
-                <div className="flex flex-col gap-6 w-full md:w-auto">
+                <div className="hidden md:block w-[1px] h-[228px] bg-gradient-to-b from-[#B3B3B3]/10 to-[#522E8B] opacity-40 md:-mt-[32px] md:translate-x-[34px]"></div>
+                <div className="flex flex-col gap-[24px] w-full md:w-[220px] md:pl-[22px] md:translate-x-[34px]">
                   <div>
                     <p className="text-[12px] font-medium text-[#8E8E8E] mb-1.5 font-montserrat">Циркул. пропозиція</p>
                     <p className="text-[14px] font-medium text-[#FFF9F9] font-montserrat">{formatSupply(fundamentals.circSupply)}</p>
@@ -1138,7 +1200,7 @@ const handleFavoriteToggle = async () => {
                     className="flex min-h-[82px] flex-col gap-[8px] rounded-[16px] p-3 -mx-3 -my-2 transition-all duration-300 hover:bg-white/[0.04] hover:translate-x-1"
                   >
                     <div className="flex h-[24px] items-center gap-[8px]">
-                      <div className="flex h-[24px] w-[24px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#9A5A00]/45">
+                      <div className="flex h-[24px] w-[24px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#5F6068] bg-[#303137]/70">
                         <img
                           src={item.icon || coinIcon}
                           alt={item.tag || coinShort}
@@ -1179,7 +1241,7 @@ const handleFavoriteToggle = async () => {
 
       <div className="mt-[24px]">
         <h3 className="text-[24px] font-semibold leading-[28px] text-[#FFF9F9] mb-6">
-          Схожі монети
+          Схожі активи
         </h3>
 
         <div className="grid w-full max-w-[1116px] grid-cols-1 gap-[24px] md:grid-cols-2 xl:grid-cols-4">
@@ -1190,8 +1252,7 @@ const handleFavoriteToggle = async () => {
             : relatedCoins.map((coin, index) => {
                 const isPositive = coin.change >= 0;
                 const gradientId = `asset-related-gradient-${coin.symbol}-${index}`;
-                const arrowGradientId = `${gradientId}-arrow`;
-
+                const sparklinePoints = buildRelatedSparklinePoints(coin.chartData);
                 return (
                   <button
                     key={coin.id}
@@ -1211,19 +1272,9 @@ const handleFavoriteToggle = async () => {
                           </div>
                         </div>
 
-                        <span className="flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,#FFFFFF_0%,#8348C1_48%,#2C1969_100%)] transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_16px_rgba(131,72,193,0.45)]">
-                          <span className="flex h-full w-full items-center justify-center rounded-full bg-[#000000]">
-                            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                              <defs>
-                                <linearGradient id={arrowGradientId} x1="6.5" y1="17.5" x2="17.5" y2="6.5" gradientUnits="userSpaceOnUse">
-                                  <stop stopColor="#FFFFFF" />
-                                  <stop offset="0.48" stopColor="#8348C1" />
-                                  <stop offset="1" stopColor="#C38BFF" />
-                                </linearGradient>
-                              </defs>
-                              <path d="M7 17L17 7M10 7H17V14" stroke={`url(#${arrowGradientId})`} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </span>
+                        <span className="relative flex h-[40px] w-[40px] shrink-0 items-center justify-center transition-all duration-300 group-hover:scale-110">
+                          <span className="absolute inset-0 rounded-full bg-[#7c3aed]/40 blur-md opacity-0 transition-all group-hover:opacity-100" />
+                          <img src="/buttom.svg" alt="open" className="relative z-10 h-[40px] w-[40px]" />
                         </span>
                       </div>
 
@@ -1248,26 +1299,31 @@ const handleFavoriteToggle = async () => {
                             backgroundRepeat: 'repeat-x',
                           }}
                         />
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={coin.chartData} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
-                            <defs>
-                              <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
-                                <stop offset="0%" stopColor="#2C1969" />
-                                <stop offset="50%" stopColor="#8348C1" />
-                                <stop offset="100%" stopColor="#C38BFF" />
-                              </linearGradient>
-                            </defs>
-                            <YAxis hide domain={['auto', 'auto']} />
-                            <Line
-                              type="monotone"
-                              dataKey="value"
+                        <svg
+                          className="absolute inset-0 h-full w-full"
+                          viewBox="0 0 260 96"
+                          preserveAspectRatio="none"
+                          aria-hidden="true"
+                        >
+                          <defs>
+                            <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
+                              <stop offset="0%" stopColor={isPositive ? '#2C1969' : '#5A0B0B'} />
+                              <stop offset="50%" stopColor={isPositive ? '#8348C1' : '#F40000'} />
+                              <stop offset="100%" stopColor={isPositive ? '#C38BFF' : '#FF2E2E'} />
+                            </linearGradient>
+                          </defs>
+                          {sparklinePoints && (
+                            <polyline
+                              points={sparklinePoints}
+                              fill="none"
                               stroke={`url(#${gradientId})`}
-                              strokeWidth={2.2}
-                              dot={false}
-                              isAnimationActive={false}
+                              strokeWidth="2.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              vectorEffect="non-scaling-stroke"
                             />
-                          </LineChart>
-                        </ResponsiveContainer>
+                          )}
+                        </svg>
                       </div>
                     </div>
                   </button>
