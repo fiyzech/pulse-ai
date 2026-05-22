@@ -1,12 +1,18 @@
-import enum
-
 from pydantic import BaseModel
+from enum import Enum
 
-class AlertCondition(str, enum.Enum):
-    ABOVE = "above_or_equal" 
-    BELOW = "below_or_equal"
+# Додаємо цей клас, який бот намагається імпортувати
+class AlertCondition(str, Enum):
+    price_gt = "price_gt"
+    price_gte = "price_gte"
+    price_lt = "price_lt"
+    price_lte = "price_lte"
+    price_eq = "price_eq"
 
 class AlertCreate_Schema(BaseModel):
     symbol: str
-    condition: AlertCondition
     target_price: float
+    condition: AlertCondition  # Тепер використовуємо AlertCondition тут
+
+    class Config:
+        use_enum_values = True # Щоб Pydantic повертав рядок, а не об'єкт Enum
