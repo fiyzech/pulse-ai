@@ -9,8 +9,6 @@ import {
   getFavoriteAsset,
   removeFavoriteAsset,
 } from '../../utils/favoriteAssets';
-import { createPriceAlert } from '../../utils/priceAlerts';
-import type { PriceAlertCondition } from '../../utils/priceAlerts';
 import { fetchCryptoNews, formatNewsTime } from '../../utils/news';
 import type { CryptoNewsItem } from '../../utils/news';
 
@@ -283,11 +281,6 @@ export default function AssetPage(props: AssetPageProps) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [favoriteNotice, setFavoriteNotice] = useState('');
-  const [alertCondition, setAlertCondition] = useState<PriceAlertCondition>('price_gte');
-  const [alertTargetPrice, setAlertTargetPrice] = useState('');
-  const [alertLoading, setAlertLoading] = useState(false);
-  const [alertMessage, setAlertMessage] = useState('');
-  const [alertError, setAlertError] = useState('');
   const [assetNews, setAssetNews] = useState<CryptoNewsItem[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState('');
@@ -323,16 +316,6 @@ export default function AssetPage(props: AssetPageProps) {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [cgId]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      if (currentPrice > 0 && !alertTargetPrice) {
-        setAlertTargetPrice(currentPrice.toFixed(currentPrice < 1 ? 6 : 2));
-      }
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [alertTargetPrice, currentPrice]);
 
   useEffect(() => {
     let active = true;
@@ -494,40 +477,6 @@ const handleFavoriteToggle = async () => {
     }
   };
 
-  const handleCreateAlert = async () => {
-    setAlertMessage('');
-    setAlertError('');
-
-    const normalizedTarget = Number(alertTargetPrice.replace(',', '.').replace(/[^0-9.]/g, ''));
-    if (!Number.isFinite(normalizedTarget) || normalizedTarget <= 0) {
-      setAlertError('Введіть коректну ціну для алерту.');
-      return;
-    }
-
-    setAlertLoading(true);
-    try {
-      const userId = await getAuthenticatedUserId();
-      if (!userId) {
-        setAlertError('Увійдіть в акаунт, щоб створювати алерти.');
-        return;
-      }
-
-      await createPriceAlert({
-        userId,
-        symbol: coinShort,
-        condition: alertCondition,
-        targetPrice: normalizedTarget,
-      });
-
-      setAlertMessage('Алерт створено. Він вже доступний на сторінці алертів.');
-    } catch (error) {
-      console.error('Помилка створення алерту:', error);
-      setAlertError('Не вдалося створити алерт. Перевірте таблицю alerts та RLS.');
-    } finally {
-      setAlertLoading(false);
-    }
-  };
-
   useEffect(() => {
     const fetchAiSignal = async () => {
       const noisyTimeframes = ['1 сек', '1 хв', '5 хв', '15 хв', '1 год'];
@@ -637,6 +586,7 @@ const handleFavoriteToggle = async () => {
     });
 
     chartRef.current = chart;
+
     return () => chart.remove();
   }, []);
 
@@ -753,10 +703,11 @@ const handleFavoriteToggle = async () => {
             const latestPrice = parseFloat(data[data.length - 1][4] as string);
             setCurrentPrice(latestPrice);
             prevPriceRef.current = latestPrice;
-            
+
             const changeValue = latestPrice - firstPrice;
             setPriceChange({ value: Math.abs(changeValue), percent: Math.abs((changeValue / firstPrice) * 100), isPositive: changeValue >= 0 });
           }
+
         }
       } catch (error) {
         console.error("Помилка завантаження історичних даних:", error);
@@ -766,6 +717,7 @@ const handleFavoriteToggle = async () => {
     };
 
     fetchChartData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeframe, chartType, binancePairSymbol, isBinanceAvailable]);
 
   useEffect(() => {
@@ -855,6 +807,7 @@ const handleFavoriteToggle = async () => {
     });
   };
 
+
   const handleOpenTradingWorkspace = () => {
     navigate(`/trading/${coinShort}`, {
       state: {
@@ -869,11 +822,9 @@ const handleFavoriteToggle = async () => {
 
   return (
     <section className="w-full max-w-[1600px] mx-auto px-10 pt-7 pb-12 font-montserrat">
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_261px] gap-[24px] items-start">
-        
-        {/* ЛІВА КОЛОНКА (Графік) */}
-        <div className="w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
-          <div className="relative w-full h-[438px] rounded-[27px] bg-[#050506] p-8 flex flex-col overflow-hidden">
+      {/* ГРАФІК — повна ширина */}
+      <div className="w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
+          <div className="relative w-full h-[520px] rounded-[27px] bg-[#050506] p-8 flex flex-col overflow-hidden">
             <div className="flex justify-between items-start relative z-20 flex-wrap gap-4">
               
               <div className="flex-1 min-w-0 pr-4">
@@ -971,121 +922,9 @@ const handleFavoriteToggle = async () => {
               </div>
             )}
 
-            <div className="absolute bottom-[20px] left-4 right-[10px] h-[260px] z-10" ref={chartContainerRef} />
+            <div className="absolute bottom-[20px] left-4 right-[10px] h-[330px] z-10" ref={chartContainerRef} />
           </div>
         </div>
-
-        {/* ПРАВА КОЛОНКА (Віджет 1: Створити алерт) */}
-        <div className="w-full h-[438px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10)]">
-          <div className="w-full h-full rounded-[27px] bg-[#050506] p-6 flex flex-col justify-between">
-            <div className="flex items-center gap-2 mb-4">
-                <img src="/logo-crypro-pulse.svg" alt="Logo" className="w-5 h-5 object-contain" />
-                <div className="text-[15.5px] tracking-wide font-montserrat">
-                  <span className="font-medium text-white">Crypto</span>
-                  <span className="font-semibold bg-gradient-to-r from-[#ceafef] to-[#9a64d4] bg-clip-text text-transparent">Pulse</span>
-                </div>
-            </div>
-            <div>
-              <div className="mb-2 flex h-[22px] items-center justify-between">
-                <h3 className="text-[16px] font-medium leading-[22px] text-white font-montserrat">Створити алерт</h3>
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="shrink-0" aria-hidden="true">
-                  <circle cx="10" cy="10" r="8.25" stroke="#FFF9F9" strokeWidth="2" />
-                  <path d="M8.22 7.55C8.48 6.77 9.14 6.22 10.13 6.22C11.27 6.22 12.02 6.87 12.02 7.83C12.02 8.59 11.59 9.05 10.96 9.49C10.39 9.9 10.13 10.23 10.13 10.95V11.2" stroke="#FFF9F9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M10.1 13.32H10.11" stroke="#FFF9F9" strokeWidth="2.2" strokeLinecap="round" />
-                </svg>
-              </div>
-              <p className="mb-5 max-w-[213px] text-[12px] font-light leading-[16px] text-[#8E8E8E] font-montserrat">Створи алерт і не пропускай важливі зміни</p>
-            </div>
-            <div className="flex flex-col gap-4 flex-grow">
-              <div>
-                <label className="text-[12px] font-light text-[#8E8E8E] mb-1.5 block font-montserrat">Умова</label>
-                <div className="w-full h-[44px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-                  <div className="relative w-full h-full rounded-[27px] bg-[#050506]">
-                    <select
-                      value={alertCondition}
-                      onChange={(event) => {
-                        setAlertCondition(event.target.value as PriceAlertCondition);
-                        setAlertError('');
-                        setAlertMessage('');
-                      }}
-                      className="w-full h-full bg-transparent px-4 text-[14px] font-normal text-white appearance-none outline-none font-montserrat rounded-[27px]"
-                    >
-                      <option value="price_gt" className="bg-[#050506]">Ціна більше ніж</option>
-                      <option value="price_gte" className="bg-[#050506]">Ціна більше або =</option>
-                      <option value="price_lt" className="bg-[#050506]">Ціна менше ніж</option>
-                      <option value="price_lte" className="bg-[#050506]">Ціна менше або =</option>
-                      <option value="price_eq" className="bg-[#050506]">Ціна дорівнює</option>
-                    </select>
-                    <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="text-[12px] font-light text-[#8E8E8E] mb-1.5 block font-montserrat">Значення</label>
-                  <div className="w-full h-[44px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-                      <div className="relative w-full h-full rounded-[27px] bg-[#050506]">
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={alertTargetPrice}
-                          onChange={(event) => {
-                            setAlertTargetPrice(event.target.value);
-                            setAlertError('');
-                            setAlertMessage('');
-                          }}
-                          placeholder={currentPrice > 0 ? `${currentPrice.toFixed(currentPrice < 1 ? 6 : 2)}` : '---'}
-                          className="w-full h-full bg-transparent pl-4 pr-12 text-[14px] font-normal text-white outline-none font-montserrat rounded-[27px]" 
-                        />
-                        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-normal text-white/80">USDT</span>
-                      </div>
-                  </div>
-                </div>
-                <div className="w-[87px] shrink-0">
-                  <label className="text-[12px] font-light text-[#8E8E8E] mb-1.5 block font-montserrat">Період</label>
-                  <div className="w-full h-[44px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
-                    <div className="relative w-full h-full rounded-[27px] bg-[#050506]">
-                      <select className="w-full h-full bg-transparent pl-4 pr-6 text-[14px] font-normal text-white appearance-none outline-none font-montserrat rounded-[27px]">
-                        <option>1 год</option>
-                        <option>4 год</option>
-                        <option>1 день</option>
-                      </select>
-                      <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="mt-4">
-                <div className="flex items-center gap-4 mb-4 px-1">
-                  <span className="text-[12px] font-regular leading-[16px] text-[#FFF9F9] font-montserrat">Сповіщати щоразу</span>
-                  <div className="w-[36px] h-[20px] bg-[#FFF9F9]/20 rounded-full relative cursor-pointer">
-                      <div className="absolute left-1 top-[2px] w-[16px] h-[16px] bg-[#FFF9F9] rounded-full"></div>
-                  </div>
-                </div>
-                <div className="mb-2 flex min-h-[18px] items-center justify-center px-2">
-                  {(alertError || alertMessage) && (
-                    <p className={`text-center text-[11px] leading-[15px] ${alertError ? 'text-red-300' : 'text-[#86EFAC]'}`}>
-                      {alertError || alertMessage}
-                    </p>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  disabled={alertLoading}
-                  onClick={handleCreateAlert}
-                  className="w-full h-[44px] rounded-[28px] font-montserrat font-medium text-[14px] text-[#FFF9F9] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] shadow-[0_4px_15px_rgba(131,72,193,0.3)] hover:scale-[1.02] transition-transform disabled:opacity-60 disabled:hover:scale-100"
-                >
-                  {alertLoading ? 'Створення...' : 'Створити'}
-                </button>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_261px] gap-[24px] items-end mt-[24px]">
         {/* ОСНОВНІ ДАНІ */}

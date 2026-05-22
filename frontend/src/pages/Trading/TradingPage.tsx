@@ -1,27 +1,47 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { createChart, ColorType, CrosshairMode, CandlestickSeries, AreaSeries, LineStyle } from "lightweight-charts";
+import type { IChartApi, ISeriesApi, IPriceLine, Time } from "lightweight-charts";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   Activity,
   AlertTriangle,
   ArrowLeft,
   BarChart3,
+  Bell,
+  BellOff,
   Bot,
   ChevronDown,
   ChevronUp,
+  Edit2,
   Gauge,
   Loader2,
+  Minus,
+  MousePointer2,
   PanelBottom,
   PanelRight,
   Plus,
   RefreshCw,
   Search,
   Target,
+  Trash2,
   TrendingDown,
   TrendingUp,
   X,
   Zap,
 } from "lucide-react";
+import {
+  createPriceAlert,
+  getAlertConditionDescription,
+  getAlertConditionShortLabel,
+  getAlertConditionUnit,
+  listUserPriceAlerts,
+  NO_VALUE_CONDITIONS,
+  removePriceAlert,
+  togglePriceAlert,
+  updateAlertTargetPrice,
+} from "../../utils/priceAlerts";
+import type { PriceAlertCondition, PriceAlertRecord } from "../../utils/priceAlerts";
 import { useAccount } from "../../context/accountContextValue";
 import { supabase } from "../../supabaseClient";
 
@@ -375,7 +395,662 @@ async function fetchMarkets(): Promise<Asset[]> {
 }
 
 // ─────────────────────────────────────────────
-// TRADINGVIEW WIDGET
+// LIGHTWEIGHT CHART COMPONENT
+// ─────────────────────────────────────────────
+const TF_OPTIONS = ["1m","5m","15m","1h","4h","1d","1w"] as const;
+type ChartTf = (typeof TF_OPTIONS)[number];
+const TF_BINANCE: Record<ChartTf,string> = {"1m":"1m","5m":"5m","15m":"15m","1h":"1h","4h":"4h","1d":"1d","1w":"1w"};
+const TF_LABELS:  Record<ChartTf,string> = {"1m":"1хв","5m":"5хв","15m":"15хв","1h":"1год","4h":"4год","1d":"1д","1w":"1тиж"};
+
+type DrawMode = "cursor" | "hline";
+const ALERT_CONDS_PRICE = new Set(["price_gt","price_gte","price_lt","price_lte","price_eq"]);
+type PosLines = { entry?: IPriceLine; liq?: IPriceLine; sl?: IPriceLine; tp?: IPriceLine };
+
+function TradingLWChart({
+  pair, alerts, positions,
+  onUpdatePositionSlTp, onUpdateAlertPrice, onAlertTriggered,
+}: {
+  pair: string;
+  alerts: PriceAlertRecord[];
+  positions: DemoPos[];
+  onUpdatePositionSlTp: (posId: string, sl?: number, tp?: number) => void;
+  onUpdateAlertPrice: (alertId: string, price: number) => void;
+  onAlertTriggered: (alert: PriceAlertRecord, price: number) => void;
+}) {
+  const containerRef     = useRef<HTMLDivElement>(null);
+  const chartRef         = useRef<IChartApi|null>(null);
+  const seriesRef        = useRef<ISeriesApi<"Candlestick">|ISeriesApi<"Area">|null>(null);
+  const posLinesMapRef   = useRef<Map<string,PosLines>>(new Map());
+  const alertLinesMapRef = useRef<Map<string,IPriceLine>>(new Map());
+  const userLinesRef     = useRef<IPriceLine[]>([]);
+  const userPricesRef    = useRef<number[]>([]);
+  const currentKRef      = useRef<{o:number;h:number;l:number;c:number;t:number}|null>(null);
+  const rafRef           = useRef<number|null>(null);
+  const prevPriceRef     = useRef<number>(0);
+  const alertCooldownRef = useRef<Set<string>>(new Set());
+  const hasDraggedRef    = useRef(false);
+  const alertsRef        = useRef(alerts);
+  const positionsRef     = useRef(positions);
+  const drawModeRef      = useRef<DrawMode>("cursor");
+  const ctypeRef         = useRef<"candle"|"area">("candle");
+  const onUpdateSlTpRef  = useRef(onUpdatePositionSlTp);
+  const onUpdateAlertPriceRef = useRef(onUpdateAlertPrice);
+  const onAlertTriggeredRef   = useRef(onAlertTriggered);
+
+  const [tf, setTf]           = useState<ChartTf>("4h");
+  const [ctype, setCtype]     = useState<"candle"|"area">("candle");
+  const [drawMode, setDrawMode] = useState<DrawMode>("cursor");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { alertsRef.current = alerts; }, [alerts]);
+  useEffect(() => { positionsRef.current = positions; }, [positions]);
+  useEffect(() => { drawModeRef.current = drawMode; }, [drawMode]);
+  useEffect(() => { ctypeRef.current = ctype; }, [ctype]);
+  useEffect(() => { onUpdateSlTpRef.current = onUpdatePositionSlTp; }, [onUpdatePositionSlTp]);
+  useEffect(() => { onUpdateAlertPriceRef.current = onUpdateAlertPrice; }, [onUpdateAlertPrice]);
+  useEffect(() => { onAlertTriggeredRef.current = onAlertTriggered; }, [onAlertTriggered]);
+
+  // ── Create chart (once) ──
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const chart = createChart(containerRef.current, {
+      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "rgba(255,255,255,0.4)" },
+      grid: { vertLines: { color: "rgba(255,255,255,0.04)" }, horzLines: { color: "rgba(255,255,255,0.04)" } },
+      crosshair: { mode: CrosshairMode.Normal,
+        vertLine: { color:"#8348C1",width:1,style:3,labelBackgroundColor:"#8348C1" },
+        horzLine: { color:"#8348C1",width:1,style:3,labelBackgroundColor:"#8348C1" } },
+      rightPriceScale: { borderColor: "rgba(255,255,255,0.08)" },
+      timeScale: { borderColor: "rgba(255,255,255,0.08)", timeVisible: true, secondsVisible: false },
+      autoSize: true,
+    });
+    chartRef.current = chart;
+
+    // ── Drawing: click handler (reads drawModeRef so no re-subscribe needed) ──
+    chart.subscribeClick((param) => {
+      if (drawModeRef.current !== "hline") return;
+      if (!param.point || !seriesRef.current) return;
+      const price = chart.priceScale("right").coordinateToPrice(param.point.y);
+      if (!price || price <= 0) return;
+      const label = price < 1 ? price.toFixed(6) : price.toLocaleString("en-US",{maximumFractionDigits:2});
+      try {
+        const line = seriesRef.current.createPriceLine({
+          price, color: "#94A3B8", lineWidth: 1, lineStyle: LineStyle.Solid,
+          axisLabelVisible: true, title: label,
+        });
+        userLinesRef.current.push(line);
+        userPricesRef.current.push(price);
+      } catch {}
+      setDrawMode("cursor");
+    });
+
+    return () => { chart.remove(); chartRef.current = null; };
+  }, []);
+
+  // ── Refresh position + alert lines (map-based for drag access) ──
+  const refreshLines = useCallback(() => {
+    if (!seriesRef.current) return;
+
+    // Remove old position lines
+    posLinesMapRef.current.forEach(lines => {
+      for (const line of Object.values(lines)) {
+        if (line) try { seriesRef.current!.removePriceLine(line); } catch {}
+      }
+    });
+    posLinesMapRef.current.clear();
+
+    // Remove old alert lines
+    alertLinesMapRef.current.forEach(line => {
+      try { seriesRef.current!.removePriceLine(line); } catch {}
+    });
+    alertLinesMapRef.current.clear();
+
+    // Draw position lines
+    positionsRef.current.forEach(pos => {
+      if (!seriesRef.current) return;
+      const isLong = pos.side === "LONG";
+      const pl: PosLines = {};
+      try {
+        pl.entry = seriesRef.current.createPriceLine({
+          price: pos.avgPrice, color: isLong ? "#26a69a" : "#ef5350",
+          lineWidth: 2, lineStyle: LineStyle.Solid,
+          axisLabelVisible: true,
+          title: isLong ? `L ${pos.leverage}x` : `S ${pos.leverage}x`,
+        });
+        if (pos.liqPrice > 0) {
+          pl.liq = seriesRef.current.createPriceLine({
+            price: pos.liqPrice, color: "#FF9800",
+            lineWidth: 1, lineStyle: LineStyle.Dashed,
+            axisLabelVisible: true, title: "Liq",
+          });
+        }
+        if (pos.sl && pos.sl > 0) {
+          pl.sl = seriesRef.current.createPriceLine({
+            price: pos.sl, color: "#ef5350",
+            lineWidth: 1, lineStyle: LineStyle.SparseDotted,
+            axisLabelVisible: true, title: "SL",
+          });
+        }
+        if (pos.tp && pos.tp > 0) {
+          pl.tp = seriesRef.current.createPriceLine({
+            price: pos.tp, color: "#26a69a",
+            lineWidth: 1, lineStyle: LineStyle.SparseDotted,
+            axisLabelVisible: true, title: "TP",
+          });
+        }
+        posLinesMapRef.current.set(pos.id, pl);
+      } catch {}
+    });
+
+    // Draw alert lines (price-based only, dashed)
+    alertsRef.current
+      .filter(a => a.is_active !== false && ALERT_CONDS_PRICE.has(a.condition))
+      .forEach(al => {
+        if (!seriesRef.current) return;
+        const isUp = al.condition === "price_gt" || al.condition === "price_gte";
+        const isEq = al.condition === "price_eq";
+        const color = isUp ? "#26a69a" : isEq ? "#C38BFF" : "#ef5350";
+        try {
+          const line = seriesRef.current.createPriceLine({
+            price: al.target_price, color, lineWidth: 1, lineStyle: LineStyle.Dashed,
+            axisLabelVisible: true,
+            title: isUp ? "▲" : isEq ? "●" : "▼",
+          });
+          alertLinesMapRef.current.set(al.id, line);
+        } catch {}
+      });
+  }, []);
+
+  // ── Re-draw user lines on series change ──
+  const refreshUserLines = useCallback(() => {
+    if (!seriesRef.current) return;
+    userLinesRef.current = [];
+    userPricesRef.current.forEach(price => {
+      if (!seriesRef.current) return;
+      const label = price < 1 ? price.toFixed(6) : price.toLocaleString("en-US",{maximumFractionDigits:2});
+      try {
+        userLinesRef.current.push(seriesRef.current.createPriceLine({
+          price, color: "#94A3B8", lineWidth: 1, lineStyle: LineStyle.Solid,
+          axisLabelVisible: true, title: label,
+        }));
+      } catch {}
+    });
+  }, []);
+
+  // Refresh alert/position lines when they change
+  useEffect(() => { refreshLines(); }, [alerts, positions, refreshLines]);
+
+  // ── Native mouse: cursor hint + drag SL/TP/alert lines ──
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const onMove = (e: MouseEvent) => {
+      if (!seriesRef.current || drawModeRef.current === "hline") return;
+      const rect = container.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const THRESHOLD = 8;
+      let found = false;
+      outer: for (const pos of positionsRef.current) {
+        for (const v of [pos.sl, pos.tp] as (number|undefined)[]) {
+          if (!v || v <= 0) continue;
+          const coord = seriesRef.current.priceToCoordinate(v);
+          if (coord !== null && Math.abs(y - coord) <= THRESHOLD) { found = true; break outer; }
+        }
+      }
+      if (!found) {
+        for (const al of alertsRef.current) {
+          if (!ALERT_CONDS_PRICE.has(al.condition) || !al.is_active) continue;
+          const coord = seriesRef.current.priceToCoordinate(al.target_price);
+          if (coord !== null && Math.abs(y - coord) <= THRESHOLD) { found = true; break; }
+        }
+      }
+      container.style.cursor = found ? "ns-resize" : "default";
+    };
+
+    const onDown = (e: MouseEvent) => {
+      if (!seriesRef.current || !chartRef.current || drawModeRef.current === "hline") return;
+      const rect = container.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const THRESHOLD = 8;
+
+      let foundLine: IPriceLine|null = null;
+      let foundKind = "";
+      let foundPosId = "";
+      let foundAlertId = "";
+      let foundInitPrice = 0;
+
+      outer: for (const pos of positionsRef.current) {
+        const pl = posLinesMapRef.current.get(pos.id);
+        if (!pl) continue;
+        if (pos.sl && pos.sl > 0 && pl.sl) {
+          const coord = seriesRef.current.priceToCoordinate(pos.sl);
+          if (coord !== null && Math.abs(y - coord) <= THRESHOLD) {
+            foundLine = pl.sl; foundKind = "sl"; foundPosId = pos.id; foundInitPrice = pos.sl;
+            break outer;
+          }
+        }
+        if (pos.tp && pos.tp > 0 && pl.tp) {
+          const coord = seriesRef.current.priceToCoordinate(pos.tp);
+          if (coord !== null && Math.abs(y - coord) <= THRESHOLD) {
+            foundLine = pl.tp; foundKind = "tp"; foundPosId = pos.id; foundInitPrice = pos.tp;
+            break outer;
+          }
+        }
+      }
+      if (!foundLine) {
+        for (const al of alertsRef.current) {
+          if (!ALERT_CONDS_PRICE.has(al.condition) || !al.is_active) continue;
+          const line = alertLinesMapRef.current.get(al.id);
+          if (!line) continue;
+          const coord = seriesRef.current.priceToCoordinate(al.target_price);
+          if (coord !== null && Math.abs(y - coord) <= THRESHOLD) {
+            foundLine = line; foundKind = "alert"; foundAlertId = al.id; foundInitPrice = al.target_price;
+            break;
+          }
+        }
+      }
+      if (!foundLine) return;
+
+      e.stopPropagation();
+      container.style.cursor = "ns-resize";
+      const dragLine = foundLine, dragKind = foundKind, dragPosId = foundPosId, dragAlertId = foundAlertId;
+      const chart = chartRef.current;
+      let currentDragPrice = foundInitPrice;
+      let isDragging = false;
+
+      const onMoveDoc = (ev: MouseEvent) => {
+        isDragging = true;
+        const r = container.getBoundingClientRect();
+        const price = chart.priceScale("right").coordinateToPrice(ev.clientY - r.top);
+        if (price && price > 0) {
+          currentDragPrice = price;
+          try { dragLine.applyOptions({ price }); } catch {}
+        }
+      };
+      const onUpDoc = () => {
+        document.removeEventListener("mousemove", onMoveDoc);
+        document.removeEventListener("mouseup", onUpDoc);
+        container.style.cursor = "default";
+        if (!isDragging) return;
+        hasDraggedRef.current = true;
+        setTimeout(() => { hasDraggedRef.current = false; }, 200);
+        if (dragKind === "sl") {
+          const pos = positionsRef.current.find(p => p.id === dragPosId);
+          if (pos) onUpdateSlTpRef.current(dragPosId, currentDragPrice, pos.tp);
+        } else if (dragKind === "tp") {
+          const pos = positionsRef.current.find(p => p.id === dragPosId);
+          if (pos) onUpdateSlTpRef.current(dragPosId, pos.sl, currentDragPrice);
+        } else if (dragKind === "alert") {
+          onUpdateAlertPriceRef.current(dragAlertId, currentDragPrice);
+        }
+      };
+      document.addEventListener("mousemove", onMoveDoc);
+      document.addEventListener("mouseup", onUpDoc);
+    };
+
+    container.addEventListener("mousemove", onMove);
+    container.addEventListener("mousedown", onDown, { capture: true });
+    return () => {
+      container.removeEventListener("mousemove", onMove);
+      container.removeEventListener("mousedown", onDown, { capture: true });
+    };
+  }, []); // all dynamic data via refs — no re-subscribe needed
+
+  // ── Fetch candles + rebuild series ──
+  useEffect(() => {
+    if (!chartRef.current) return;
+    let dead = false;
+    setLoading(true);
+    currentKRef.current = null;
+    prevPriceRef.current = 0;
+
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/binance/klines?symbol=${pair}&interval=${TF_BINANCE[tf]}&limit=500`);
+        if (!res.ok || dead || !chartRef.current) return;
+        const raw = await res.json() as (string|number)[][];
+
+        if (seriesRef.current) { try { chartRef.current.removeSeries(seriesRef.current); } catch {} seriesRef.current = null; }
+
+        if (ctype === "candle") {
+          const s = chartRef.current.addSeries(CandlestickSeries, {
+            upColor:"#26a69a", downColor:"#ef5350", borderVisible:false,
+            wickUpColor:"#26a69a", wickDownColor:"#ef5350",
+          });
+          seriesRef.current = s;
+          s.setData(raw.map(k => ({
+            time: Math.floor(Number(k[0])/1000) as Time,
+            open:+k[1], high:+k[2], low:+k[3], close:+k[4],
+          })));
+          if (raw.length > 0) {
+            const last = raw[raw.length-1];
+            currentKRef.current = { o:+last[1], h:+last[2], l:+last[3], c:+last[4], t:Math.floor(Number(last[0])/1000) };
+          }
+        } else {
+          const s = chartRef.current.addSeries(AreaSeries, {
+            lineColor:"#B57AFF", topColor:"rgba(181,122,255,0.35)", bottomColor:"rgba(181,122,255,0)", lineWidth:2,
+          });
+          seriesRef.current = s;
+          s.setData(raw.map(k => ({ time: Math.floor(Number(k[0])/1000) as Time, value:+k[4] })));
+        }
+
+        refreshLines();
+        refreshUserLines();
+      } catch {} finally {
+        if (!dead) setLoading(false);
+      }
+    };
+    load();
+    return () => { dead = true; };
+  }, [pair, tf, ctype, refreshLines, refreshUserLines]);
+
+  // ── Kline WebSocket — keeps OHLC in sync ──
+  useEffect(() => {
+    const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${pair.toLowerCase()}@kline_${TF_BINANCE[tf]}`);
+    ws.onmessage = (e: MessageEvent) => {
+      const { k } = JSON.parse(e.data as string);
+      const t = Math.floor(k.t/1000);
+      currentKRef.current = { o:+k.o, h:+k.h, l:+k.l, c:+k.c, t };
+    };
+    return () => { ws.onmessage = null; if (ws.readyState < 2) ws.close(); };
+  }, [pair, tf]);
+
+  // ── aggTrade WebSocket — tick-by-tick realtime + alert crossing check ──
+  useEffect(() => {
+    const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${pair.toLowerCase()}@aggTrade`);
+    ws.onmessage = (e: MessageEvent) => {
+      if (rafRef.current) return;
+      const msg = JSON.parse(e.data as string) as { p: string };
+      const price = +msg.p;
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        if (!seriesRef.current) return;
+        const ck = currentKRef.current;
+        if (!ck) return;
+        const time = ck.t as Time;
+        if (ctypeRef.current === "candle") {
+          (seriesRef.current as ISeriesApi<"Candlestick">).update({
+            time, open: ck.o,
+            high: Math.max(ck.h, price),
+            low:  Math.min(ck.l, price),
+            close: price,
+          });
+          currentKRef.current = { ...ck, h: Math.max(ck.h,price), l: Math.min(ck.l,price), c: price };
+        } else {
+          (seriesRef.current as ISeriesApi<"Area">).update({ time, value: price });
+        }
+        // ── Alert crossing detection ──
+        const prevP = prevPriceRef.current;
+        prevPriceRef.current = price;
+        if (prevP > 0) {
+          alertsRef.current.forEach(al => {
+            if (!al.is_active) return;
+            if (alertCooldownRef.current.has(al.id)) return;
+            if (!ALERT_CONDS_PRICE.has(al.condition)) return;
+            const t = al.target_price;
+            let hit = false;
+            switch (al.condition) {
+              case "price_gt":  hit = prevP <= t && price > t; break;
+              case "price_gte": hit = prevP < t  && price >= t; break;
+              case "price_lt":  hit = prevP >= t && price < t; break;
+              case "price_lte": hit = prevP > t  && price <= t; break;
+              case "price_eq":  hit = Math.abs(price-t)/t < 0.001 && Math.abs(prevP-t)/t >= 0.001; break;
+            }
+            if (hit) {
+              onAlertTriggeredRef.current(al, price);
+              alertCooldownRef.current.add(al.id);
+              setTimeout(() => alertCooldownRef.current.delete(al.id), 60_000);
+            }
+          });
+        }
+      });
+    };
+    return () => {
+      ws.onmessage = null;
+      if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+      if (ws.readyState < 2) ws.close();
+    };
+  }, [pair]);
+
+  // ── Clear all user-drawn lines ──
+  const clearUserLines = useCallback(() => {
+    userLinesRef.current.forEach(l => { try { seriesRef.current?.removePriceLine(l); } catch {} });
+    userLinesRef.current = [];
+    userPricesRef.current = [];
+  }, []);
+
+  const drawTools: { id: DrawMode; icon: React.ReactNode; label: string }[] = [
+    { id: "cursor", icon: <MousePointer2 size={14}/>, label: "Курсор" },
+    { id: "hline",  icon: <Minus size={14}/>,         label: "Горизонтальна лінія" },
+  ];
+
+  return (
+    <div className="h-full w-full flex flex-col bg-[#08080A]">
+      {/* ── Top bar: TF + chart type ── */}
+      <div className="flex items-center gap-0.5 px-2 py-1 border-b border-white/5 shrink-0 bg-[#050506]">
+        {TF_OPTIONS.map(t => (
+          <button key={t} type="button" onClick={() => setTf(t)}
+            className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-colors ${tf===t?"bg-[#8348C1]/20 text-[#C38BFF]":"text-white/35 hover:text-white"}`}>
+            {TF_LABELS[t]}
+          </button>
+        ))}
+        <div className="ml-auto flex gap-1 items-center">
+          <button type="button" onClick={() => setCtype("candle")}
+            className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-colors ${ctype==="candle"?"bg-white/10 text-white":"text-white/25 hover:text-white"}`}>
+            Свічки
+          </button>
+          <button type="button" onClick={() => setCtype("area")}
+            className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-colors ${ctype==="area"?"bg-white/10 text-white":"text-white/25 hover:text-white"}`}>
+            Лінія
+          </button>
+        </div>
+      </div>
+
+      {/* ── Chart area with left toolbar ── */}
+      <div className="relative flex-1 min-h-0 flex">
+
+        {/* Drawing toolbar (left side) */}
+        <div className="flex flex-col items-center gap-1 px-1 pt-2 w-[34px] shrink-0 border-r border-white/5 bg-[#050506]">
+          {drawTools.map(tool => (
+            <button key={tool.id} type="button"
+              title={tool.label}
+              onClick={() => setDrawMode(d => d === tool.id ? "cursor" : tool.id)}
+              className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${drawMode===tool.id?"bg-[#8348C1]/30 text-[#C38BFF]":"text-white/30 hover:text-white hover:bg-white/5"}`}>
+              {tool.icon}
+            </button>
+          ))}
+          {/* Separator */}
+          <div className="w-5 h-px bg-white/5 my-0.5"/>
+          {/* Clear user lines */}
+          <button type="button" title="Очистити лінії"
+            onClick={clearUserLines}
+            className="w-7 h-7 flex items-center justify-center rounded-md text-white/25 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+            <Trash2 size={12}/>
+          </button>
+        </div>
+
+        {/* Chart canvas */}
+        <div className="relative flex-1 min-w-0">
+          {loading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#08080A]/70">
+              <div className="w-6 h-6 border-2 border-[#B57AFF] border-t-transparent rounded-full animate-spin"/>
+            </div>
+          )}
+          <div
+            ref={containerRef}
+            className="absolute inset-0"
+            style={{ cursor: drawMode === "hline" ? "crosshair" : "default" }}
+          />
+          {/* Drawing mode hint */}
+          {drawMode === "hline" && (
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 pointer-events-none bg-[#0B0B12]/90 border border-[#8348C1]/40 rounded-full px-3 py-1 text-[10px] text-[#C38BFF] font-medium">
+              Клікніть на графік щоб поставити лінію · Esc — скасувати
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// POSITION EDIT MODAL
+// ─────────────────────────────────────────────
+function PosEditModal({ pos, currentPrice, onClose, onSave, onClosePos }: {
+  pos: DemoPos|null;
+  currentPrice: number;
+  onClose: () => void;
+  onSave: (posId: string, sl?: number, tp?: number) => void;
+  onClosePos: (pos: DemoPos) => void;
+}) {
+  const [sl, setSl] = useState("");
+  const [tp, setTp] = useState("");
+  const prevId = useRef<string|null>(null);
+
+  useEffect(() => {
+    if (pos && pos.id !== prevId.current) {
+      prevId.current = pos.id;
+      setSl(pos.sl && pos.sl > 0 ? pos.sl.toFixed(pos.sl < 1 ? 6 : 2) : "");
+      setTp(pos.tp && pos.tp > 0 ? pos.tp.toFixed(pos.tp < 1 ? 6 : 2) : "");
+    }
+  }, [pos]);
+
+  useEffect(() => {
+    if (!pos) return;
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [pos, onClose]);
+
+  if (!pos) return null;
+
+  const isLong = pos.side === "LONG";
+  const liveP  = currentPrice || pos.avgPrice;
+  const pnl    = (isLong ? liveP - pos.avgPrice : pos.avgPrice - liveP) * pos.qty;
+  const roe    = pos.margin > 0 ? (pnl / pos.margin) * 100 : 0;
+  const dec    = pos.avgPrice < 1 ? 6 : 2;
+
+  const handleSave = () => {
+    const slN = parseFloat(sl.replace(",","."));
+    const tpN = parseFloat(tp.replace(",","."));
+    onSave(pos.id,
+      Number.isFinite(slN) && slN > 0 ? slN : undefined,
+      Number.isFinite(tpN) && tpN > 0 ? tpN : undefined,
+    );
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-[340px] bg-[#0B0B12] border border-white/10 rounded-2xl p-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${isLong?"bg-[#26a69a]/20 text-[#26a69a]":"bg-[#ef5350]/20 text-[#ef5350]"}`}>
+              {pos.side}
+            </span>
+            <span className="text-[13px] font-bold">{pos.sym}/USDT</span>
+            <span className="text-[10px] text-white/40">{pos.leverage}x</span>
+          </div>
+          <button onClick={onClose} className="text-white/30 hover:text-white transition-colors"><X size={15}/></button>
+        </div>
+
+        {/* PnL summary */}
+        <div className={`rounded-xl px-3 py-2.5 mb-3 border text-center ${pnl>=0?"bg-[#26a69a]/10 border-[#26a69a]/20":"bg-[#ef5350]/10 border-[#ef5350]/20"}`}>
+          <div className={`text-[15px] font-bold ${pnl>=0?"text-[#26a69a]":"text-[#ef5350]"}`}>
+            {pnl>=0?"+":""}{pnl.toLocaleString("en-US",{style:"currency",currency:"USD",minimumFractionDigits:2})}
+            <span className="text-[11px] ml-2 opacity-70">{roe>=0?"+":""}{roe.toFixed(2)}%</span>
+          </div>
+          <div className="text-[9px] text-white/40 mt-0.5">
+            Entry {fUsd(pos.avgPrice)} → Mark {fUsd(liveP)}
+            {pos.liqPrice > 0 && <> · Liq <span className="text-amber-400">{fUsd(pos.liqPrice)}</span></>}
+          </div>
+        </div>
+
+        {/* SL */}
+        <div className="mb-2.5">
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-[10px] text-white/40">Stop Loss</label>
+            {pos.avgPrice > 0 && (
+              <div className="flex gap-1">
+                {[1,2,3].map(p => (
+                  <button key={p} type="button"
+                    onClick={() => setSl((isLong ? pos.avgPrice*(1-p/100) : pos.avgPrice*(1+p/100)).toFixed(dec))}
+                    className="text-[8px] px-1.5 py-0.5 rounded bg-[#ef5350]/10 text-[#ef5350]/70 hover:text-[#ef5350] transition-colors">
+                    -{p}%
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <input value={sl} onChange={e => setSl(e.target.value)}
+            className="w-full bg-[#050506] border border-[#ef5350]/20 rounded-xl px-3 py-2 text-[12px] text-white outline-none focus:border-[#ef5350]/50 transition-colors"
+            placeholder={isLong ? `< ${fUsd(pos.avgPrice)}` : `> ${fUsd(pos.avgPrice)}`}/>
+        </div>
+
+        {/* TP */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-[10px] text-white/40">Take Profit</label>
+            {pos.avgPrice > 0 && (
+              <div className="flex gap-1">
+                {[2,3,5].map(p => (
+                  <button key={p} type="button"
+                    onClick={() => setTp((isLong ? pos.avgPrice*(1+p/100) : pos.avgPrice*(1-p/100)).toFixed(dec))}
+                    className="text-[8px] px-1.5 py-0.5 rounded bg-[#26a69a]/10 text-[#26a69a]/70 hover:text-[#26a69a] transition-colors">
+                    +{p}%
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <input value={tp} onChange={e => setTp(e.target.value)}
+            className="w-full bg-[#050506] border border-[#26a69a]/20 rounded-xl px-3 py-2 text-[12px] text-white outline-none focus:border-[#26a69a]/50 transition-colors"
+            placeholder={isLong ? `> ${fUsd(pos.avgPrice)}` : `< ${fUsd(pos.avgPrice)}`}/>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2">
+          <button type="button" onClick={handleSave}
+            className="flex-1 py-2 rounded-xl bg-[#8348C1]/20 text-[#C38BFF] text-[12px] font-semibold hover:bg-[#8348C1]/30 transition-colors">
+            Зберегти SL / TP
+          </button>
+          <button type="button" onClick={() => { onClosePos(pos); onClose(); }}
+            className="flex-1 py-2 rounded-xl bg-[#ef5350]/10 text-[#ef5350] text-[12px] font-semibold hover:bg-[#ef5350]/20 transition-colors">
+            Закрити позицію
+          </button>
+        </div>
+        <button type="button" onClick={onClose}
+          className="w-full mt-2 py-1 text-[10px] text-white/25 hover:text-white/50 transition-colors">
+          Скасувати (Esc)
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// TOAST NOTIFICATIONS
+// ─────────────────────────────────────────────
+type ToastItem = { id: string; msg: string };
+function ToastNotifications({ items, onDismiss }: { items: ToastItem[]; onDismiss: (id: string) => void }) {
+  return (
+    <div className="fixed top-[54px] right-3 z-[100] flex flex-col gap-1.5 pointer-events-none max-w-[280px]">
+      {items.map(t => (
+        <div key={t.id} className="pointer-events-auto flex items-start gap-2 rounded-xl border border-[#8348C1]/40 bg-[#0B0B12]/95 px-3 py-2 shadow-2xl backdrop-blur-sm">
+          <Bell size={12} className="text-[#C38BFF] shrink-0 mt-0.5"/>
+          <div className="flex-1 min-w-0 text-[10px] text-white/80 leading-relaxed">{t.msg}</div>
+          <button className="text-white/30 hover:text-white shrink-0 transition-colors" onClick={() => onDismiss(t.id)}>
+            <X size={11}/>
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// TRADINGVIEW WIDGET (kept as fallback, unused)
 // ─────────────────────────────────────────────
 function TvWidget({pair, interval}:{pair:string; interval:string}) {
   const id = useMemo(()=>`tv_${pair}_${interval}`.replace(/[^a-zA-Z0-9_]/g,"_"),[pair,interval]);
@@ -423,8 +1098,8 @@ export default function TradingPage() {
 
   // Layout
   const [panelOpen, setPanelOpen]   = useState(true);
-  const [bottomOpen, setBottomOpen] = useState(false); // закрита за замовчуванням → більший графік
-  const [rightTab, setRightTab]     = useState<"Trade"|"Data">("Trade");
+  const [bottomOpen, setBottomOpen] = useState(false);
+  const [rightTab, setRightTab]     = useState<"Trade"|"Data"|"Alerts">("Trade");
   const [botTab, setBotTab]         = useState<BottomTab>("Positions");
 
   // Coin selector
@@ -671,6 +1346,167 @@ export default function TradingPage() {
   const applyAtrSl = (mult:number)=>setSl((side==="LONG"?price-ind.atr*mult:price+ind.atr*mult).toFixed(price<1?6:2));
   const applyAtrTp = (mult:number)=>setTp((side==="LONG"?price+ind.atr*mult:price-ind.atr*mult).toFixed(price<1?6:2));
 
+  // ── Алерти ──
+  const [alertCond, setAlertCond]         = useState<PriceAlertCondition>("price_gt");
+  const [alertVal, setAlertVal]           = useState("");
+  const [alertMsg, setAlertMsg]           = useState("");
+  const [alertErr, setAlertErr]           = useState("");
+  const [alertLoading, setAlertLoading]   = useState(false);
+  const [assetAlerts, setAssetAlerts]     = useState<PriceAlertRecord[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(false);
+  const [deletingId, setDeletingId]       = useState<string|null>(null);
+  const [togglingId, setTogglingId]       = useState<string|null>(null);
+
+  // Position edit modal + toasts
+  const [editingPos, setEditingPos]       = useState<DemoPos|null>(null);
+  const [toasts, setToasts]               = useState<ToastItem[]>([]);
+
+  const pushToast = useCallback((msg: string) => {
+    const id = crypto.randomUUID();
+    setToasts(prev => [...prev.slice(-4), { id, msg }]); // max 5 toasts
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 8_000);
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  // ── Alert helpers ──
+  const getAlertDefault = useCallback((cond: PriceAlertCondition): string => {
+    if (NO_VALUE_CONDITIONS.has(cond)) return "";
+    const p = price > 0 ? price : 0;
+    const dec = p < 1 ? 6 : 2;
+    switch (cond) {
+      case "price_gt":         return (p * 1.02).toFixed(dec);
+      case "price_lt":         return (p * 0.98).toFixed(dec);
+      case "price_gte":        return p.toFixed(dec);
+      case "price_lte":        return p.toFixed(dec);
+      case "price_eq":         return p.toFixed(dec);
+      case "pct_change_24h_gt":return "5";
+      case "pct_change_24h_lt":return "5";
+      case "rsi_gt":           return "70";
+      case "rsi_lt":           return "30";
+      case "volume_spike_gt":  return "2";
+      case "trailing_stop_pct":return "5";
+      case "vol_24h_gt":       return "1000000000";
+      default:                 return "";
+    }
+  }, [price]);
+
+  const getAlertCondContext = (cond: PriceAlertCondition): string => {
+    switch (cond) {
+      case "price_gt": case "price_lt": case "price_gte": case "price_lte": case "price_eq":
+        return `Ціна зараз: ${fUsd(price)}`;
+      case "pct_change_24h_gt": case "pct_change_24h_lt":
+        return `24h зараз: ${fPct(pct24h)}`;
+      case "rsi_gt": case "rsi_lt":
+        return `RSI(14) зараз: ${ind.rsi.toFixed(1)}`;
+      case "ema20_cross_up": case "ema20_cross_down":
+        return `EMA20 зараз: ${fUsd(ind.ema20)}`;
+      case "ema50_cross_up": case "ema50_cross_down":
+        return `EMA50 зараз: ${fUsd(ind.ema50)}`;
+      case "volume_spike_gt":
+        return `Vol spike зараз: ${ind.volSpike.toFixed(2)}×`;
+      case "trailing_stop_pct":
+        return "Відкат від локального максимуму";
+      case "golden_cross": case "death_cross":
+        return `EMA200 зараз: ${fUsd(ind.ema200)}`;
+      case "bb_upper_break": case "bb_lower_break":
+        return `BB%: ${(ind.bbPct * 100).toFixed(0)}% (0=низ, 100=верх)`;
+      case "new_ath":
+        return "Подія — не потрібне значення";
+      case "vol_24h_gt":
+        return "Добовий обсяг у USD";
+      case "macd_cross_up": case "macd_cross_down":
+        return `MACD hist: ${ind.macdHist.toFixed(4)}`;
+      default: return "";
+    }
+  };
+
+  const loadAssetAlerts = useCallback(async () => {
+    if (!userId) return;
+    setAlertsLoading(true);
+    try {
+      const rows = await listUserPriceAlerts(userId);
+      setAssetAlerts(rows.filter(r => r.symbol.toUpperCase() === asset.sym));
+    } catch { /* ігноруємо */ }
+    finally { setAlertsLoading(false); }
+  }, [userId, asset.sym]);
+
+  const handleCreateAlert = async () => {
+    setAlertMsg(""); setAlertErr("");
+    if (!userId) { setAlertErr("Увійдіть в акаунт."); return; }
+    const isNoValue = NO_VALUE_CONDITIONS.has(alertCond);
+    const num = isNoValue ? 0 : parseFloat(alertVal.replace(",", "."));
+    if (!isNoValue && (!Number.isFinite(num) || num <= 0)) { setAlertErr("Введіть коректне значення."); return; }
+    setAlertLoading(true);
+    try {
+      await createPriceAlert({ userId, symbol: asset.sym, condition: alertCond, targetPrice: num });
+      setAlertMsg("Алерт створено!");
+      setAlertVal(getAlertDefault(alertCond));
+      void loadAssetAlerts();
+    } catch { setAlertErr("Помилка при створенні алерту."); }
+    finally { setAlertLoading(false); }
+  };
+
+  const handleDeleteAlert = async (id: string) => {
+    if (!userId) return;
+    setDeletingId(id);
+    try {
+      await removePriceAlert(userId, id);
+      setAssetAlerts(prev => prev.filter(a => a.id !== id));
+    } catch { /* ігноруємо */ }
+    finally { setDeletingId(null); }
+  };
+
+  const handleToggleAlert = useCallback(async (id: string, currentActive: boolean|null) => {
+    if (!userId) return;
+    const newActive = !currentActive;
+    setAssetAlerts(prev => prev.map(a => a.id === id ? { ...a, is_active: newActive } : a));
+    setTogglingId(id);
+    try { await togglePriceAlert(userId, id, newActive); }
+    catch { setAssetAlerts(prev => prev.map(a => a.id === id ? { ...a, is_active: currentActive } : a)); }
+    finally { setTogglingId(null); }
+  }, [userId]);
+
+  const handleUpdateSlTp = useCallback((posId: string, sl?: number, tp?: number) => {
+    setDemo(cur => ({
+      ...cur,
+      positions: cur.positions.map(p => p.id === posId ? { ...p, sl, tp } : p),
+    }));
+    // Keep editingPos in sync if it's the same position
+    setEditingPos(prev => prev?.id === posId ? { ...prev, sl, tp } : prev);
+  }, []);
+
+  const handleUpdateAlertPrice = useCallback(async (alertId: string, newPrice: number) => {
+    if (!userId) return;
+    setAssetAlerts(prev => prev.map(a => a.id === alertId ? { ...a, target_price: newPrice } : a));
+    try { await updateAlertTargetPrice(userId, alertId, newPrice); }
+    catch { void loadAssetAlerts(); } // revert on error
+  }, [userId, loadAssetAlerts]);
+
+  const handleAlertTriggered = useCallback((alert: PriceAlertRecord, triggerPrice: number) => {
+    const condLabel = getAlertConditionShortLabel(alert.condition);
+    const priceStr  = fUsd(triggerPrice);
+    const targetStr = alert.target_price > 0 ? ` @ ${fUsd(alert.target_price)}` : "";
+    pushToast(`🚨 ${alert.symbol}: ${condLabel}${targetStr} — ціна ${priceStr}`);
+  }, [pushToast]);
+
+  // Авто-заповнення значення при зміні умови
+  useEffect(() => {
+    setAlertVal(getAlertDefault(alertCond));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alertCond]);
+
+  // Завантажуємо алерти при відкритті вкладки або при зміні символу
+  useEffect(() => {
+    void loadAssetAlerts();
+  }, [loadAssetAlerts]);
+
+  useEffect(() => {
+    if (rightTab === "Alerts") void loadAssetAlerts();
+  }, [rightTab, loadAssetAlerts]);
+
   // ── ML прогнози з Supabase ──
   const [mlPreds, setMlPreds]         = useState<MlPred[]>([]);
   const [mlAges,  setMlAges]          = useState<Record<string,string>>({});
@@ -906,9 +1742,16 @@ export default function TradingPage() {
         {/* CENTER */}
         <main className="flex flex-1 flex-col min-w-0 bg-[#08080A]">
 
-          {/* Chart — TradingView має власні TF кнопки всередині */}
+          {/* Chart — lightweight-charts with real price lines + drag SL/TP */}
           <div className="flex-1 min-h-0">
-            <TvWidget pair={pair} interval="240"/>
+            <TradingLWChart
+              pair={pair}
+              alerts={assetAlerts}
+              positions={demo.positions.filter(p=>p.sym===asset.sym)}
+              onUpdatePositionSlTp={handleUpdateSlTp}
+              onUpdateAlertPrice={handleUpdateAlertPrice}
+              onAlertTriggered={handleAlertTriggered}
+            />
           </div>
 
           {/* Bottom Panel */}
@@ -959,24 +1802,23 @@ export default function TradingPage() {
                         <tbody>
                           {demo.positions.map(pos=>{
                             const liveP = posPrice(pos.sym);
-                            const fillP = liveP || pos.avgPrice; // fallback на avgPrice якщо ціна ще не завантажилась
+                            const fillP = liveP || pos.avgPrice;
                             const pnl=getPnl(pos,fillP);
                             const roe=(pnl/pos.margin)*100;
                             const priceReady = liveP > 0;
                             return (
                               <tr key={pos.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] cursor-pointer"
                                 onClick={e=>{
-                                  // Не навігуємо якщо клік по кнопці "Закрити"
                                   if((e.target as HTMLElement).closest("button")) return;
-                                  navigate(`/trading/${pos.sym}`);
+                                  setEditingPos(pos);
                                 }}>
                                 <td className="px-2.5 py-2">
                                   <div className="flex items-center gap-1.5">
                                     <img src={pos.img} alt={pos.sym} className="h-4 w-4 rounded-full" onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none"}}/>
-                                    <span className="font-semibold hover:text-[#8348C1] transition-colors">{pos.sym}</span>
+                                    <span className="font-semibold">{pos.sym}</span>
                                   </div>
                                 </td>
-                                <td className={`px-2.5 py-2 font-bold ${pos.side==="LONG"?"text-[#00E676]":"text-[#F40000]"}`}>{pos.side}</td>
+                                <td className={`px-2.5 py-2 font-bold ${pos.side==="LONG"?"text-[#26a69a]":"text-[#ef5350]"}`}>{pos.side}</td>
                                 <td className="px-2.5 py-2"><span className="bg-[#8348C1]/20 text-[#C38BFF] rounded px-1.5 py-0.5 text-[9px] font-bold">{pos.leverage}x</span></td>
                                 <td className="px-2.5 py-2 text-white/80">{fQty(pos.qty)}</td>
                                 <td className="px-2.5 py-2 text-white/80">{fUsd(pos.avgPrice)}</td>
@@ -986,17 +1828,29 @@ export default function TradingPage() {
                                     : <span className="text-white/20 text-[9px] animate-pulse">завант...</span>}
                                 </td>
                                 <td className="px-2.5 py-2 text-white/80">{fUsd(pos.margin)}</td>
-                                <td className={`px-2.5 py-2 font-semibold ${pnl>=0?"text-[#00E676]":"text-[#F40000]"}`}>
+                                <td className={`px-2.5 py-2 font-semibold ${pnl>=0?"text-[#26a69a]":"text-[#ef5350]"}`}>
                                   {priceReady ? <>{pnl>=0?"+":""}{fUsd(pnl)}</> : <span className="text-white/20">---</span>}
                                 </td>
-                                <td className={`px-2.5 py-2 font-semibold ${roe>=0?"text-[#00E676]":"text-[#F40000]"}`}>
+                                <td className={`px-2.5 py-2 font-semibold ${roe>=0?"text-[#26a69a]":"text-[#ef5350]"}`}>
                                   {priceReady ? fRoe(roe) : <span className="text-white/20">---</span>}
                                 </td>
                                 <td className="px-2.5 py-2 text-amber-400/80 text-[10px]">{pos.liqPrice>0?fUsd(pos.liqPrice):"—"}</td>
-                                <td className="px-2.5 py-2 text-white/40">{pos.sl?fUsd(pos.sl):"—"}</td>
-                                <td className="px-2.5 py-2 text-white/40">{pos.tp?fUsd(pos.tp):"—"}</td>
+                                <td className="px-2.5 py-2 text-[#ef5350]/80">{pos.sl&&pos.sl>0?fUsd(pos.sl):"—"}</td>
+                                <td className="px-2.5 py-2 text-[#26a69a]/80">{pos.tp&&pos.tp>0?fUsd(pos.tp):"—"}</td>
                                 <td className="px-2.5 py-2 text-right">
-                                  <button type="button" onClick={e=>{e.stopPropagation();closePosition(pos,fillP);}} className="rounded px-2 py-0.5 bg-white/5 text-[10px] hover:bg-red-500/20 hover:text-red-400 transition-colors">Закрити</button>
+                                  <div className="flex items-center justify-end gap-1">
+                                    <button type="button"
+                                      onClick={e=>{e.stopPropagation();setEditingPos(pos);}}
+                                      className="flex h-6 w-6 items-center justify-center rounded text-white/25 hover:bg-[#8348C1]/20 hover:text-[#C38BFF] transition-colors"
+                                      title="Редагувати SL/TP">
+                                      <Edit2 size={10}/>
+                                    </button>
+                                    <button type="button"
+                                      onClick={e=>{e.stopPropagation();closePosition(pos,fillP);}}
+                                      className="rounded px-2 py-0.5 bg-white/5 text-[10px] hover:bg-red-500/20 hover:text-red-400 transition-colors">
+                                      Закрити
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -1085,10 +1939,10 @@ export default function TradingPage() {
 
           {/* Tabs */}
           <div className="flex h-[38px] border-b border-white/10 shrink-0">
-            {(["Trade","Data"] as const).map(t=>(
+            {(["Trade","Data","Alerts"] as const).map(t=>(
               <button key={t} type="button" onClick={()=>setRightTab(t)}
-                className={`h-full flex-1 text-[11px] font-semibold border-b-2 transition-colors ${rightTab===t?"border-[#8348C1] text-white":"border-transparent text-white/40 hover:text-white"}`}>
-                {t==="Trade"?"Угода":"Аналітика"}
+                className={`h-full flex-1 text-[11px] font-semibold border-b-2 transition-colors flex items-center justify-center gap-1 ${rightTab===t?"border-[#8348C1] text-white":"border-transparent text-white/40 hover:text-white"}`}>
+                {t==="Trade"?"Угода":t==="Data"?"Аналітика":<><Bell size={9}/> Алерти</>}
               </button>
             ))}
           </div>
@@ -1450,9 +2304,252 @@ export default function TradingPage() {
                 </div>
               </>
             )}
+
+            {/* ══ ALERTS TAB ══ */}
+            {rightTab==="Alerts"&&(
+              <div className="space-y-3">
+
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <div className="text-[9px] font-semibold text-white/35 uppercase tracking-wider flex items-center gap-1">
+                    <Bell size={9}/> Новий алерт · {asset.sym}
+                  </div>
+                  {price>0&&(
+                    <span className="text-[9px] text-white/30 font-mono">{fUsd(price)}</span>
+                  )}
+                </div>
+
+                {/* Condition categories + select */}
+                <div className="space-y-1.5">
+                  <label className="block text-[9px] text-white/40 font-medium">Умова</label>
+
+                  {/* Category pills */}
+                  <div className="flex flex-wrap gap-1 mb-1">
+                    {(["Ціна","24h","RSI","EMA","MACD","BB","Подія","Ризик"] as const).map(cat=>{
+                      const catMap:{[k:string]:PriceAlertCondition[]}={
+                        "Ціна":  ["price_gt","price_lt","price_gte","price_lte","price_eq"],
+                        "24h":   ["pct_change_24h_gt","pct_change_24h_lt"],
+                        "RSI":   ["rsi_gt","rsi_lt"],
+                        "EMA":   ["ema20_cross_up","ema20_cross_down","ema50_cross_up","ema50_cross_down","golden_cross","death_cross"],
+                        "MACD":  ["macd_cross_up","macd_cross_down"],
+                        "BB":    ["bb_upper_break","bb_lower_break"],
+                        "Подія": ["new_ath","volume_spike_gt","vol_24h_gt"],
+                        "Ризик": ["trailing_stop_pct"],
+                      };
+                      const isActive=catMap[cat]?.includes(alertCond);
+                      return (
+                        <button key={cat} type="button"
+                          onClick={()=>{ const first=catMap[cat]?.[0]; if(first){setAlertCond(first);setAlertMsg("");setAlertErr("");} }}
+                          className={`px-2 py-0.5 rounded-full text-[9px] font-semibold transition-all border ${isActive?"bg-[#8348C1]/20 text-[#C38BFF] border-[#8348C1]/40":"bg-white/[0.03] text-white/30 border-white/10 hover:text-white/60"}`}>
+                          {cat}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="relative bg-[#08080A] border border-white/10 rounded-xl focus-within:border-[#8348C1]/60 transition-colors">
+                    <select
+                      value={alertCond}
+                      onChange={e=>{setAlertCond(e.target.value as PriceAlertCondition);setAlertMsg("");setAlertErr("");}}
+                      className="w-full bg-transparent text-[12px] text-white outline-none px-3 py-2.5 appearance-none rounded-xl"
+                    >
+                      <optgroup label="── Ціна">
+                        <option value="price_gt"  className="bg-[#08080A]">↑ Ціна перетне вгору</option>
+                        <option value="price_lt"  className="bg-[#08080A]">↓ Ціна впаде нижче</option>
+                        <option value="price_gte" className="bg-[#08080A]">≥ Ціна вище або рівна</option>
+                        <option value="price_lte" className="bg-[#08080A]">≤ Ціна нижче або рівна</option>
+                        <option value="price_eq"  className="bg-[#08080A]">= Ціна точно дорівнює</option>
+                      </optgroup>
+                      <optgroup label="── 24h Зміна">
+                        <option value="pct_change_24h_gt" className="bg-[#08080A]">📈 24h зростання &gt; X%</option>
+                        <option value="pct_change_24h_lt" className="bg-[#08080A]">📉 24h падіння &gt; X%</option>
+                      </optgroup>
+                      <optgroup label="── RSI">
+                        <option value="rsi_gt" className="bg-[#08080A]">RSI(14) перевищить X — перекупленість</option>
+                        <option value="rsi_lt" className="bg-[#08080A]">RSI(14) впаде нижче X — перепроданість</option>
+                      </optgroup>
+                      <optgroup label="── EMA перетини">
+                        <option value="ema20_cross_up"   className="bg-[#08080A]">EMA20 — ціна перетне вгору</option>
+                        <option value="ema20_cross_down" className="bg-[#08080A]">EMA20 — ціна перетне вниз</option>
+                        <option value="ema50_cross_up"   className="bg-[#08080A]">EMA50 — ціна перетне вгору</option>
+                        <option value="ema50_cross_down" className="bg-[#08080A]">EMA50 — ціна перетне вниз</option>
+                        <option value="golden_cross"     className="bg-[#08080A]">⭐ Золотий хрест MA50/MA200</option>
+                        <option value="death_cross"      className="bg-[#08080A]">☠ Смертний хрест MA50/MA200</option>
+                      </optgroup>
+                      <optgroup label="── MACD">
+                        <option value="macd_cross_up"   className="bg-[#08080A]">MACD перетинає сигнал ↑</option>
+                        <option value="macd_cross_down" className="bg-[#08080A]">MACD перетинає сигнал ↓</option>
+                      </optgroup>
+                      <optgroup label="── Bollinger Bands">
+                        <option value="bb_upper_break" className="bg-[#08080A]">Пробиття верхньої BB (2σ)</option>
+                        <option value="bb_lower_break" className="bg-[#08080A]">Пробиття нижньої BB (2σ)</option>
+                      </optgroup>
+                      <optgroup label="── Обсяг та події">
+                        <option value="volume_spike_gt" className="bg-[#08080A]">Сплеск обсягу × X</option>
+                        <option value="vol_24h_gt"      className="bg-[#08080A]">Об'єм 24h &gt; X USD</option>
+                        <option value="new_ath"         className="bg-[#08080A]">🏆 Новий ATH</option>
+                      </optgroup>
+                      <optgroup label="── Ризик">
+                        <option value="trailing_stop_pct" className="bg-[#08080A]">Trailing stop X%</option>
+                      </optgroup>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center">
+                      <ChevronDown size={11} className="text-white/30"/>
+                    </div>
+                  </div>
+
+                  {/* Description + context */}
+                  <div className="rounded-lg bg-white/[0.02] border border-white/5 px-2 py-1.5 space-y-0.5">
+                    <div className="text-[9px] text-white/50 leading-relaxed">{getAlertConditionDescription(alertCond)}</div>
+                    {getAlertCondContext(alertCond)&&(
+                      <div className="text-[9px] text-[#8348C1] font-semibold">{getAlertCondContext(alertCond)}</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Value input — hidden for no-value conditions */}
+                {!NO_VALUE_CONDITIONS.has(alertCond)&&(
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-[9px] text-white/40 font-medium">Значення</label>
+                      {["price_gt","price_lt","price_gte","price_lte","price_eq"].includes(alertCond)&&price>0&&(
+                        <button type="button"
+                          onClick={()=>setAlertVal(price<1?price.toFixed(6):price.toFixed(2))}
+                          className="text-[9px] text-[#8348C1] hover:text-[#C38BFF] transition-colors">
+                          ↓ Поточна ціна
+                        </button>
+                      )}
+                    </div>
+                    <label className="flex bg-[#08080A] border border-white/10 rounded-xl px-3 py-2 focus-within:border-[#8348C1]/60 transition-colors cursor-text gap-2 items-center">
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        value={alertVal}
+                        onChange={e=>{setAlertVal(e.target.value);setAlertMsg("");setAlertErr("");}}
+                        className="flex-1 bg-transparent text-[12px] text-white font-medium outline-none placeholder:text-white/20 min-w-0"
+                        placeholder="0"
+                      />
+                      <span className="text-[10px] text-white/40 shrink-0">
+                        {getAlertConditionUnit(alertCond)||"RSI"}
+                      </span>
+                    </label>
+                  </div>
+                )}
+
+                {/* No-value badge */}
+                {NO_VALUE_CONDITIONS.has(alertCond)&&(
+                  <div className="flex items-center gap-1.5 rounded-lg bg-[#8348C1]/10 border border-[#8348C1]/20 px-2.5 py-2">
+                    <Bell size={10} className="text-[#C38BFF] shrink-0"/>
+                    <span className="text-[10px] text-[#C38BFF]">Подія — значення не потрібне</span>
+                  </div>
+                )}
+
+                {/* Feedback */}
+                {(alertErr||alertMsg)&&(
+                  <div className={`rounded-lg px-2.5 py-1.5 text-[10px] ${alertErr?"bg-red-500/10 border border-red-500/20 text-red-300":"bg-[#00E676]/10 border border-[#00E676]/20 text-[#00E676]"}`}>
+                    {alertErr||alertMsg}
+                  </div>
+                )}
+
+                {/* Create button */}
+                {!userId?(
+                  <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-2 text-[10px] text-amber-300 flex items-center gap-1">
+                    <AlertTriangle size={10}/> Увійдіть в акаунт для створення алертів
+                  </div>
+                ):(
+                  <button type="button" onClick={handleCreateAlert} disabled={alertLoading}
+                    className="h-[36px] w-full rounded-xl text-[12px] font-bold bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white transition-opacity hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-1.5">
+                    {alertLoading?<Loader2 size={12} className="animate-spin"/>:<Bell size={12}/>}
+                    {alertLoading?"Створення...":"Створити алерт"}
+                  </button>
+                )}
+
+                {/* Divider */}
+                <div className="border-t border-white/5 pt-1"/>
+
+                {/* Existing alerts for this asset */}
+                <div className="text-[9px] font-semibold text-white/35 uppercase tracking-wider flex items-center justify-between">
+                  <span>Активні · {asset.sym}</span>
+                  {alertsLoading&&<Loader2 size={9} className="animate-spin text-[#8348C1]"/>}
+                </div>
+
+                {!userId?(
+                  <div className="text-[10px] text-white/25 text-center py-2">Увійдіть, щоб бачити алерти</div>
+                ):assetAlerts.length===0&&!alertsLoading?(
+                  <div className="text-[10px] text-white/25 text-center py-2">Немає алертів для {asset.sym}</div>
+                ):(
+                  <div className="space-y-1.5">
+                    {assetAlerts.map(al=>{
+                      const isPrice = ALERT_CONDS_PRICE.has(al.condition);
+                      const isUp = al.condition.includes("_up")||al.condition.includes("_gt")||al.condition==="golden_cross"||al.condition==="new_ath"||al.condition==="bb_upper_break";
+                      const isActive = al.is_active !== false;
+                      const dotColor = !isActive?"bg-white/20":isUp?"bg-[#26a69a]":"bg-[#ef5350]";
+                      const unit = getAlertConditionUnit(al.condition);
+                      return (
+                        <div key={al.id} className={`rounded-xl border px-2.5 py-2 transition-colors ${!isActive?"border-white/5 bg-white/[0.02]":"border-[#8348C1]/20 bg-[#8348C1]/5"}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[10px] font-semibold text-white truncate">
+                                {getAlertConditionShortLabel(al.condition)}
+                                {al.target_price>0&&isPrice&&<span className="ml-1 font-mono text-white/60">{fUsd(al.target_price)}</span>}
+                                {al.target_price>0&&!isPrice&&<span className="ml-1 font-mono text-white/60">{al.target_price}{unit?" "+unit:""}</span>}
+                              </div>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${dotColor}`}/>
+                                <span className={`text-[9px] ${!isActive?"text-white/25":"text-[#26a69a]/70"}`}>
+                                  {!isActive?"Призупинено":"Активний"}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-0.5 shrink-0">
+                              {/* Toggle active/paused */}
+                              <button type="button"
+                                disabled={togglingId===al.id}
+                                onClick={()=>void handleToggleAlert(al.id, al.is_active)}
+                                title={isActive?"Призупинити":"Активувати"}
+                                className={`flex h-6 w-6 items-center justify-center rounded-lg transition-colors disabled:opacity-40 ${isActive?"text-[#26a69a]/60 hover:bg-[#26a69a]/10 hover:text-[#26a69a]":"text-white/25 hover:bg-white/10 hover:text-white"}`}>
+                                {togglingId===al.id?<Loader2 size={10} className="animate-spin"/>:isActive?<Bell size={10}/>:<BellOff size={10}/>}
+                              </button>
+                              {/* Delete */}
+                              <button type="button"
+                                disabled={deletingId===al.id}
+                                onClick={()=>void handleDeleteAlert(al.id)}
+                                title="Видалити"
+                                className="flex h-6 w-6 items-center justify-center rounded-lg text-white/25 hover:bg-red-500/20 hover:text-red-400 transition-colors disabled:opacity-40">
+                                {deletingId===al.id?<Loader2 size={10} className="animate-spin"/>:<Trash2 size={10}/>}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Link to all alerts */}
+                <button type="button"
+                  onClick={()=>navigate("/alerts")}
+                  className="w-full text-center text-[9px] text-[#8348C1] hover:text-[#C38BFF] transition-colors pt-1">
+                  Всі алерти →
+                </button>
+
+              </div>
+            )}
           </div>
         </aside>
       </div>
+
+      {/* Position edit modal */}
+      <PosEditModal
+        pos={editingPos}
+        currentPrice={editingPos ? posPrice(editingPos.sym) : 0}
+        onClose={() => setEditingPos(null)}
+        onSave={handleUpdateSlTp}
+        onClosePos={pos => closePosition(pos, posPrice(pos.sym) || pos.avgPrice)}
+      />
+
+      {/* Alert toasts */}
+      <ToastNotifications items={toasts} onDismiss={dismissToast}/>
     </div>
   );
 }

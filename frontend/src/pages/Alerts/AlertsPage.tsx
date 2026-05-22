@@ -17,11 +17,29 @@ const tableGrid =
   "grid grid-cols-[1.05fr_1.12fr_0.95fr_0.78fr_0.82fr_178px]";
 
 const conditionOptions: Array<{ value: PriceAlertCondition; label: string }> = [
-  { value: "price_gt", label: "Ціна більше ніж" },
-  { value: "price_gte", label: "Ціна більше або =" },
-  { value: "price_lt", label: "Ціна менше ніж" },
-  { value: "price_lte", label: "Ціна менше або =" },
-  { value: "price_eq", label: "Ціна дорівнює" },
+  { value: "price_gt",           label: "↑ Ціна перетне вгору" },
+  { value: "price_gte",          label: "≥ Ціна вище або рівна" },
+  { value: "price_lt",           label: "↓ Ціна впаде нижче" },
+  { value: "price_lte",          label: "≤ Ціна нижче або рівна" },
+  { value: "price_eq",           label: "= Ціна точно дорівнює" },
+  { value: "pct_change_24h_gt",  label: "📈 24h зростання > X%" },
+  { value: "pct_change_24h_lt",  label: "📉 24h падіння > X%" },
+  { value: "rsi_gt",             label: "RSI(14) перевищить X — перекупленість" },
+  { value: "rsi_lt",             label: "RSI(14) впаде нижче X — перепроданість" },
+  { value: "ema20_cross_up",     label: "EMA20 — ціна перетне вгору" },
+  { value: "ema20_cross_down",   label: "EMA20 — ціна перетне вниз" },
+  { value: "ema50_cross_up",     label: "EMA50 — ціна перетне вгору" },
+  { value: "ema50_cross_down",   label: "EMA50 — ціна перетне вниз" },
+  { value: "golden_cross",       label: "⭐ Золотий хрест MA50/MA200" },
+  { value: "death_cross",        label: "☠ Смертний хрест MA50/MA200" },
+  { value: "macd_cross_up",      label: "MACD перетинає сигнал ↑" },
+  { value: "macd_cross_down",    label: "MACD перетинає сигнал ↓" },
+  { value: "bb_upper_break",     label: "Пробиття верхньої BB (2σ)" },
+  { value: "bb_lower_break",     label: "Пробиття нижньої BB (2σ)" },
+  { value: "volume_spike_gt",    label: "Сплеск обсягу × X" },
+  { value: "vol_24h_gt",         label: "Об'єм 24h > X USD" },
+  { value: "new_ath",            label: "🏆 Новий ATH" },
+  { value: "trailing_stop_pct",  label: "Trailing stop X%" },
 ];
 
 const knownAssetMeta: Record<string, { icon: string; color: string }> = {
@@ -228,7 +246,7 @@ export default function AlertsPage() {
           <div className="absolute right-0 top-[58px] z-50 w-[288px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-300 ease-out">
             <div className="rounded-[28px] bg-[#050506] px-[24px] py-[24px]">
               <p className="text-[#A3A4B0] text-[14px] leading-[17px] font-normal">
-                Перейдіть на сторінку потрібної криптовалюти, задайте умову ціни та створіть алерт.
+                Перейдіть у розділ Торгівля → вкладка "Алерти" і створіть алерт з розширеними умовами.
                 Після цього він автоматично з'явиться на цій сторінці.
               </p>
             </div>
