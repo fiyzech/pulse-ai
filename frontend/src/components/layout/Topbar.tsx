@@ -280,19 +280,54 @@ export default function Topbar() {
 
       {showLogoutModal && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm font-montserrat transition-opacity">
-          <div className="w-[400px] rounded-[24px] bg-[#0A0A0A] border border-white/10 p-8 text-center shadow-[0_20px_70px_rgba(0,0,0,0.5)]">
-            <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-6">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#A3A4B0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                <polyline points="16 17 21 12 16 7"></polyline>
-                <line x1="21" y1="12" x2="9" y2="12"></line>
-              </svg>
-            </div>
-            <h2 className="text-[22px] text-white font-medium mb-2">Вийти з акаунта?</h2>
-            <p className="text-[14px] text-[#A3A4B0] mb-8">Вам доведеться знову ввести свої дані для входу в систему.</p>
-            <div className="flex gap-4">
-              <button onClick={() => setShowLogoutModal(false)} className="flex-1 h-[44px] rounded-full border border-white/10 text-white hover:bg-white/5 transition-colors text-[13px] font-medium cursor-pointer">Скасувати</button>
-              <button onClick={handleLogout} className="flex-1 h-[44px] rounded-full text-white text-[13px] font-medium bg-red-500/20 border border-red-500/30 hover:bg-red-500 hover:border-red-500 transition-colors cursor-pointer">Вийти</button>
+          <div className="w-[400px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] p-[1px] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
+            <div className="rounded-[28px] bg-[#050506] p-8 text-center">
+              <div className="mx-auto mb-6 h-16 w-16 rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] p-[1px]">
+                <div className="flex h-full w-full items-center justify-center rounded-full bg-[#050506]">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#A3A4B0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                  </svg>
+                </div>
+              </div>
+              <h2 className="text-[22px] text-white font-medium mb-2">Вийти з акаунта?</h2>
+              <p className="text-[14px] text-[#A3A4B0] mb-8">Вам доведеться знову ввести свої дані для входу в систему.</p>
+              <div className="flex gap-4">
+                <button onClick={() => setShowLogoutModal(false)} className="group relative flex h-[44px] flex-1 items-center justify-center rounded-[28px] text-[13px] font-medium text-white transition-transform hover:scale-105 cursor-pointer">
+                  <svg
+                    className="absolute inset-0 h-full w-full pointer-events-none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <rect
+                      x="1"
+                      y="1"
+                      width="calc(100% - 2px)"
+                      height="42"
+                      rx="21"
+                      fill="none"
+                      stroke="url(#logout-cancel-border)"
+                      strokeWidth="1.5"
+                    />
+                    <defs>
+                      <linearGradient
+                        id="logout-cancel-border"
+                        x1="0%"
+                        y1="0%"
+                        x2="100%"
+                        y2="0%"
+                      >
+                        <stop offset="0%" stopColor="#2C1969" />
+                        <stop offset="50%" stopColor="#8348C1" />
+                        <stop offset="100%" stopColor="#C38BFF" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+
+                  <span className="relative z-10">Скасувати</span>
+                </button>
+                <button onClick={handleLogout} className="flex h-[44px] flex-1 items-center justify-center rounded-[28px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-[13px] font-medium text-white transition-transform hover:scale-105 cursor-pointer">Вийти</button>
+              </div>
             </div>
           </div>
         </div>

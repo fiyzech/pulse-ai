@@ -26,7 +26,7 @@ export interface CryptoNewsItem {
 }
 
 const TRANSLATION_CACHE_KEY = "cryptopulse_news_translations_v2";
-const NEWS_CACHE_KEY = "cryptopulse_crypto_news_feed_v3";
+const NEWS_CACHE_KEY = "cryptopulse_crypto_news_feed_v4";
 const NEWS_CACHE_TTL_MS = 15 * 60 * 1000;
 const TRANSLATE_TIMEOUT_MS = 2800;
 const TRANSLATE_BATCH_SIZE = 8;
@@ -75,6 +75,77 @@ const getTranslationCache = (): Record<string, string> => {
   }
 };
 
+const cryptoSourceHints = [
+  "coindesk",
+  "cointelegraph",
+  "decrypt",
+  "the block",
+  "blockworks",
+  "cryptoslate",
+  "beincrypto",
+  "bitcoin magazine",
+  "bitcoinist",
+  "newsbtc",
+  "u.today",
+  "ambcrypto",
+  "crypto briefing",
+  "cryptopotato",
+  "coinpedia",
+  "coinmarketcap",
+  "coingecko",
+];
+
+const strongCryptoPatterns = [
+  /\bbitcoin\b/,
+  /\bbtc\b/,
+  /\bethereum\b/,
+  /\bether\b/,
+  /\beth\b/,
+  /\bcrypto\b/,
+  /\bcryptocurrency\b/,
+  /\baltcoin(s)?\b/,
+  /\bstablecoin(s)?\b/,
+  /\bdefi\b/,
+  /\bnft(s)?\b/,
+  /\btoken(s)?\b/,
+  /\bcoinbase\b/,
+  /\bbinance\b/,
+  /\bbnb\b/,
+  /\bsolana\b/,
+  /\bsol\b/,
+  /\bxrp\b/,
+  /\bripple\b/,
+  /\bcardano\b/,
+  /\bada\b/,
+  /\bdogecoin\b/,
+  /\bdoge\b/,
+  /\bavalanche\b/,
+  /\bavax\b/,
+  /\bchainlink\b/,
+  /\blink\b/,
+  /\bwallet(s)?\b/,
+  /\bstaking\b/,
+  /\bmining\b/,
+  /\bspot etf(s)?\b/,
+  /\bcrypto etf(s)?\b/,
+  /\bsec\b.*\b(crypto|bitcoin|ethereum|coinbase|binance|token|etf)\b/,
+];
+
+const weakTechOnlyPatterns = [
+  /\bcoding\b/,
+  /\bprogramming\b/,
+  /\bdeveloper(s)?\b/,
+  /\bsoftware\b/,
+  /\bjavascript\b/,
+  /\btypescript\b/,
+  /\bpython\b/,
+  /\bgithub\b/,
+  /\bopen source\b/,
+  /\bapp development\b/,
+  /\bai coding\b/,
+  /\bvibe coding\b/,
+];
+
 const saveTranslationCache = (cache: Record<string, string>) => {
   try {
     localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(cache));
@@ -114,7 +185,7 @@ export const getNewsIcon = (title: string, description = ""): string | null => {
     text.includes("btc") ||
     text.includes("satoshi")
   ) {
-    return "/Bitcoin.svg";
+    return "https://assets.coingecko.com/coins/images/1/large/bitcoin.png";
   }
 
   if (
@@ -123,7 +194,7 @@ export const getNewsIcon = (title: string, description = ""): string | null => {
     text.includes("eth") ||
     text.includes("vitalik")
   ) {
-    return "/Ethereum.svg";
+    return "https://assets.coingecko.com/coins/images/279/large/ethereum.png";
   }
 
   if (
@@ -132,43 +203,43 @@ export const getNewsIcon = (title: string, description = ""): string | null => {
     text.includes("stablecoin") ||
     text.includes("stablecoins")
   ) {
-    return "/Tether.svg";
+    return "https://assets.coingecko.com/coins/images/325/large/Tether.png";
   }
 
   if (text.includes("solana") || /\bsol\b/.test(text)) {
-    return "https://cryptologos.cc/logos/solana-sol-logo.png";
+    return "https://assets.coingecko.com/coins/images/4128/large/solana.png";
   }
 
   if (text.includes("binance") || /\bbnb\b/.test(text)) {
-    return "https://cryptologos.cc/logos/bnb-bnb-logo.png";
+    return "https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png";
   }
 
   if (text.includes("ripple") || /\bxrp\b/.test(text)) {
-    return "https://cryptologos.cc/logos/xrp-xrp-logo.png";
+    return "https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png";
   }
 
   if (text.includes("cardano") || /\bada\b/.test(text)) {
-    return "https://cryptologos.cc/logos/cardano-ada-logo.png";
+    return "https://assets.coingecko.com/coins/images/975/large/cardano.png";
   }
 
   if (text.includes("avalanche") || /\bavax\b/.test(text)) {
-    return "https://cryptologos.cc/logos/avalanche-avax-logo.png";
+    return "https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png";
   }
 
   if (text.includes("dogecoin") || /\bdoge\b/.test(text)) {
-    return "https://cryptologos.cc/logos/dogecoin-doge-logo.png";
+    return "https://assets.coingecko.com/coins/images/5/large/dogecoin.png";
   }
 
   if (text.includes("polygon") || /\bmatic\b/.test(text) || /\bpol\b/.test(text)) {
-    return "https://cryptologos.cc/logos/polygon-matic-logo.png";
+    return "https://assets.coingecko.com/coins/images/4713/large/polygon.png";
   }
 
   if (text.includes("chainlink") || /\blink\b/.test(text)) {
-    return "https://cryptologos.cc/logos/chainlink-link-logo.png";
+    return "https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png";
   }
 
   if (text.includes("toncoin") || text.includes("telegram open network") || /\bton\b/.test(text)) {
-    return "https://cryptologos.cc/logos/toncoin-ton-logo.png";
+    return "https://assets.coingecko.com/coins/images/17980/large/ton_symbol.png";
   }
 
   if (
@@ -234,35 +305,15 @@ const isRelevantCryptoArticle = (article: NewsApiArticle): boolean => {
   const source = article.source?.name?.toLowerCase() || "";
   const fullText = `${title} ${description} ${source}`;
 
-  const hasCryptoContext =
-    fullText.includes("bitcoin") ||
-    fullText.includes("btc") ||
-    fullText.includes("ethereum") ||
-    fullText.includes("eth") ||
-    fullText.includes("crypto") ||
-    fullText.includes("cryptocurrency") ||
-    fullText.includes("blockchain") ||
-    fullText.includes("stablecoin") ||
-    fullText.includes("stablecoins") ||
-    fullText.includes("solana") ||
-    fullText.includes("binance") ||
-    fullText.includes("bnb") ||
-    fullText.includes("defi") ||
-    fullText.includes("web3") ||
-    fullText.includes("etf") ||
-    fullText.includes("coinbase") ||
-    fullText.includes("coindesk") ||
-    fullText.includes("token") ||
-    fullText.includes("tokens") ||
-    fullText.includes("wallet") ||
-    fullText.includes("zk") ||
-    fullText.includes("layer 2") ||
-    fullText.includes("layer-2") ||
-    fullText.includes("nft") ||
-    fullText.includes("xrp") ||
-    fullText.includes("ripple") ||
-    fullText.includes("staking") ||
-    fullText.includes("mining");
+  const hasStrongCryptoContext = strongCryptoPatterns.some((pattern) =>
+    pattern.test(fullText)
+  );
+  const isCryptoSource = cryptoSourceHints.some((sourceHint) =>
+    source.includes(sourceHint)
+  );
+  const isWeakTechOnly = weakTechOnlyPatterns.some((pattern) =>
+    pattern.test(fullText)
+  );
 
   const isBadTopic =
     title.includes("[removed]") ||
@@ -273,14 +324,15 @@ const isRelevantCryptoArticle = (article: NewsApiArticle): boolean => {
     title.includes("gold etf") ||
     title.includes("gold etfs") ||
     title.includes("naval") ||
-    title.includes("war");
+    title.includes("war") ||
+    (isWeakTechOnly && !hasStrongCryptoContext && !isCryptoSource);
 
   return Boolean(
     article.title &&
       article.url &&
       article.source?.name &&
       article.publishedAt &&
-      hasCryptoContext &&
+      (hasStrongCryptoContext || isCryptoSource) &&
       !isBadTopic
   );
 };
@@ -428,7 +480,7 @@ export const fetchCryptoNews = async (
   }
 
   const query = encodeURIComponent(
-    '("bitcoin" OR "ethereum" OR "crypto" OR "cryptocurrency" OR "blockchain" OR "stablecoin" OR "solana" OR "binance" OR "defi" OR "web3" OR "coinbase" OR "coindesk" OR "crypto ETF" OR "wallet" OR "zk" OR "xrp" OR "ripple" OR "staking" OR "mining" OR "nft")'
+    '("bitcoin" OR "ethereum" OR "cryptocurrency" OR "crypto market" OR "crypto exchange" OR "stablecoin" OR "solana" OR "binance" OR "coinbase" OR "coindesk" OR "cointelegraph" OR "crypto ETF" OR "defi" OR "xrp" OR "ripple" OR "staking" OR "bitcoin mining" OR "nft") NOT coding NOT programming NOT software NOT github'
   );
 
   const safeRawCount = Math.min(Math.max(rawCount, finalCount), 100);

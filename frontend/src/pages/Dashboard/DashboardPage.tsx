@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { LineChart, Line, ResponsiveContainer, YAxis } from "recharts";
+import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import {
   getAuthenticatedUserId,
@@ -22,6 +22,7 @@ interface CryptoResponse {
 }
 
 interface ChartDataPoint {
+  x: number;
   value: number;
 }
 
@@ -53,31 +54,19 @@ type BinanceKline = [
   string,
 ];
 
-const PinIcon = ({ active = false }: { active?: boolean }) => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path
-      d="M12 17V22M6 17H18M9 11V17M15 11V17M7 4H17M8.5 4L10 11H14L15.5 4M10 2H14"
-      stroke={active ? "#C38BFF" : "#A3A4B0"}
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
 const fallbackWatchAsset: DashboardAsset = {
   id: "bitcoin",
   name: "Bitcoin",
   symbol: "BTC",
-  icon: "/Bitcoin.svg",
+  icon: "https://assets.coingecko.com/coins/images/1/large/bitcoin.png",
 };
 
 const knownAssetMeta: Record<string, DashboardAsset> = {
   BTC: fallbackWatchAsset,
-  ETH: { id: "ethereum", name: "Ethereum", symbol: "ETH", icon: "/Ethereum.svg" },
+  ETH: { id: "ethereum", name: "Ethereum", symbol: "ETH", icon: "https://assets.coingecko.com/coins/images/279/large/ethereum.png" },
   USDT: { id: "tether", name: "Tether", symbol: "USDT", icon: "/Tether.svg" },
-  SOL: { id: "solana", name: "Solana", symbol: "SOL", icon: "https://cryptologos.cc/logos/solana-sol-logo.png" },
-  BNB: { id: "binancecoin", name: "BNB", symbol: "BNB", icon: "https://cryptologos.cc/logos/bnb-bnb-logo.png" },
+  SOL: { id: "solana", name: "Solana", symbol: "SOL", icon: "https://assets.coingecko.com/coins/images/4128/large/solana.png" },
+  BNB: { id: "binancecoin", name: "BNB", symbol: "BNB", icon: "https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png" },
   XRP: { id: "ripple", name: "XRP", symbol: "XRP", icon: "https://cryptologos.cc/logos/xrp-xrp-logo.png" },
   ADA: { id: "cardano", name: "Cardano", symbol: "ADA", icon: "https://cryptologos.cc/logos/cardano-ada-logo.png" },
   AVAX: { id: "avalanche-2", name: "Avalanche", symbol: "AVAX", icon: "https://cryptologos.cc/logos/avalanche-avax-logo.png" },
@@ -145,6 +134,7 @@ export default function DashboardPage() {
 
   // Стан для Секції 2
   const [isPeriodOpen, setIsPeriodOpen] = useState<boolean>(false);
+  const [isWatchAssetOpen, setIsWatchAssetOpen] = useState<boolean>(false);
   const [periodSelected, setPeriodSelected] = useState<string>("15 хв");
   const [btcSection2Stats, setBtcSection2Stats] = useState({
     price: 0,
@@ -155,6 +145,7 @@ export default function DashboardPage() {
     lastUpdateTime: new Date(),
   });
   const [watchAssets, setWatchAssets] = useState<DashboardAsset[]>([fallbackWatchAsset]);
+  const [hasFavoriteWatchAssets, setHasFavoriteWatchAssets] = useState<boolean>(false);
   const [selectedWatchSymbol, setSelectedWatchSymbol] = useState<string>(fallbackWatchAsset.symbol);
   const [pinnedWatchSymbol, setPinnedWatchSymbol] = useState<string>(() => {
     try {
@@ -182,9 +173,6 @@ export default function DashboardPage() {
     watchAssets[0] ||
     fallbackWatchAsset;
 
-  const isFallbackWatchAsset =
-    watchAssets.length === 1 && watchAssets[0].symbol === fallbackWatchAsset.symbol;
-
   const timeLabelMap: Record<string, string> = {
     "15 хв": "15 хвилин",
     "1 год": "1 година",
@@ -197,7 +185,7 @@ export default function DashboardPage() {
     const fetchPrices = async () => {
       try {
         const res = await fetch(
-          "/api/coingecko/simple/price?ids=bitcoin,ethereum,tether&vs_currencies=usd&include_24hr_change=true&include_1h_change=true&precision=2"
+          "/api/coingecko/simple/price?ids=bitcoin,ethereum,binancecoin&vs_currencies=usd&include_24hr_change=true&include_1h_change=true&precision=2"
         );
         const data: CryptoResponse = await res.json();
         if (data && Object.keys(data).length > 0) {
@@ -220,7 +208,7 @@ export default function DashboardPage() {
       const symbols = [
         { id: "bitcoin", symbol: "BTCUSDT" },
         { id: "ethereum", symbol: "ETHUSDT" },
-        { id: "tether", symbol: "USDCUSDT" },
+        { id: "binancecoin", symbol: "BNBUSDT" },
       ];
 
       try {
@@ -237,7 +225,8 @@ export default function DashboardPage() {
         const newCharts: Record<string, ChartDataPoint[]> = {};
         results.forEach((res) => {
           if (Array.isArray(res.data)) {
-            newCharts[res.id] = (res.data as BinanceKline[]).map((candle) => ({
+            newCharts[res.id] = (res.data as BinanceKline[]).map((candle, index) => ({
+              x: index,
               value: parseFloat(candle[4]),
             }));
           }
@@ -263,6 +252,7 @@ export default function DashboardPage() {
 
         if (!userId) {
           setWatchAssets([fallbackWatchAsset]);
+          setHasFavoriteWatchAssets(false);
           setSelectedWatchSymbol(fallbackWatchAsset.symbol);
           return;
         }
@@ -270,7 +260,8 @@ export default function DashboardPage() {
         const favorites = await listFavoriteAssets(userId);
         if (!active) return;
 
-        const nextAssets = favorites.length > 0
+        const hasFavorites = favorites.length > 0;
+        const nextAssets = hasFavorites
           ? favorites.map(getAssetFromFavorite)
           : [fallbackWatchAsset];
 
@@ -279,6 +270,7 @@ export default function DashboardPage() {
           : null;
 
         setWatchAssets(nextAssets);
+        setHasFavoriteWatchAssets(hasFavorites);
         setSelectedWatchSymbol((current) => {
           if (pinned) return pinned.symbol;
           if (nextAssets.some((asset) => asset.symbol === current)) return current;
@@ -288,6 +280,7 @@ export default function DashboardPage() {
         console.error("Помилка завантаження обраних активів для Dashboard:", error);
         if (active) {
           setWatchAssets([fallbackWatchAsset]);
+          setHasFavoriteWatchAssets(false);
           setSelectedWatchSymbol(fallbackWatchAsset.symbol);
         }
       }
@@ -389,23 +382,23 @@ export default function DashboardPage() {
     {
       name: "Bitcoin",
       symbol: "BTC",
-      icon: "/Bitcoin.svg",
+      icon: "https://assets.coingecko.com/coins/images/1/large/bitcoin.png",
       path: "/asset/bitcoin",
       id: "bitcoin",
     },
     {
       name: "Ethereum",
       symbol: "ETH",
-      icon: "/Ethereum.svg",
+      icon: "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
       path: "/asset/ethereum",
       id: "ethereum",
     },
     {
-      name: "Tether",
-      symbol: "USDT",
-      icon: "/Tether.svg",
-      path: "/asset/tether",
-      id: "tether",
+      name: "BNB",
+      symbol: "BNB",
+      icon: "https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png",
+      path: "/asset/binancecoin",
+      id: "binancecoin",
     },
   ];
 
@@ -436,6 +429,11 @@ export default function DashboardPage() {
     });
   };
 
+  const selectWatchAsset = (symbol: string) => {
+    setSelectedWatchSymbol(symbol);
+    setIsWatchAssetOpen(false);
+  };
+
   const togglePinnedWatchAsset = () => {
     const nextPinned = pinnedWatchSymbol === selectedWatchAsset.symbol ? "" : selectedWatchAsset.symbol;
     setPinnedWatchSymbol(nextPinned);
@@ -462,6 +460,15 @@ export default function DashboardPage() {
     return `$${num.toLocaleString("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
+    })}`;
+  };
+
+  const formatFullPrice = (num: number) => {
+    if (!Number.isFinite(num) || num <= 0) return "$0.00";
+
+    return `$${num.toLocaleString("en-US", {
+      minimumFractionDigits: num < 1 ? 6 : 2,
+      maximumFractionDigits: num < 1 ? 6 : 2,
     })}`;
   };
 
@@ -591,9 +598,11 @@ export default function DashboardPage() {
 
               const minVal = Math.min(...chartData.map((d) => d.value));
               const maxVal = Math.max(...chartData.map((d) => d.value));
-              const padding = (maxVal - minVal) * 0.25 || minVal * 0.01;
+              const range = maxVal - minVal;
+              const lowerPadding = range * 0.22 || minVal * 0.01;
+              const upperPadding = range * 0.65 || minVal * 0.02;
 
-              customYDomain = [minVal - padding, maxVal + padding];
+              customYDomain = [minVal - lowerPadding, maxVal + upperPadding];
             }
 
             const formattedChange =
@@ -603,11 +612,16 @@ export default function DashboardPage() {
 
             const lineGradientId = `line-gradient-${coin.symbol}`;
             const glowFilterId = `glow-blur-${coin.symbol}`;
+            const chartLastIndex = Math.max(0, chartData.length - 1);
+            const highlightIndex =
+              chartData.length > 2
+                ? Math.max(1, chartLastIndex - Math.max(2, Math.round(chartData.length * 0.12)))
+                : chartLastIndex;
 
             return (
               <div
                 key={coin.symbol}
-                className="h-[305px] w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.01),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.2),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-1"
+                className="h-[305px] w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.19),0_8px_25px_rgba(0,0,0,0.5)] hover:-translate-y-1"
               >
                 <div
                   onClick={() => openAsset({
@@ -668,11 +682,11 @@ export default function DashboardPage() {
                         </span>
                       </div>
                     </div>
-                  </div>
+              </div>
 
-                  <div className="absolute bottom-0 left-0 w-full h-[120px] pointer-events-none z-0">
+                  <div className="absolute bottom-[10px] left-0 w-full h-[120px] z-0">
                     <div
-                      className="absolute bottom-[30px] left-0 w-full h-[1px] opacity-40"
+                      className="pointer-events-none absolute bottom-[35px] left-0 w-full h-[1px] opacity-25"
                       style={{
                         backgroundImage:
                           "linear-gradient(to right, #6F6C6C 50%, transparent 50%)",
@@ -684,7 +698,7 @@ export default function DashboardPage() {
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart
                         data={chartData}
-                        margin={{ top: 45, right: 10, left: 0, bottom: 5 }}
+                        margin={{ top: 45, right: 0, left: 0, bottom: 5 }}
                         style={{ overflow: "visible" }}
                       >
                         <defs>
@@ -711,7 +725,19 @@ export default function DashboardPage() {
                           </filter>
                         </defs>
 
+                        <XAxis
+                          hide
+                          type="number"
+                          dataKey="x"
+                          domain={[0, chartLastIndex]}
+                          padding={{ left: 0, right: 0 }}
+                        />
                         <YAxis hide domain={customYDomain} />
+                        <Tooltip
+                          content={() => null}
+                          cursor={false}
+                          wrapperStyle={{ display: "none" }}
+                        />
 
                         <Line
                           type="monotone"
@@ -719,97 +745,67 @@ export default function DashboardPage() {
                           stroke={isPositive ? `url(#${lineGradientId})` : "#7A0E0E"}
                           strokeWidth={2.5}
                           isAnimationActive={true}
+                          activeDot={{
+                            r: 3.5,
+                            fill: "#FFF",
+                            stroke: isPositive ? "#8348C1" : "#7A0E0E",
+                            strokeWidth: 2,
+                          }}
                           dot={(props: ChartDotProps) => {
                             const { cx = 0, cy = 0, index = 0 } = props;
 
-                            if (chartData.length === 0) return null;
+                            if (chartData.length === 0 || index !== highlightIndex) {
+                              return null;
+                            }
 
-                            const lastIndex = chartData.length - 1;
-                            const startIndex = 0;
+                            const lookbackIndex = Math.max(0, highlightIndex - 6);
+                            const isDropping =
+                              chartData[lookbackIndex].value >
+                              chartData[highlightIndex].value;
 
-                            const isStartNode = index === startIndex;
-                            const isEndNode = index === lastIndex;
+                            const boxWidth = 65;
+                            const boxHeight = 35;
+                            const boxX = Math.max(10, Math.min(cx - boxWidth - 8, 120));
 
-                            if (!isStartNode && !isEndNode) return null;
+                            let boxY = isDropping
+                              ? cy + 12
+                              : cy - boxHeight - 12;
 
-                            const dotColor = isPositive ? "#8348C1" : "#7A0E0E";
+                            if (boxY + boxHeight > 105) {
+                              boxY = cy - boxHeight - 12;
+                            }
+
+                            boxY = Math.max(5, Math.min(boxY, 47));
+
                             const textColor = isPositive ? "#24FF7A" : "#F40000";
                             const glowColor = isPositive ? "#8348C1" : "#7A0E0E";
 
-                            if (isStartNode) {
-                              return (
-                                <circle
-                                  key={`dot-start-${index}`}
-                                  cx={cx}
-                                  cy={cy}
-                                  r={3.5}
-                                  fill="#FFF"
-                                  stroke={dotColor}
-                                  strokeWidth={2}
+                            return (
+                              <g key={`percent-label-${index}`} pointerEvents="none">
+                                <rect
+                                  x={boxX}
+                                  y={boxY}
+                                  width={boxWidth}
+                                  height={boxHeight}
+                                  fill={glowColor}
+                                  fillOpacity={0.25}
+                                  filter={`url(#${glowFilterId})`}
+                                  rx={8}
                                 />
-                              );
-                            }
 
-                            if (isEndNode) {
-                              const lookbackIndex = Math.max(0, lastIndex - 6);
-                              const isDropping =
-                                chartData[lookbackIndex].value >
-                                chartData[lastIndex].value;
-
-                              const boxWidth = 65;
-                              const boxHeight = 35;
-                              const boxX = cx - boxWidth - 8;
-
-                              let boxY = isDropping
-                                ? cy + 12
-                                : cy - boxHeight - 12;
-
-                              if (boxY + boxHeight > 105) {
-                                boxY = cy - boxHeight - 12;
-                              }
-
-                              if (boxY < 5) {
-                                boxY = cy + 12;
-                              }
-
-                              return (
-                                <g key={`dot-end-${index}`}>
-                                  <rect
-                                    x={boxX}
-                                    y={boxY}
-                                    width={boxWidth}
-                                    height={boxHeight}
-                                    fill={glowColor}
-                                    fillOpacity={0.25}
-                                    filter={`url(#${glowFilterId})`}
-                                    rx={8}
-                                  />
-
-                                  <text
-                                    x={boxX + boxWidth / 2}
-                                    y={boxY + boxHeight / 2 + 4}
-                                    fill={textColor}
-                                    fontSize={12}
-                                    fontFamily="Montserrat"
-                                    fontWeight={500}
-                                    textAnchor="middle"
-                                  >
-                                    {formattedChange}
-                                  </text>
-
-                                  <circle
-                                    cx={cx}
-                                    cy={cy}
-                                    r={3.5}
-                                    fill="#FFF"
-                                    stroke={dotColor}
-                                    strokeWidth={2}
-                                  />
-                                </g>
-                              );
-                            }
-
-                            return null;
+                                <text
+                                  x={boxX + boxWidth / 2}
+                                  y={boxY + boxHeight / 2 + 4}
+                                  fill={textColor}
+                                  fontSize={12}
+                                  fontFamily="Montserrat"
+                                  fontWeight={500}
+                                  textAnchor="middle"
+                                >
+                                  {formattedChange}
+                                </text>
+                              </g>
+                            );
                           }}
                         />
                       </LineChart>
@@ -853,12 +849,11 @@ export default function DashboardPage() {
 
                 <h3 className="mb-[13px] text-[18px] font-semibold text-white leading-[22px]">
                   Отримуй алерти
-                  <br />в телеграм боті
+                  <br />в Telegram-боті
                 </h3>
 
                 <p className="h-[45px] font-montserrat text-[12px] text-white">
-                  Підключи Telegram, щоб миттєво отримувати сповіщення про свої
-                  алерти та ринкові зміни.
+                  Скористайся ботом CryptoPulse, щоб отримувати алерти та важливі ринкові оновлення.
                 </p>
               </div>
 
@@ -867,7 +862,7 @@ export default function DashboardPage() {
                   onClick={() => navigate("/settings")}
                   className="flex h-[44px] w-[213px] items-center justify-center rounded-[28px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-[14px] font-medium leading-[20px] text-white transition-transform hover:scale-105"
                 >
-                  Підключити Telegram
+                  Відкрити у Telegram
                 </button>
 
                 <button className="group relative flex h-[44px] w-[213px] items-center justify-center rounded-[28px] text-[14px] font-medium leading-[20px] text-white transition-transform hover:scale-105">
@@ -910,42 +905,74 @@ export default function DashboardPage() {
 
       {/* СЕКЦІЯ 2 */}
       <div className="-mt-[63px] mb-[24px]">
-        <div className="mb-6 flex max-w-[1116px] flex-col items-start gap-[18px]">
-          <div>
+        <div
+          className={`mb-6 flex max-w-[1116px] items-center ${
+            hasFavoriteWatchAssets && isWatchAssetOpen ? "relative z-50" : "relative z-0"
+          }`}
+        >
+          <div className="shrink-0">
             <h2 className="font-montserrat text-[24px] leading-[28px] font-semibold text-white/95">
-              Варто відстежувати
+              {hasFavoriteWatchAssets ? "Ваше обране" : "Варто відстежувати"}
             </h2>
-            <p className="mt-1 text-[12px] text-[#A3A4B0]">
-              {isFallbackWatchAsset
-                ? "Поки в обраному пусто, показуємо найпопулярніший актив"
-                : "Перемикайте активи з обраного і закріплюйте головний"}
-            </p>
           </div>
 
-          <div className="flex w-full max-w-full flex-wrap items-center gap-x-[8px] gap-y-[10px]">
-            {watchAssets.map((asset) => {
-              const isActive = asset.symbol === selectedWatchAsset.symbol;
-
-              return (
+          {hasFavoriteWatchAssets && (
+            <div className="relative ml-[12px] h-[28px] w-[143px] shrink-0">
+              <div className="h-full w-full rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] p-[1px]">
                 <button
-                  key={asset.symbol}
                   type="button"
-                  onClick={() => setSelectedWatchSymbol(asset.symbol)}
-                  className={`flex h-[36px] min-w-[104px] items-center gap-2 rounded-full p-[1px] transition-all duration-300 hover:scale-105 ${
-                    isActive
-                      ? "bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] shadow-[0_0_18px_rgba(131,72,193,0.28)]"
-                      : "bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]"
-                  }`}
+                  onClick={() => setIsWatchAssetOpen((open) => !open)}
+                  className="flex h-full w-full items-center justify-between gap-2 rounded-[28px] bg-[#050506] pl-[14px] pr-[12px] text-white transition-all hover:bg-white/5"
                 >
-                  <span className="flex h-full w-full items-center justify-center gap-2 rounded-full bg-[#050506] px-3 text-[12px] font-medium text-white">
-                    <img src={asset.icon} alt={asset.symbol} className="h-[18px] w-[18px] rounded-full object-contain" />
-                    {asset.symbol}
+                  <span className="min-w-0 truncate font-montserrat text-[12px] font-medium leading-[15px]">
+                    {selectedWatchAsset.name}({selectedWatchAsset.symbol})
                   </span>
-                </button>
-              );
-            })}
 
-          </div>
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 12 12"
+                    fill="none"
+                    className={`shrink-0 transition-transform ${
+                      isWatchAssetOpen ? "rotate-180" : ""
+                    }`}
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M2.5 7.5L6 4L9.5 7.5"
+                      stroke="white"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {isWatchAssetOpen && (
+                <div className="absolute left-0 top-[36px] z-50 w-[143px] rounded-[16px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] p-[1px]">
+                  <div className="max-h-[220px] overflow-y-auto rounded-[16px] bg-[#050506] p-1">
+                    {watchAssets.map((asset) => (
+                      <button
+                        key={asset.symbol}
+                        type="button"
+                        onClick={() => selectWatchAsset(asset.symbol)}
+                        className={`w-full rounded-lg px-2 py-1.5 text-left font-montserrat text-[12px] transition ${
+                          asset.symbol === selectedWatchAsset.symbol
+                            ? "bg-white/10 text-white"
+                            : "text-white/80 hover:bg-white/10 hover:text-white"
+                        }`}
+                      >
+                        <span className="block truncate">
+                          {asset.name}({asset.symbol})
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="w-full max-w-[1116px] h-[354px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
@@ -980,21 +1007,33 @@ export default function DashboardPage() {
                   />
                 </button>
 
-                <button
-                  type="button"
-                  onClick={togglePinnedWatchAsset}
-                  title={pinnedWatchSymbol === selectedWatchAsset.symbol ? "Відкріпити актив" : "Закріпити актив"}
-                  aria-label={pinnedWatchSymbol === selectedWatchAsset.symbol ? "Відкріпити актив" : "Закріпити актив"}
-                  className={`group ml-[10px] flex h-[40px] w-[40px] items-center justify-center rounded-full p-[1px] transition-all duration-300 hover:scale-110 ${
-                    pinnedWatchSymbol === selectedWatchAsset.symbol
-                      ? "bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] shadow-[0_0_18px_rgba(131,72,193,0.34)]"
-                      : "bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]"
-                  }`}
-                >
-                  <span className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-colors group-hover:bg-[#0B0B0D]">
-                    <PinIcon active={pinnedWatchSymbol === selectedWatchAsset.symbol} />
-                  </span>
-                </button>
+                {hasFavoriteWatchAssets && (
+                  <button
+                    type="button"
+                    onClick={togglePinnedWatchAsset}
+                    title={pinnedWatchSymbol === selectedWatchAsset.symbol ? "Відкріпити актив" : "Закріпити актив"}
+                    aria-label={pinnedWatchSymbol === selectedWatchAsset.symbol ? "Відкріпити актив" : "Закріпити актив"}
+                    className="ml-[12px] flex h-[24px] w-[24px] items-center justify-center transition-all duration-300 hover:scale-110"
+                  >
+                    {pinnedWatchSymbol === selectedWatchAsset.symbol ? (
+                      <img src="/On.svg" alt="" className="h-[24px] w-[24px]" />
+                    ) : (
+                      <span
+                        className="block h-[24px] w-[24px] bg-[#A3A4B0]"
+                        style={{
+                          maskImage: "url('/On.svg')",
+                          maskPosition: "center",
+                          maskRepeat: "no-repeat",
+                          maskSize: "contain",
+                          WebkitMaskImage: "url('/On.svg')",
+                          WebkitMaskPosition: "center",
+                          WebkitMaskRepeat: "no-repeat",
+                          WebkitMaskSize: "contain",
+                        }}
+                      />
+                    )}
+                  </button>
+                )}
               </div>
 
               <div className="h-[24px]" />
@@ -1143,7 +1182,12 @@ export default function DashboardPage() {
             <div className="absolute bottom-[24px] left-[24px] right-[24px] flex gap-[18px] z-0">
               {[
                 { title: "Зміна", value: formatPercent(btcSection2Stats.changePercent), showPeriod: true },
-                { title: "Діапазон", value: `${formatK(btcSection2Stats.low)}-${formatK(btcSection2Stats.high)}`, showPeriod: true },
+                {
+                  title: "Діапазон",
+                  value: `${formatK(btcSection2Stats.low)}-${formatK(btcSection2Stats.high)}`,
+                  fullValue: `${formatFullPrice(btcSection2Stats.low)} - ${formatFullPrice(btcSection2Stats.high)}`,
+                  showPeriod: true,
+                },
                 {
                   title: "Останній рух",
                   value: formatPercent(btcSection2Stats.lastMove),
@@ -1155,7 +1199,7 @@ export default function DashboardPage() {
                   key={index}
                   className="h-[118px] w-[253px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]"
                 >
-                  <div className="relative h-full w-full rounded-[28px] bg-[#050506]">
+                  <div className="group/range-card relative h-full w-full rounded-[28px] bg-[#050506]">
                     <p className="absolute left-[24px] top-[24px] font-montserrat text-[13px] leading-[16px] font-medium text-white">
                       {card.title}
                     </p>
@@ -1172,12 +1216,18 @@ export default function DashboardPage() {
 
                     {/* ОНОВЛЕНО: прибрано flex, додано block та leading-[42px] для ідеального вирівнювання */}
                     <p 
-                      className={`absolute left-[24px] top-[52px] block h-[42px] w-[206px] leading-[42px] font-montserrat text-[32px] font-medium text-white whitespace-nowrap ${
+                      className={`absolute left-[24px] right-[24px] top-[52px] block h-[42px] overflow-hidden text-ellipsis leading-[42px] font-montserrat text-[32px] font-medium text-white whitespace-nowrap ${
                         card.title === "Діапазон" ? "tracking-tighter" : ""
                       }`}
                     >
                       {renderValueWithSmallK(card.value)}
                     </p>
+
+                    {card.fullValue && (
+                      <div className="pointer-events-none absolute left-[24px] right-[24px] top-[91px] z-20 hidden rounded-[10px] border border-white/10 bg-[#101014] px-3 py-2 text-center font-montserrat text-[11px] font-medium leading-[14px] text-white shadow-[0_12px_35px_rgba(0,0,0,0.45)] group-hover/range-card:block">
+                        {card.fullValue}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1240,7 +1290,7 @@ export default function DashboardPage() {
                         <img
                           src={item.icon || "/NewsDetails.svg"}
                           alt={item.tag || "Новина"}
-                          className="h-[18px] w-[18px] object-contain grayscale opacity-75"
+                          className="h-[18px] w-[18px] object-contain"
                           onError={(e) => {
                             e.currentTarget.onerror = null;
                             e.currentTarget.src = "/NewsDetails.svg";
