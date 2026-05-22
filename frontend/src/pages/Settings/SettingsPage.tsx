@@ -242,6 +242,8 @@ export default function SettingsPage() {
   const [notifyLang, setNotifyLang] = useState("uk");
   const [notifyCurrency, setNotifyCurrency] = useState("usd");
   const [isCancelHovered, setIsCancelHovered] = useState(false);
+  const [hoveredCancelCard, setHoveredCancelCard] = useState(false);
+
 
   const [selectedPlan, setSelectedPlan] = useState<number>(cachedSettings.selectedPlan);
   const [savedCardLast4, setSavedCardLast4] = useState<string | null>(cachedSettings.savedCardLast4);
@@ -633,16 +635,17 @@ export default function SettingsPage() {
             {/* PAYMENT SECTION */}
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <h2 style={{ fontSize: 22, fontWeight: 600, margin: 0, letterSpacing: 0 }}>Платіжні дані</h2>
-              <section style={{
-                position: "relative",
-                width: 1116,
-                borderRadius: 20,
-                border: "1px solid rgba(255,255,255,0.1)",
-                background: "rgba(10,10,10,0.55)",
-                backdropFilter: "blur(18px)",
-                padding: "32px 24px",
-                overflow: "hidden",
-              }}>
+             <section style={{
+                  position: "relative",
+                  width: 1116,
+                  borderRadius: 28, // Оновлено згідно з макетом (було 20)
+                  border: "1px solid transparent", // Прозорий бордер для того, щоб було видно border-box градієнт
+                  background: "linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, rgba(82, 46, 139, 0.32) 0%, rgba(179, 179, 179, 0.32) 100%) border-box",
+                  backdropFilter: "blur(18px)",
+                  padding: "32px 24px",
+                  overflow: "hidden",
+            boxShadow: "0 20px 100px rgba(131, 72, 193, 0.15), 0 8px 25px rgba(0, 0, 0, 0.1)",
+                }}>
                 
                 <div style={{ position: "absolute", right: 24, top: 192, zIndex: 10 }}>
                   <button
@@ -913,56 +916,62 @@ export default function SettingsPage() {
 
                   <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: 16 }}>
                     <button
-                      type="button"
-                      onClick={isEditingCard ? handleSaveCard : () => {
-                        setCardErrors({});
-                        setIsEditingCard(true);
-                      }}
-                      onMouseEnter={() => setHoveredAddCard(true)}
-                      onMouseLeave={() => setHoveredAddCard(false)}
-                      style={{
-                        width: "216px",
-                        height: "44px",
-                        borderRadius: 999,
-                        background: gradientFill,
-                        border: "none",
-                        color: "#fff",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        letterSpacing: 0,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontFamily: "'Montserrat', sans-serif",
-                        boxShadow: hoveredAddCard ? "0 0 20px rgba(131,72,193,0.6)" : "none",
-                        transform: hoveredAddCard ? "translateY(-1px)" : "none",
-                        transition: "box-shadow 0.2s, transform 0.15s",
-                      }}
-                    >
-                      {isEditingCard ? "Зберегти" : savedCardLast4 ? "Оновити карту" : "Додати карту"}
-                    </button>
+  type="button"
+  onClick={isEditingCard ? handleSaveCard : () => {
+    setCardErrors({});
+    setIsEditingCard(true);
+  }}
+  onMouseEnter={() => setHoveredAddCard(true)}
+  onMouseLeave={() => setHoveredAddCard(false)}
+  style={{
+    width: "216px",
+    height: "44px",
+    borderRadius: 999,
+    background: gradientFill,
+    border: "none",
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: 500,
+    letterSpacing: 0,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontFamily: "'Montserrat', sans-serif",
+    boxShadow: "none",
+    // Оновлена анімація:
+    transform: hoveredAddCard ? "translateY(-1px) scale(1.05)" : "none",
+    transition: "all 0.3s ease",
+  }}
+>
+  {isEditingCard ? "Зберегти" : savedCardLast4 ? "Оновити карту" : "Додати карту"}
+</button>
 
                     {isEditingCard && (
-                      <button
-                        type="button"
-                        onClick={handleCancelCardEdit}
-                        style={{
-                          width: "168px",
-                          height: "44px",
-                          borderRadius: 999,
-                          border: "1px solid transparent",
-                          background: cancelGradientBorder,
-                          color: "#A3A4B0",
-                          fontSize: 13,
-                          fontWeight: 500,
-                          cursor: "pointer",
-                          fontFamily: "'Montserrat', sans-serif",
-                          transition: "color 0.2s, box-shadow 0.2s",
-                        }}
-                      >
-                        Скасувати
-                      </button>
+                     <button
+  type="button"
+  onClick={handleCancelCardEdit}
+  onMouseEnter={() => setHoveredCancelCard(true)}
+  onMouseLeave={() => setHoveredCancelCard(false)}
+  style={{
+    width: "168px",
+    height: "44px",
+    borderRadius: 999,
+    border: "1px solid transparent",
+    background: cancelGradientBorder,
+    color: "#A3A4B0",
+    fontSize: 13,
+    fontWeight: 500,
+    cursor: "pointer",
+    fontFamily: "'Montserrat', sans-serif",
+    boxShadow: "none",
+    // Анімація: transition-all (всі властивості), duration-300 (0.3s), hover:scale-105 (збільшення до 1.05)
+    transition: "all 0.3s ease",
+    transform: hoveredCancelCard ? "scale(1.05)" : "scale(1)",
+  }}
+>
+  Скасувати
+</button>
                     )}
 
                     {isEditingCard && savedCardLast4 && (
@@ -1002,6 +1011,7 @@ export default function SettingsPage() {
                 backdropFilter: "blur(18px)",
                 boxSizing: "border-box",
                 overflow: "hidden",
+            boxShadow: "0 20px 100px rgba(131, 72, 193, 0.15), 0 8px 25px rgba(0, 0, 0, 0.1)",
               }}>
 
                 <div style={{
@@ -1194,7 +1204,8 @@ export default function SettingsPage() {
             padding: 1,
             borderRadius: 28,
             background: "linear-gradient(90deg, rgba(82,46,139,0.32) 0%, rgba(179,179,179,0.32) 100%)",
-            marginBottom: 24
+            marginBottom: 24,
+            boxShadow: "0 20px 100px rgba(131, 72, 193, 0.15), 0 8px 25px rgba(0, 0, 0, 0.1)",
           }}>
             <div style={{ 
               width: "100%", 
@@ -1294,7 +1305,7 @@ export default function SettingsPage() {
               style={{
                 height: 44, width: 216, borderRadius: 999, fontSize: 14, fontWeight: 500, cursor: "pointer", color: "#fff", border: "none",
                 background: "linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%)", boxShadow: "none",
-                transform: hoveredSave ? "translateY(-1px) scale(1.02)" : "none", transition: "all 0.2s ease", fontFamily: "'Montserrat', sans-serif",
+                transform: hoveredSave ? "translateY(-1px) scale(1.05)" : "none", transition: "all 0.3s ease", fontFamily: "'Montserrat', sans-serif",
               }}
             >
               Зберегти
@@ -1331,8 +1342,8 @@ function PlanButton({ isSelected, cta, onSelect }: { isSelected: boolean; cta: s
         color: "#fff",
         fontFamily: "'Montserrat', sans-serif",
         boxShadow: "none",
-        transform: hovered ? "translateY(-1px) scale(1.02)" : "none",
-        transition: "all 0.2s ease",
+        transform: hovered ? "translateY(-1px) scale(1.05)" : "none",
+        transition: "all 0.3s ease",
       }}
     >
       {isSelected ? "Поточний план" : cta}
