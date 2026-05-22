@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import bookmarkPlusIcon from '../../assets/icons/bookmark-plus.svg';
 import trashIcon from '../../assets/icons/trash.svg';
 import eyeIcon from '../../assets/icons/eye.svg';
+import trashIconRed from '../../assets/icons/trash-red.svg';
 import {
   addFavoriteAsset,
   getAuthenticatedUserId,
@@ -119,6 +120,7 @@ export default function MarketsPage() {
   const [favoriteSymbols, setFavoriteSymbols] = useState<Set<string>>(new Set());
   const [pendingFavorites, setPendingFavorites] = useState<Set<string>>(new Set());
   const [favoriteError, setFavoriteError] = useState<string | null>(null);
+  const [hoveredTrash, setHoveredTrash] = useState<string | null>(null);
 
   const formatPrice = (price: number | null) => {
     if (!price) return "$0.00";
@@ -516,7 +518,7 @@ export default function MarketsPage() {
 
       <div
         style={{ width: '1116px' }}
-        className="ml-10 p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] transition-all duration-500 ease-out "
+        className="ml-10 p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.12),0_8px_25px_rgba(0,0,0,0.35)]"
       >
         <div className="relative rounded-[28px] bg-[#050506] flex flex-col overflow-hidden">
 
@@ -528,7 +530,7 @@ export default function MarketsPage() {
             <div className="absolute bottom-0 left-0 w-full h-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))]" />
 
             {/* Назви колонок */}
-            <div className="flex items-center">Монета</div>
+            <div className="flex items-center">Актив</div>
             <div>Ціна</div>
             <div>24год</div>
             <div className="flex flex-col justify-center leading-[1.1]">
@@ -589,26 +591,26 @@ export default function MarketsPage() {
                         {/* Кнопка Око */}
                         <button
                           type="button"
-                          className="group/btn relative inline-flex w-8 h-8 flex-shrink-0 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_12px_rgba(131,72,193,0.28)] active:scale-95 cursor-pointer"
+                          className="group/btn relative inline-flex w-8 h-8 flex-shrink-0 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_12px_rgba(131,72,193,0.28)] active:scale-95 cursor-pointer"
                           onClick={() => handleViewClick(coin)}
                         >
                           <span className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover/btn:bg-[#0B0B0D]">
-                            <img src={eyeIcon} alt="" className="w-4 h-4 opacity-70 grayscale brightness-125 transition-all duration-300 group-hover/btn:scale-110 group-hover/btn:opacity-100 group-hover/btn:grayscale-0 group-hover/btn:brightness-125" />
+                            <img src={eyeIcon} alt="" className="w-4 h-4 opacity-70 grayscale brightness-125 transition-all duration-300 group-hover/btn:scale-105 group-hover/btn:opacity-100 group-hover/btn:grayscale-0 group-hover/btn:brightness-150"/>
                           </span>
                         </button>
 
                         {/* Кнопка Зберегти */}
                         <button
                           type="button"
-                          className="group/btn relative inline-flex w-8 h-8 flex-shrink-0 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_12px_rgba(131,72,193,0.28)] active:scale-95 cursor-pointer"
+                          className="group/btn relative inline-flex w-8 h-8 flex-shrink-0 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_12px_rgba(131,72,193,0.28)] active:scale-95 cursor-pointer"
                           onClick={() => handleFavoriteToggle(coin)}
                         >
                           <span className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover/btn:bg-[#0B0B0D]">
-                            <img
-                              src={isFavorite ? trashIcon : bookmarkPlusIcon}
-                              alt=""
-                              className="w-4 h-4 opacity-70 grayscale brightness-125 transition-all duration-300 group-hover/btn:scale-110 group-hover/btn:opacity-100 group-hover/btn:grayscale-0 group-hover/btn:brightness-125"
-                            />
+                          {isFavorite ? (
+                            <img src={trashIconRed} alt="" className="w-[18px] h-[18px] opacity-120 grayscale contrast-[0.45] transition-all duration-300 group-hover/btn:scale-105 group-hover/btn:grayscale-0 group-hover/btn:brightness-100 group-hover/btn:contrast-100"/>
+                          ) : (
+                            <img src={bookmarkPlusIcon} alt="" className="w-[18px] h-[18px] opacity-70 grayscale brightness-125 transition-all duration-300 group-hover/btn:scale-105 group-hover/btn:opacity-100 group-hover/btn:grayscale-0 group-hover/btn:brightness-100"/>
+                          )}
                           </span>
                         </button>
                       </div>
@@ -645,7 +647,7 @@ function MarketStatsCard({ title, items }: { title: string, items: MarketItem[] 
   return (
     <div
       style={{ width: '356px', height: 'auto', minHeight: '199px' }}
-      className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.19),0_8px_25px_rgba(0,0,0,0.5)]"
+      className="p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.19),0_8px_25px_rgba(0,0,0,0.5)]"
     >
       <div className="relative h-full rounded-[28px] bg-[#050506] overflow-hidden">
 
