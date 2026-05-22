@@ -34,7 +34,7 @@ type SettingsCache = {
 const gradientFill = "linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%)";
 const quietInputBorder = "1px solid rgba(255,255,255,0.1)";
 const errorInputBorder = "1px solid rgba(248,113,113,0.72)";
-const inputBgQuiet = "linear-gradient(#0A0A0A, #0A0A0A) padding-box, linear-gradient(90deg, rgba(82, 46, 139, 0.32) 0%, rgba(179, 179, 179, 0.32) 100%) border-box";
+const inputBgQuiet = "linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, rgba(82, 46, 139, 0.32) 0%, rgba(179, 179, 179, 0.32) 100%) border-box";
 const inputBgError = "linear-gradient(#0A0A0A, #0A0A0A) padding-box, linear-gradient(90deg, rgba(248, 113, 113, 0.72) 0%, rgba(248, 113, 113, 0.72) 100%) border-box";
 const settingsCacheKey = "cryptopulse_settings_cache";
 
@@ -71,7 +71,7 @@ const plansData: Plan[] = [
     highlighted: false,
   },
   {
-    name: "Pro",
+    name: "Про",
     key: "pro",
     monthlyPrice: 7,
     yearlyPrice: 70,
@@ -88,7 +88,7 @@ const plansData: Plan[] = [
     highlighted: true,
   },
   {
-    name: "Бізнес",
+    name: "Преміум",
     key: "business",
     monthlyPrice: 19,
     yearlyPrice: 190,
@@ -598,7 +598,7 @@ export default function SettingsPage() {
                         <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: 400, letterSpacing: 0 }}>{isYearly ? "/рік" : "/місяць"}</span>
                       </div>
                       
-                      <div style={{ height: 1, background: "linear-gradient(90deg, #2C1969, #8348C1, #C38BFF)", opacity: 0.4, marginBottom: 20 }} />
+                      <div style={{ height: 1, background: "linear-gradient(90deg, #000000 0%, #8348C1 48%, #2C1969 100%)", opacity: 0.4, marginBottom: 20 }} />
                       
                       <ul style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12, marginBottom: 24, padding: 0, listStyle: "none" }}>
                         {plan.features.map((f) => {
@@ -721,11 +721,11 @@ export default function SettingsPage() {
                       gap: 10,
                       borderRadius: 28,
                       border: "1px solid rgba(255,255,255,0.08)",
-                      background: "rgba(255,255,255,0.02)",
+                      background: "linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, rgba(82, 46, 139, 0.32) 0%, rgba(179, 179, 179, 0.32) 100%) border-box",
                       padding: "8px 16px",
                     }}>
                       <VisaBadge width={24.48} height={14.53} />
-                      <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: 0, color: "rgba(255,255,255,0.65)" }}>
+                      <span style={{ fontSize: 13, fontWeight: 400, letterSpacing: 0, color: "rgba(255,255,255,0.65)",  }}>
                         {savedCardLast4 ? `**** **** **** ${savedCardLast4}` : "Картку не додано"}
                       </span>
                     </div>
@@ -734,7 +734,8 @@ export default function SettingsPage() {
                   <div style={{
                     width: "1116px",
                     height: "1px",
-                    background: "rgba(255, 255, 255, 0.08)",
+                    background: "linear-gradient(90deg, #522E8B 0%, rgba(179, 179, 179, 0.1) 100%)",
+                    opacity: 0.32,
                     marginLeft: "-28px",
                     marginTop: "10px",
                     marginBottom: "10px",
@@ -751,8 +752,9 @@ export default function SettingsPage() {
                       boxShadow: cardErrors.cardNumber ? "0 0 14px rgba(239,68,68,0.14)" : "none",
                       transition: "background 0.2s, box-shadow 0.2s",
                     }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 18px", height: 42, width: 448 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 18px", height: 42, width: 448,  }}>
                        <input
+                       
                           type="text"
                           value={isEditingCard ? cardNumber : savedCardLast4 ? `**** **** **** ${savedCardLast4}` : cardNumber}
                           onChange={handleCardNumberChange}
@@ -1048,7 +1050,7 @@ export default function SettingsPage() {
                   height: "57px",
                   borderRadius: "28px 28px 0 0",
                   background: "linear-gradient(270deg, #010315 0%, #342662 54%, #6043A4 100%)",
-                  opacity: 0.32,
+                  opacity: 0.2,
                   pointerEvents: "none",
                   zIndex: 1,
                 }} />
