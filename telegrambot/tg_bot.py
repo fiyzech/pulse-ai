@@ -3,7 +3,7 @@ import logging
 import os
 import re
 
-from aiogram import Bot, Dispatcher, Router, F
+from aiogram import Bot, Dispatcher, Router, F, html
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
@@ -81,11 +81,11 @@ CONDITION_LABELS = {
 }
 
 CONDITION_ICONS = {
-    "price_gt": "📈 >",
-    "price_gte": "📈 ≥",
-    "price_lt": "📉 <",
-    "price_lte": "📉 ≤",
-    "price_eq": "🎯 ="
+    "price_gt": "📈",      # Більше
+    "price_gte": "📈⎓",    # Більше або дорівнює
+    "price_lt": "📉",      # Менше
+    "price_lte": "📉⎓",    # Менше або дорівнює
+    "price_eq": "🎯"       # Рівно
 }
 
 # --- Хендлери ---
@@ -195,23 +195,94 @@ async def process_price(message: Message, state: FSMContext):
 async def cmd_my_alerts(message: Message):
     user = await get_user_by_telegram(message.from_user.id)
     if not user:
-        await message.answer("⚠️ Виконайте /login")
+        await message.answer("⚠️ Спочатку виконайте /login")
         return
 
     alerts = await get_user_alerts(user['id'])
     if not alerts:
-        await message.answer("📭 Немає активних алертів.")
+        await message.answer("📭 У тебе поки немає активних алертів.")
         return
 
-    text = "📊 <b>Твої алерти:</b>\n\n"
+    # 1. Створюємо список, куди будемо складати рядки
+    # Одразу додаємо заголовок
+    text_parts = [
+        "📊 <b>Твої активні алерти:</b>",
+        "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"
+    ]
+    
     for idx, alert in enumerate(alerts, start=1):
-        price = alert.get('target_price', alert.get('price', 'N/A')) 
-        symbol = alert.get('symbol', 'UNKNOWN')
-        cond_display = CONDITION_ICONS.get(alert.get('condition', ''), "❓")
-        text += f"<b>{idx}. {symbol}</b> {cond_display} <code>{price}$</code>\n"
-        text += "   ──────────────\n"
+        symbol = html.quote(str(alert.get('symbol', 'UNIT')).upper())
+        price = html.quote(str(alert.get('target_price', alert.get('price', '0'))))
+        cond_key = alert.get('condition', '')
+        
+        icon = CONDITION_ICONS.get(cond_key, "🔹")
+        
+        # 2. Формуємо рядок і додаємо його в список
+        alert_line = f"{idx}. <b>{symbol}</b> {icon} <code>{price} $</code>"
+        text_parts.append(alert_line)
+        
+        # Додаємо розділювач між алертами (крім останнього)
+        if idx < len(alerts):
+            text_parts.append("⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯")
 
-    await message.answer(text, parse_mode="HTML")
+    # 3. З'єднуємо все в один текст через перенос рядка
+    final_text = "\n".join(text_parts)
+
+    try:
+        await message.answer(final_text, parse_mode="HTML")
+    except Exception as e:
+        logging.error(f"HTML Error: {e}")
+        # Якщо HTML знову "ляже", відправляємо чистий текст
+        clean_text = final_text.replace("<b>", "").replace("</b>", "").replace("<code>", "").replace("</code>", "")
+        await message.answer("⚠️ Проблема з форматуванням. Список:\n\n" + clean_text)
+    # try:
+    #     await message.answer(final_text, parse_mode="HTML")
+    # except Exception as e:
+    #     logging.error(f"Telegram HTML Error: {e}")
+    #     # Якщо HTML все одно "падає", відправляємо простий текст як бекап
+    #     backup_text = final_text.replace("<b>", "").replace("</b>", "").replace("<code>", "").replace("</code>", "")
+    #     await message.answer("⚠️ Виникла проблема з відображенням іконок. Список:\n\n" + backup_text)
+
+# @router.message(F.text == "📊 Мої алерти")
+# @router.message(Command("alerts"))
+# async def cmd_my_alerts(message: Message):
+#     user = await get_user_by_telegram(message.from_user.id)
+#     if not user:
+#         await message.answer("⚠️ Спочатку виконайте /login")
+#         return
+
+#     alerts = await get_user_alerts(user['id'])
+#     if not alerts:
+#         await message.answer("📭 Немає активних алертів.")
+#         return
+
+#     lines = ["📊 <b>Твої активні алерти:</b>\n"]
+    
+#     for idx, alert in enumerate(alerts, start=1):
+#         # 1. Екрануємо все, що беремо з бази
+#         symbol = html.quote(str(alert.get('symbol', '???')))
+#         price = html.quote(str(alert.get('target_price', alert.get('price', '0'))))
+#         cond_key = alert.get('condition', '')
+        
+#         # 2. Беремо іконку (якщо її немає в словнику — виводимо пустий рядок або текст)
+#         icon = CONDITION_ICONS.get(cond_key, "⚙️")
+        
+#         # 3. Формуємо рядок БЕЗ вкладених тегів всередині змінних
+#         # Спочатку текст, потім емодзі, потім моноширинна ціна
+#         line = f"{idx}. {symbol} {icon} <code>{price}</code>$"
+#         lines.append(line)
+#         lines.append("────────────────")
+
+#     text = "\n".join(lines)
+
+#     try:
+#         # Спробуємо відправити спочатку з HTML
+#         await message.answer(text, parse_mode="HTML")
+#     except Exception as e:
+#         logging.error(f"HTML Error: {e}")
+#         # Якщо HTML знову впав — відправляємо чистий текст без тегів
+#         clean_text = text.replace("<b>", "").replace("</b>", "").replace("<code>", "").replace("</code>", "")
+#         await message.answer("⚠️ Помилка розмітки. Виводжу в чистому тексті:\n\n" + clean_text)
 
 async def main():
     logging.basicConfig(level=logging.INFO)
