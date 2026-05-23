@@ -63,7 +63,7 @@ const plansData: Plan[] = [
       "До 5 активів у Watchlist",
       "Алерти для 1 вибраної криптовалюти",
       "До 3 активних алертів для вибраної криптовалюти",
-      "ІTelegram-сповіщення",
+      "Telegram-сповіщення",
       "Базовий AI-прогноз",
       "Історія алертів до 7 днів",
     ],
@@ -585,20 +585,19 @@ export default function SettingsPage() {
                         cursor: "pointer",
                         background: "linear-gradient(#050508, #050508) padding-box, linear-gradient(90deg, rgba(82, 46, 139, 0.32), rgba(179, 179, 179, 0.32)) border-box",
                         border: "1px solid transparent",
-                        boxShadow: "0 20px 70px rgba(131, 72, 193, 0.10), 0 8px 25px rgba(0, 0, 0, 0.35)",
                         transform: isSelected ? "scale(1.04)" : "scale(1)",
                         transition: "transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease",
                         zIndex: isSelected ? 2 : 1,
                       }}
                     >
-                      <p style={{ fontSize: 14, fontWeight: 500, letterSpacing: 0, color: "#fff", marginBottom: 16 }}>{plan.name}</p>
+                      <p style={{ fontSize: 14, fontWeight: 500, letterSpacing: 0, color: "#fff", marginBottom: 12 }}>{plan.name}</p>
                       
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 4 }}>
-                        <span style={{ fontSize: 42, fontWeight: 400, letterSpacing: 0, color: "#fff" }}>€{isYearly ? plan.yearlyPrice : plan.monthlyPrice}</span>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 24 }}>
+                        <span style={{ fontSize: 40, fontWeight: 400, letterSpacing: 0, color: "#fff" }}>€{isYearly ? plan.yearlyPrice : plan.monthlyPrice}</span>
                         <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: 400, letterSpacing: 0 }}>{isYearly ? "/рік" : "/місяць"}</span>
                       </div>
                       
-                      <div style={{ height: 1, background: "linear-gradient(90deg, #000000 0%, #8348C1 48%, #2C1969 100%)", opacity: 0.4, marginBottom: 20 }} />
+                      <div style={{ width:308, height: 1, background: "linear-gradient(90deg, rgba(131, 72, 193, 0) 0%, #8348C1 50%, rgba(131, 72, 193, 0) 100%)", opacity: 0.4, marginLeft: "auto", marginRight: "auto", marginBottom: 20 }} />
                       
                       <ul style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12, marginBottom: 24, padding: 0, listStyle: "none" }}>
                         {plan.features.map((f) => {
@@ -615,6 +614,7 @@ export default function SettingsPage() {
                                 letterSpacing: 0,
                                 color: "#fff",
                                 lineHeight: 1.5,
+                                marginBottom: showBullet ? 0 : 12,
                               }}
                             >
                               {showBullet ? (
@@ -633,7 +633,7 @@ export default function SettingsPage() {
             </section>
 
             {/* PAYMENT SECTION */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 17 }}>
               <h2 style={{ fontSize: 22, fontWeight: 600, margin: 0, letterSpacing: 0 }}>Платіжні дані</h2>
              <section style={{
                   position: "relative",
@@ -642,7 +642,7 @@ export default function SettingsPage() {
                   border: "1px solid transparent", // Прозорий бордер для того, щоб було видно border-box градієнт
                   background: "linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, rgba(82, 46, 139, 0.32) 0%, rgba(179, 179, 179, 0.32) 100%) border-box",
                   backdropFilter: "blur(18px)",
-                  padding: "32px 24px",
+                  padding: "24px",
                   overflow: "hidden",
             boxShadow: "0 20px 100px rgba(131, 72, 193, 0.15), 0 8px 25px rgba(0, 0, 0, 0.1)",
                 }}>
@@ -710,7 +710,7 @@ export default function SettingsPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 520, position: "relative" }}>
                   <div>
                     <p style={{ fontSize: 14, fontWeight: 400, letterSpacing: 0, color: "#A3A4B0", marginBottom: 6 }}>Наступна оплата</p>
-                    <p style={{ fontSize: 16, fontWeight: 400, letterSpacing: 0, marginBottom: 10 }}>
+                    <p style={{ fontSize: 16, fontWeight: 400, letterSpacing: 0, marginBottom: 12 }}>
                       {selectedPlan !== 0 && savedCardLast4 
                         ? (isYearly ? "17 травня 2027 р." : "17 червня 2026 р.") 
                         : "Не заплановано"}
@@ -771,7 +771,7 @@ export default function SettingsPage() {
 
                   <div style={{ display: "grid", gridTemplateColumns: "216px 216px", gap: 16, width: 448 }}>
                     <div>
-                      <label style={{ display: "block", fontSize: 12, fontWeight: 400, letterSpacing: 0, color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>Термін дії</label>
+                      <label style={{ display: "block", fontSize: 12, fontWeight: 400, letterSpacing: 0, color: "rgba(255,255,255,0.35)"}}>Термін дії</label>
                       <div style={{
                         width: 216,
                         borderRadius: 28,
@@ -793,7 +793,7 @@ export default function SettingsPage() {
                       <FieldError message={cardErrors.cardExpiry} />
                     </div>
                     <div>
-                      <label style={{ display: "block", fontSize: 12, fontWeight: 400, letterSpacing: 0, color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>CVV</label>
+                      <label style={{ display: "block", fontSize: 12, fontWeight: 400, letterSpacing: 0, color: "rgba(255,255,255,0.35)"}}>CVV</label>
                       <div style={{
                         width: 216,
                         borderRadius: 28,
@@ -1001,7 +1001,7 @@ export default function SettingsPage() {
 
             {/* HISTORY SECTION */}
             <section>
-              <h2 style={{ fontSize: 22, fontWeight: 400, margin: "0 0 12px 0", letterSpacing: 0 }}>Історія платежів</h2>
+              <h2 style={{ fontSize: 22, fontWeight: 600, margin: "0 0 21px 0", letterSpacing: 0 }}>Історія платежів</h2>
               
               
               <div style={{
@@ -1016,32 +1016,41 @@ export default function SettingsPage() {
             boxShadow: "0 20px 100px rgba(131, 72, 193, 0.15), 0 8px 25px rgba(0, 0, 0, 0.1)",
               }}>
 
-                <div style={{
-                  position: "absolute",
-                  top: 0, left: 0, right: 0, height: 57,
-                  padding: "1px", 
-                  borderRadius: "28px 28px 0 0",
-                  background: "linear-gradient(90deg, rgba(179,179,179,0.03) 0%, rgba(82, 46, 139, 0.32) 100%)",
-                  WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-                  WebkitMaskComposite: "xor",
-                  maskComposite: "exclude",
-                  pointerEvents: "none",
-                  zIndex: 4,
-                }} />
+                {/* 1. ВЕРХНЯ ОБВОДКА (Хедер) - обводка зверху, зліва і справа */}
+  <div style={{
+    position: "absolute",
+    top: 0, 
+    left: 0, 
+    width: "100%", 
+    height: 57,
+    padding: "1px",
+    borderRadius: "28px 28px 0 0",
+    background: "linear-gradient(90deg, rgba(179,179,179,0.03) 0%, rgba(82, 46, 139, 0.32) 100%)",
+    WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+    WebkitMaskComposite: "xor",
+    maskComposite: "exclude",
+    pointerEvents: "none",
+    zIndex: 4,
+    boxSizing: "border-box", // Тепер рамка не вилазить за краї, кути будуть цілими
+  }} />
 
-                <div style={{
-                  position: "absolute",
-                  bottom: 0, left: 0, right: 0, height: 28,
-                  padding: "0 0 1px 0", 
-                  borderRadius: "0 0 28px 28px",
-                  background: "linear-gradient(90deg, rgba(82, 46, 139, 0.32) 0%, rgba(179, 179, 179, 0.32) 100%)",
-                  WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-                  WebkitMaskComposite: "xor",
-                  maskComposite: "exclude",
-                  pointerEvents: "none",
-                  zIndex: 4,
-                }} />
-
+  {/* 2. НИЖНЯ ОБВОДКА (Тіло таблиці) - обводка знизу, зліва і справа */}
+  <div style={{
+    position: "absolute",
+    top: 57,      // Стикається точно з хедером
+    bottom: 0,    // Йде до самого низу
+    left: 0, 
+    width: "100%", 
+    padding: "0 1px 1px 1px", // 0 для верху, 1px товщина для боків і низу
+    borderRadius: "0 0 28px 28px",
+    background: "linear-gradient(90deg, rgba(82, 46, 139, 0.32) 0%, rgba(179, 179, 179, 0.32) 100%)",
+    WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+    WebkitMaskComposite: "xor",
+    maskComposite: "exclude",
+    pointerEvents: "none",
+    zIndex: 4,
+    boxSizing: "border-box",
+  }} />
                 <div style={{
                   position: "absolute",
                   top: 0,
@@ -1159,7 +1168,7 @@ export default function SettingsPage() {
             </section>
 
             {selectedPlan !== 0 && (
-              <div style={{ marginTop: 24, display: "flex", justifyContent: "flex-start" }}>
+              <div style={{ display: "flex", justifyContent: "flex-start" }}>
                 <button
                   type="button"
                   onClick={handleCancelSubscription}
