@@ -1423,6 +1423,19 @@ export default function TradingPage() {
     }
   };
 
+  const sanitizeAlertValue = (value: string) => {
+    const normalized = value.replace(",", ".").replace(/[^\d.]/g, "");
+    const [whole = "", ...rest] = normalized.split(".");
+    const decimal = rest.join("");
+    return rest.length > 0 ? `${whole}.${decimal}` : whole;
+  };
+
+  const parseAlertValue = (value: string) => {
+    const normalized = value.trim().replace(",", ".");
+    if (!/^\d*\.?\d+$/.test(normalized)) return NaN;
+    return Number(normalized);
+  };
+
   const loadAssetAlerts = useCallback(async () => {
     if (!userId) return;
     setAlertsLoading(true);
@@ -1437,7 +1450,7 @@ export default function TradingPage() {
     setAlertMsg(""); setAlertErr("");
     if (!userId) { setAlertErr("Увійдіть в акаунт."); return; }
     const isNoValue = NO_VALUE_CONDITIONS.has(alertCond);
-    const num = isNoValue ? 0 : parseFloat(alertVal.replace(",", "."));
+    const num = isNoValue ? 0 : parseAlertValue(alertVal);
     if (!isNoValue && (!Number.isFinite(num) || num <= 0)) { setAlertErr("Введіть коректне значення."); return; }
     setAlertLoading(true);
     try {
@@ -2422,10 +2435,11 @@ export default function TradingPage() {
                     </div>
                     <label className="flex bg-[#08080A] border border-white/10 rounded-xl px-3 py-2 focus-within:border-[#8348C1]/60 transition-colors cursor-text gap-2 items-center">
                       <input
-                        type="number"
+                        type="text"
                         inputMode="decimal"
+                        min="0"
                         value={alertVal}
-                        onChange={e=>{setAlertVal(e.target.value);setAlertMsg("");setAlertErr("");}}
+                        onChange={e=>{setAlertVal(sanitizeAlertValue(e.target.value));setAlertMsg("");setAlertErr("");}}
                         className="flex-1 bg-transparent text-[12px] text-white font-medium outline-none placeholder:text-white/20 min-w-0"
                         placeholder="0"
                       />

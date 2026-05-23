@@ -2,11 +2,8 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAccount } from "../../context/accountContextValue";
 import { supabase } from "../../supabaseClient";
-// @ts-ignore
 import thirdGradPic from '../../assets/images/third-grad-pic.svg?url';
-// @ts-ignore
 import seventhGridPic from '../../assets/images/seventh-grid-pic.svg?url';
-// @ts-ignore
 import eighthGridPic from '../../assets/images/eighth-grid-pic.svg?url';
 
 
@@ -39,6 +36,8 @@ const mapLoginError = (message?: string) => {
   if (message.includes("Email not confirmed")) return "Підтвердіть email перед входом";
   return message;
 };
+
+const normalizeEmailInput = (value: string) => value.replace(/\s/g, "").toLowerCase();
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -194,11 +193,14 @@ const LoginPage: React.FC = () => {
                   type="email"
                   value={email}
                   onChange={(e) => {
-                    setEmail(e.target.value);
+                    setEmail(normalizeEmailInput(e.target.value));
                     clearFieldError("email");
                     setGeneralError("");
                     setGeneralSuccess("");
                   }}
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   placeholder="Введіть електронну пошту"
                   className="w-[360px] h-[44px] px-5 rounded-full text-[14px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
                   style={inputStyle(Boolean(fieldErrors.email))}
@@ -224,6 +226,7 @@ const LoginPage: React.FC = () => {
                       clearFieldError("password");
                       setGeneralError("");
                     }}
+                    autoComplete="current-password"
                     className="w-full h-full px-5 pr-12 rounded-full text-[14px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all font-sans focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
                     style={inputStyle(Boolean(fieldErrors.password))}
                   />

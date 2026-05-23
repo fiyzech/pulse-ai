@@ -72,6 +72,30 @@ type RelatedCoinGeckoMarketCoin = {
   };
 };
 
+type RelatedCoinGeckoMarketChart = {
+  prices?: Array<[number, number]>;
+};
+
+type BinanceKline = [
+  number,
+  string,
+  string,
+  string,
+  string,
+  number,
+  number,
+  string,
+  number,
+  string,
+  string,
+  string,
+];
+
+type BinanceTicker = {
+  lastPrice?: string;
+  priceChangePercent?: string;
+};
+
 type MarketCacheItem = {
   id: string;
   symbol: string;
@@ -91,21 +115,25 @@ type RelatedBaseAsset = {
 };
 
 const RELATED_FALLBACK_CATALOG: RelatedBaseAsset[] = [
-  { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', image: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png' },
-  { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', image: 'https://cryptologos.cc/logos/ethereum-eth-logo.png' },
+  { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', image: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png' },
+  { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', image: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
   { id: 'tether', symbol: 'USDT', name: 'Tether', image: '/Tether.svg' },
-  { id: 'solana', symbol: 'SOL', name: 'Solana', image: 'https://cryptologos.cc/logos/solana-sol-logo.png' },
-  { id: 'binancecoin', symbol: 'BNB', name: 'BNB', image: 'https://cryptologos.cc/logos/bnb-bnb-logo.png' },
-  { id: 'ripple', symbol: 'XRP', name: 'XRP', image: 'https://cryptologos.cc/logos/xrp-xrp-logo.png' },
-  { id: 'avalanche-2', symbol: 'AVAX', name: 'Avalanche', image: 'https://cryptologos.cc/logos/avalanche-avax-logo.png' },
-  { id: 'cardano', symbol: 'ADA', name: 'Cardano', image: 'https://cryptologos.cc/logos/cardano-ada-logo.png' },
-  { id: 'dogecoin', symbol: 'DOGE', name: 'Dogecoin', image: 'https://cryptologos.cc/logos/dogecoin-doge-logo.png' },
-  { id: 'arbitrum', symbol: 'ARB', name: 'Arbitrum', image: 'https://cryptologos.cc/logos/arbitrum-arb-logo.png' },
-  { id: 'sui', symbol: 'SUI', name: 'Sui', image: 'https://cryptologos.cc/logos/sui-sui-logo.png' },
-  { id: 'pepe', symbol: 'PEPE', name: 'Pepe', image: 'https://cryptologos.cc/logos/pepe-pepe-logo.png' },
-  { id: 'celestia', symbol: 'TIA', name: 'Celestia', image: 'https://cryptologos.cc/logos/celestia-tia-logo.png' },
-  { id: 'chainlink', symbol: 'LINK', name: 'Chainlink', image: 'https://cryptologos.cc/logos/chainlink-link-logo.png' },
-  { id: 'near', symbol: 'NEAR', name: 'Near', image: 'https://cryptologos.cc/logos/near-protocol-near-logo.png' },
+  { id: 'solana', symbol: 'SOL', name: 'Solana', image: 'https://assets.coingecko.com/coins/images/4128/large/solana.png' },
+  { id: 'binancecoin', symbol: 'BNB', name: 'BNB', image: 'https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png' },
+  { id: 'ripple', symbol: 'XRP', name: 'XRP', image: 'https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png' },
+  { id: 'avalanche-2', symbol: 'AVAX', name: 'Avalanche', image: 'https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png' },
+  { id: 'cardano', symbol: 'ADA', name: 'Cardano', image: 'https://assets.coingecko.com/coins/images/975/large/cardano.png' },
+  { id: 'dogecoin', symbol: 'DOGE', name: 'Dogecoin', image: 'https://assets.coingecko.com/coins/images/5/large/dogecoin.png' },
+  { id: 'shiba-inu', symbol: 'SHIB', name: 'Shiba Inu', image: 'https://assets.coingecko.com/coins/images/11939/large/shiba.png' },
+  { id: 'bonk', symbol: 'BONK', name: 'Bonk', image: 'https://assets.coingecko.com/coins/images/28600/large/bonk.jpg' },
+  { id: 'floki', symbol: 'FLOKI', name: 'FLOKI', image: 'https://assets.coingecko.com/coins/images/16746/large/PNG_image.png' },
+  { id: 'dogwifcoin', symbol: 'WIF', name: 'dogwifhat', image: 'https://assets.coingecko.com/coins/images/33566/large/dogwifhat.jpg' },
+  { id: 'arbitrum', symbol: 'ARB', name: 'Arbitrum', image: 'https://assets.coingecko.com/coins/images/16547/large/arb.jpg' },
+  { id: 'sui', symbol: 'SUI', name: 'Sui', image: 'https://assets.coingecko.com/coins/images/26375/large/sui-ocean-square.png' },
+  { id: 'pepe', symbol: 'PEPE', name: 'Pepe', image: 'https://assets.coingecko.com/coins/images/29850/large/pepe-token.jpeg' },
+  { id: 'celestia', symbol: 'TIA', name: 'Celestia', image: 'https://assets.coingecko.com/coins/images/31967/large/tia.jpg' },
+  { id: 'chainlink', symbol: 'LINK', name: 'Chainlink', image: 'https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png' },
+  { id: 'near', symbol: 'NEAR', name: 'Near', image: 'https://assets.coingecko.com/coins/images/10365/large/near.jpg' },
 ];
 
 const RELATED_GROUPS = [
@@ -115,15 +143,6 @@ const RELATED_GROUPS = [
   ['binancecoin', 'ripple', 'chainlink', 'arbitrum', 'ethereum', 'solana'],
   ['celestia', 'arbitrum', 'sui', 'near', 'solana', 'avalanche-2'],
 ];
-
-const buildMiniChartData = (change: number) => {
-  const base = 100;
-  const direction = change >= 0 ? 1 : -1;
-  return [0, -2, -2.5, -7, -3, -2, 1, 2, 5, 3, 7, 8].map((point, index) => ({
-    point: index,
-    value: base + point + direction * index * Math.min(Math.abs(change), 8) * 0.12,
-  }));
-};
 
 const buildCoinGeckoChartData = (prices?: number[]) => {
   const validPrices = (prices || []).filter((price) => Number.isFinite(price));
@@ -137,6 +156,95 @@ const buildCoinGeckoChartData = (prices?: number[]) => {
     .filter((_, index) => index % step === 0)
     .slice(-48)
     .map((value, point) => ({ point, value }));
+};
+
+const RELATED_CHART_CACHE_KEY = 'pulse_related_coin_charts_v1';
+const RELATED_CHART_CACHE_TTL = 5 * 60 * 1000;
+
+const readRelatedChartCache = () => {
+  try {
+    const raw = sessionStorage.getItem(RELATED_CHART_CACHE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, { expiresAt: number; prices: number[] }>;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const writeRelatedChartCache = (coinId: string, prices: number[]) => {
+  if (prices.length < 2) return;
+
+  try {
+    const cache = readRelatedChartCache();
+    cache[coinId] = {
+      expiresAt: Date.now() + RELATED_CHART_CACHE_TTL,
+      prices,
+    };
+    sessionStorage.setItem(RELATED_CHART_CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // Session storage can be unavailable in private modes; live data still renders.
+  }
+};
+
+const getCachedRelatedChartPrices = (coinId: string) => {
+  const cached = readRelatedChartCache()[coinId];
+  if (!cached || cached.expiresAt <= Date.now() || !Array.isArray(cached.prices)) return [];
+  return cached.prices.filter((price) => Number.isFinite(price));
+};
+
+const loadBinanceRelatedChartPrices = async (symbol: string) => {
+  const pair = getBinancePairSymbol(symbol);
+  const response = await fetch(`/api/binance/klines?symbol=${pair}&interval=1h&limit=48`);
+  if (!response.ok) return [];
+
+  const data = await response.json() as BinanceKline[];
+  return data
+    .map((item) => Number(item[4]))
+    .filter((price) => Number.isFinite(price));
+};
+
+const loadBinanceRelatedTicker = async (symbol: string) => {
+  const pair = getBinancePairSymbol(symbol);
+  const response = await fetch(`/api/binance/ticker/24hr?symbol=${pair}`);
+  if (!response.ok) return null;
+
+  const data = await response.json() as BinanceTicker;
+  const price = Number(data.lastPrice);
+  const change = Number(data.priceChangePercent);
+
+  return {
+    price: Number.isFinite(price) ? price : 0,
+    change: Number.isFinite(change) ? change : 0,
+  };
+};
+
+const loadRelatedChartPrices = async (coinId: string, symbol: string, sparklinePrices?: number[]) => {
+  const validSparkline = (sparklinePrices || []).filter((price) => Number.isFinite(price));
+  if (validSparkline.length > 1) {
+    writeRelatedChartCache(coinId, validSparkline);
+    return validSparkline;
+  }
+
+  const cachedPrices = getCachedRelatedChartPrices(coinId);
+  if (cachedPrices.length > 1) return cachedPrices;
+
+  const response = await fetch(`/api/coingecko/coins/${coinId}/market_chart?vs_currency=usd&days=7&interval=hourly`);
+  if (!response.ok) return loadBinanceRelatedChartPrices(symbol);
+
+  const data = await response.json() as RelatedCoinGeckoMarketChart;
+  const prices = (data.prices || [])
+    .map((point) => point[1])
+    .filter((price) => Number.isFinite(price));
+
+  if (prices.length > 1) {
+    writeRelatedChartCache(coinId, prices);
+    return prices;
+  }
+
+  const binancePrices = await loadBinanceRelatedChartPrices(symbol);
+  writeRelatedChartCache(coinId, binancePrices);
+  return binancePrices;
 };
 
 const buildRelatedSparklinePoints = (data: RelatedCoinCard['chartData']) => {
@@ -434,7 +542,7 @@ export default function AssetPage(props: AssetPageProps) {
         const cgById = new Map(cgData.map((coin) => [coin.id, coin]));
         if (!active) return;
 
-        setRelatedCoins(baseAssets.map((coin) => {
+        const initialCoins = baseAssets.map((coin) => {
           const cgCoin = cgById.get(coin.id);
           const price = Number(cgCoin?.current_price ?? coin.price ?? 0);
           const change = Number(cgCoin?.price_change_percentage_24h_in_currency ?? cgCoin?.price_change_percentage_24h ?? coin.change ?? 0);
@@ -447,9 +555,41 @@ export default function AssetPage(props: AssetPageProps) {
             image: cgCoin?.image || coin.image,
             price,
             change,
-            chartData: chartData.length > 0 ? chartData : buildMiniChartData(change),
+            chartData,
           };
-        }));
+        });
+
+        setRelatedCoins(initialCoins);
+        if (!silent) setRelatedLoading(false);
+
+        void Promise.all(initialCoins.map(async (coin) => {
+          const cgCoin = cgById.get(coin.id);
+          const [chartPrices, ticker] = await Promise.all([
+            loadRelatedChartPrices(coin.id, coin.symbol, cgCoin?.sparkline_in_7d?.price).catch(() => []),
+            (coin.price > 0 ? Promise.resolve(null) : loadBinanceRelatedTicker(coin.symbol).catch(() => null)),
+          ]);
+
+          return {
+            id: coin.id,
+            price: ticker?.price && ticker.price > 0 ? ticker.price : coin.price,
+            change: ticker ? ticker.change : coin.change,
+            chartData: buildCoinGeckoChartData(chartPrices),
+          };
+        })).then((updates) => {
+          if (!active) return;
+
+          setRelatedCoins((prev) => prev.map((coin) => {
+            const update = updates.find((item) => item.id === coin.id);
+            if (!update) return coin;
+
+            return {
+              ...coin,
+              price: update.price || coin.price,
+              change: update.change,
+              chartData: update.chartData.length > 0 ? update.chartData : coin.chartData,
+            };
+          }));
+        });
       } catch (error) {
         console.error('Помилка оновлення цін схожих монет:', error);
         if (active) {
@@ -462,7 +602,7 @@ export default function AssetPage(props: AssetPageProps) {
               image: coin.image,
               price: coin.price ?? 0,
               change,
-              chartData: buildMiniChartData(change),
+              chartData: [],
             };
           }));
         }
@@ -643,32 +783,45 @@ const handleFavoriteToggle = async () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        if (!passedCoin?.rawMcap) {
-          const cacheKey = `pulse_cg_${cgId}`;
-          const cachedData = sessionStorage.getItem(cacheKey);
-          const cachedTime = sessionStorage.getItem(`${cacheKey}_time`);
+        let coinData: {
+          ath?: number;
+          market_cap?: number;
+          circulating_supply?: number;
+          max_supply?: number;
+          total_supply?: number;
+          high_24h?: number;
+          low_24h?: number;
+          total_volume?: number;
+          price_change_percentage_24h?: number;
+          price_change_percentage_1h_in_currency?: number;
+        } | null = null;
 
-          if (cachedData && cachedTime && Date.now() - Number(cachedTime) < 120000) {
-            const coinData = JSON.parse(cachedData);
-            setFundamentals({
-              ath: coinData.ath, mcap: coinData.market_cap, circSupply: coinData.circulating_supply,
-              maxSupply: coinData.max_supply, totalSupply: coinData.total_supply,
-            });
-          } else {
-            const cgRes = await fetch(`/api/coingecko/coins/markets?vs_currency=usd&ids=${cgId}`);
-            if(cgRes.ok) {
-              const cgData = await cgRes.json();
-              if (cgData && cgData.length > 0) {
-                const coinData = cgData[0];
-                setFundamentals({
-                  ath: coinData.ath, mcap: coinData.market_cap, circSupply: coinData.circulating_supply,
-                  maxSupply: coinData.max_supply, totalSupply: coinData.total_supply,
-                });
-                sessionStorage.setItem(cacheKey, JSON.stringify(coinData));
-                sessionStorage.setItem(`${cacheKey}_time`, Date.now().toString());
-              }
+        const cacheKey = `pulse_cg_market_v2_${cgId}`;
+        const cachedData = sessionStorage.getItem(cacheKey);
+        const cachedTime = sessionStorage.getItem(`${cacheKey}_time`);
+
+        if (cachedData && cachedTime && Date.now() - Number(cachedTime) < 120000) {
+          coinData = JSON.parse(cachedData);
+        } else {
+          const cgRes = await fetch(`/api/coingecko/coins/markets?vs_currency=usd&ids=${encodeURIComponent(cgId)}&price_change_percentage=1h,24h`);
+          if (cgRes.ok) {
+            const cgData = await cgRes.json();
+            if (cgData && cgData.length > 0) {
+              coinData = cgData[0];
+              sessionStorage.setItem(cacheKey, JSON.stringify(coinData));
+              sessionStorage.setItem(`${cacheKey}_time`, Date.now().toString());
             }
           }
+        }
+
+        if (coinData) {
+          setFundamentals({
+            ath: coinData.ath || 0,
+            mcap: coinData.market_cap || 0,
+            circSupply: coinData.circulating_supply || 0,
+            maxSupply: coinData.max_supply || 0,
+            totalSupply: coinData.total_supply || 0,
+          });
         }
 
         const tickerRes = await fetch(`/api/binance/ticker/24hr?symbol=${binancePairSymbol}`);
@@ -676,17 +829,19 @@ const handleFavoriteToggle = async () => {
           setIsBinanceAvailable(true);
           const tickerData = await tickerRes.json();
           const kline1hRes = await fetch(`/api/binance/klines?symbol=${binancePairSymbol}&interval=1h&limit=2`);
-          const kline1hData = await kline1hRes.json();
+          const kline1hData = kline1hRes.ok ? await kline1hRes.json() : [];
           
           let change1h = 0;
-          if (kline1hData.length >= 2) {
+          if (Array.isArray(kline1hData) && kline1hData.length >= 2) {
             const open1h = parseFloat(kline1hData[1][1]);
             const current = parseFloat(kline1hData[1][4]);
-            change1h = ((current - open1h) / open1h) * 100;
+            if (open1h > 0 && Number.isFinite(current)) {
+              change1h = ((current - open1h) / open1h) * 100;
+            }
           }
 
           setStats({
-            priceChange1h: change1h,
+            priceChange1h: change1h || coinData?.price_change_percentage_1h_in_currency || 0,
             priceChange24h: parseFloat(tickerData.priceChangePercent),
             high24h: parseFloat(tickerData.highPrice),
             low24h: parseFloat(tickerData.lowPrice),
@@ -694,6 +849,15 @@ const handleFavoriteToggle = async () => {
           });
         } else {
           setIsBinanceAvailable(false);
+          if (coinData) {
+            setStats({
+              priceChange1h: coinData.price_change_percentage_1h_in_currency || 0,
+              priceChange24h: coinData.price_change_percentage_24h || 0,
+              high24h: coinData.high_24h || 0,
+              low24h: coinData.low_24h || 0,
+              volume24h: coinData.total_volume || 0,
+            });
+          }
         }
       } catch (error) {
         console.error("Помилка завантаження статистики:", error);
@@ -878,41 +1042,52 @@ const handleFavoriteToggle = async () => {
             <div className="flex justify-between items-start relative z-20 flex-wrap gap-4">
               
               <div className="flex-1 min-w-0 pr-4">
-                <div className="flex items-center gap-3 mb-2 w-full group relative">
+                <div className="flex items-center gap-3 mb-2 w-full relative">
                   <img src={coinIcon} alt={coinShort} className="w-[32px] h-[32px] rounded-full shrink-0 object-contain" />
                   
-                  <h2 className="text-[28px] font-semibold text-white flex items-baseline gap-2 min-w-0 max-w-full cursor-default">
-                    <span className="truncate block">{coinName}</span>
-                    <span className="text-white/50 text-[18px] shrink-0">({coinShort})</span>
-                  </h2>
+                  <div className="group relative min-w-0">
+                    <h2 className="text-[28px] font-semibold text-white flex items-baseline gap-2 min-w-0 max-w-full cursor-default">
+                      <span className="truncate block">{coinName}</span>
+                      <span className="text-white/50 text-[18px] shrink-0">({coinShort})</span>
+                    </h2>
 
-                  <button
-                    type="button"
-                    onClick={handleFavoriteToggle}
-                    disabled={favoriteLoading}
-                    className={`group ml-[8px] inline-flex shrink-0 items-center gap-2 text-[14px] font-medium transition-all duration-300 hover:scale-[1.03] active:scale-95 disabled:opacity-60 pb-1 border-b-2 border-transparent ${
-                      isFavorite ? 'text-[#C38BFF] hover:text-[#C38BFF]' : 'text-white hover:text-white/80'
-                    }`}
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill={isFavorite ? '#C38BFF' : 'none'}
-                      stroke={isFavorite ? '#C38BFF' : '#FFFFFF'}
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="mb-[1px]"
-                    >
-                      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                    </svg>
-                    {favoriteLoading ? 'Оновлення...' : isFavorite ? 'В обраному' : 'В обране'}
-                  </button>
-
-                  <div className="absolute left-10 -bottom-9 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 bg-[#1A1A1D] border border-white/10 text-white text-[14px] py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap pointer-events-none">
-                    {coinName} ({coinShort})
+                    <div className="absolute left-0 -bottom-9 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 bg-[#1A1A1D] border border-white/10 text-white text-[14px] py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap pointer-events-none">
+                      {coinName} ({coinShort})
+                    </div>
                   </div>
+
+                  <div className="relative ml-[8px] inline-flex shrink-0 translate-y-[10px] self-start">
+                    <button
+                      type="button"
+                      onClick={handleFavoriteToggle}
+                      disabled={favoriteLoading}
+                      className={`group inline-flex items-center gap-2 text-[14px] font-medium transition-all duration-300 hover:scale-[1.03] active:scale-95 disabled:opacity-60 pb-1 border-b-2 border-transparent ${
+                        isFavorite ? 'text-[#C38BFF] hover:text-[#C38BFF]' : 'text-white hover:text-white/80'
+                      }`}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill={isFavorite ? '#C38BFF' : 'none'}
+                        stroke={isFavorite ? '#C38BFF' : '#FFFFFF'}
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mb-[1px]"
+                      >
+                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                      </svg>
+                      {favoriteLoading ? 'Оновлення...' : isFavorite ? 'В обраному' : 'В обране'}
+                    </button>
+
+                    {favoriteNotice && (
+                      <div className="absolute left-0 top-[calc(100%+8px)] z-50 w-max max-w-[260px] rounded-[16px] border border-[#8348C1]/35 bg-[#050506] px-4 py-3 text-[12px] leading-[16px] text-[#FFF9F9] shadow-[0_18px_45px_rgba(0,0,0,0.45),0_0_22px_rgba(131,72,193,0.18)]">
+                        {favoriteNotice}
+                      </div>
+                    )}
+                  </div>
+
                 </div>
 
                 <div className="flex items-baseline gap-2">
@@ -952,11 +1127,6 @@ const handleFavoriteToggle = async () => {
                     <button onClick={() => setChartType('candle')} className={`text-[14px] font-medium pb-1 transition-all duration-300 border-b-2 ${chartType === 'candle' ? 'text-[#FFF9F9] border-[#8348C1]' : 'text-[#FFF9F9]/50 border-transparent hover:text-[#FFF9F9]'}`}>Свічки</button>
                   </div>
                 </div>
-                {favoriteNotice && (
-                  <span className="-mt-2 max-w-[260px] text-right text-[11px] leading-[16px] text-[#A3A4B0]">
-                    {favoriteNotice}
-                  </span>
-                )}
                 <div className="flex gap-4 items-center flex-wrap justify-end">
                   {['1 сек', '1 хв', '5 хв', '15 хв', '1 год', '4 год', '1 день', '1 тиж', '1 міс'].map((t) => (
                     <button key={t} onClick={() => setTimeframe(t)} className={`text-[14px] font-medium pb-1 transition-all duration-300 border-b-2 ${timeframe === t ? 'text-[#FFF9F9] border-[#8348C1]' : 'text-[#FFF9F9]/50 border-transparent hover:text-[#FFF9F9]'}`}>{t}</button>
@@ -1017,7 +1187,7 @@ const handleFavoriteToggle = async () => {
                     <div className="flex justify-between text-[14px] font-medium text-[#FFF9F9] mb-[12px] font-montserrat">
                       <span>Макс. та мін. за 24 год</span>
                     </div>
-                    <div className="relative h-[6px] w-[calc(100%+20px)] rounded-full bg-gradient-to-r from-[#FF2E2E] to-[#00E676] mb-[12px]">
+                    <div className="relative h-[6px] w-[calc(100%+34px)] rounded-full bg-gradient-to-r from-[#FF2E2E] to-[#00E676] mb-[12px]">
                         {stats.high24h > 0 && (
                           <div 
                             className="absolute top-1/2 -translate-y-1/2 w-2 h-3 bg-white rounded-full shadow-[0_0_5px_rgba(255,255,255,0.8)] transition-all duration-300" 
@@ -1025,7 +1195,7 @@ const handleFavoriteToggle = async () => {
                           />
                         )}
                     </div>
-                    <div className="flex justify-between text-[14px] font-normal text-[#FFF9F9] font-montserrat">
+                    <div className="flex w-[calc(100%+34px)] justify-between text-[14px] font-normal text-[#FFF9F9] font-montserrat">
                       <span>{stats.low24h > 0 ? `${stats.low24h.toLocaleString('en-US', {maximumFractionDigits: 2})}$` : '---'}</span>
                       <span>{stats.high24h > 0 ? `${stats.high24h.toLocaleString('en-US', {maximumFractionDigits: 2})}$` : '---'}</span>
                     </div>
@@ -1227,7 +1397,20 @@ const handleFavoriteToggle = async () => {
             <div className="absolute bottom-[24px] left-1/2 -translate-x-1/2">
               <button
                 type="button"
-                onClick={() => navigate('/news')}
+                onClick={() => navigate('/news', {
+                  state: {
+                    from: 'asset',
+                    returnPath: location.pathname,
+                    returnState: {
+                      coin: {
+                        id: cgId,
+                        symbol: coinShort,
+                        imgUrl: coinIcon,
+                        name: coinName,
+                      },
+                    },
+                  },
+                })}
                 className="group relative flex h-[44px] w-[243px] items-center justify-center rounded-[28px] p-[1px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_18px_rgba(131,72,193,0.35)] active:scale-95"
               >
                 <span className="flex h-full w-full items-center justify-center rounded-[28px] bg-[#050506] text-[14px] font-medium leading-[20px] text-white transition-colors group-hover:bg-[#0B0B0D]">

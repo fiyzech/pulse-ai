@@ -194,10 +194,8 @@ export default function Topbar() {
     const rawQuery = searchValue.trim();
     if (!rawQuery) return;
 
-    const normalized = rawQuery.toLowerCase().replace(/\s+/g, "-");
-    setSearchValue("");
-    setIsSearchOpen(false);
-    navigate(`/asset/${normalized}`);
+    setSearchValue(rawQuery);
+    setIsSearchOpen(true);
   };
 
   return (
@@ -258,7 +256,7 @@ export default function Topbar() {
                   </div>
                 ) : (
                   <div className="px-4 py-5 text-center text-[13px] text-[#A3A4B0]">
-                    Нічого не знайдено. Натисніть Enter, щоб відкрити як актив.
+                    Нічого не знайдено
                   </div>
                 )}
               </div>
