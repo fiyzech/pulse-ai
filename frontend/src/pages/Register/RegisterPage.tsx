@@ -897,7 +897,8 @@ setTimeout(() => navigate('/select-plan'), 1500);
                           }
                           return sorted.map(([region, items]) => (
                             <div key={region}>
-                              <div className="px-4 py-[6px] text-[10px] font-semibold text-[#8348C1] uppercase tracking-wider bg-[rgba(82,46,139,0.08)] sticky top-0">
+                              <div className="px-4 py-[6px] text-[10px] font-semibold text-[#8348C1] uppercase tracking-wider  sticky top-0"   
+                              style={{ background: '#0d0d10', zIndex: 50, boxShadow: '0 -4px 0 4px #0d0d10' }}>
                                 {regionLabels[region] ?? region}
                               </div>
                               {items.map(c => (
