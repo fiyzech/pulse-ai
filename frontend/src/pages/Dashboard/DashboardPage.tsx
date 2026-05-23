@@ -7,6 +7,12 @@ import {
   listFavoriteAssets,
 } from "../../utils/favoriteAssets";
 import type { FavoriteAssetRecord } from "../../utils/favoriteAssets";
+import {
+  fetchSharedMarketSnapshot,
+  readSharedMarketSnapshot,
+  subscribeToMarketData,
+} from "../../utils/marketData";
+import type { SharedMarketCoin } from "../../utils/marketData";
 import { fetchCryptoNews, formatNewsTime } from "../../utils/news";
 import type { CryptoNewsItem } from "../../utils/news";
 
@@ -130,6 +136,7 @@ export default function DashboardPage() {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [selected, setSelected] = useState<string>("1 год");
   const [cryptoData, setCryptoData] = useState<CryptoResponse | null>(null);
+  const [marketSnapshot, setMarketSnapshot] = useState<SharedMarketCoin[]>(() => readSharedMarketSnapshot() || []);
   const [chartsData, setChartsData] = useState<Record<string, ChartDataPoint[]>>({});
 
   // Стан для Секції 2
@@ -172,6 +179,11 @@ export default function DashboardPage() {
     watchAssets.find((asset) => asset.symbol === selectedWatchSymbol) ||
     watchAssets[0] ||
     fallbackWatchAsset;
+  const selectedMarketCoin = marketSnapshot.find(
+    (coin) =>
+      coin.id === selectedWatchAsset.id ||
+      coin.symbol.toUpperCase() === selectedWatchAsset.symbol.toUpperCase()
+  );
 
   const timeLabelMap: Record<string, string> = {
     "15 хв": "15 хвилин",
@@ -180,25 +192,48 @@ export default function DashboardPage() {
     "1 д": "1 день",
   };
 
-  // 1. Отримання базових цін з CoinGecko
+  // 1. Отримання базових цін з єдиного ринкового знімка
   useEffect(() => {
+    const applyMarketData = (coins: SharedMarketCoin[]) => {
+      const nextCryptoData = coins.reduce<CryptoResponse>((acc, coin) => {
+        acc[coin.id] = {
+          usd: coin.current_price || 0,
+          usd_24h_change: coin.price_change_percentage_24h || 0,
+          usd_1h_change:
+            coin.price_change_percentage_1h_in_currency ??
+            coin.price_change_percentage_24h ??
+            0,
+        };
+
+        return acc;
+      }, {});
+
+      setMarketSnapshot(coins);
+      setCryptoData(nextCryptoData);
+    };
+
     const fetchPrices = async () => {
       try {
-        const res = await fetch(
-          "/api/coingecko/simple/price?ids=bitcoin,ethereum,binancecoin&vs_currencies=usd&include_24hr_change=true&include_1h_change=true&precision=2"
-        );
-        const data: CryptoResponse = await res.json();
-        if (data && Object.keys(data).length > 0) {
-          setCryptoData(data);
-        }
+        const cachedMarketData = readSharedMarketSnapshot();
+        if (cachedMarketData) applyMarketData(cachedMarketData);
+
+        const marketData = await fetchSharedMarketSnapshot();
+        applyMarketData(marketData);
       } catch (e) {
         console.error("Помилка CoinGecko:", e);
       }
     };
 
     fetchPrices();
+    const unsubscribe = subscribeToMarketData(() => {
+      const marketData = readSharedMarketSnapshot();
+      if (marketData) applyMarketData(marketData);
+    });
     const interval = setInterval(fetchPrices, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
   }, []);
 
   // 2. Отримання даних графіків для Секції 1
@@ -403,16 +438,18 @@ export default function DashboardPage() {
   ];
 
   // Форматування даних для Секції 2
+  const s2CurrentPrice = selectedMarketCoin?.current_price || btcSection2Stats.price;
+
   const s2FormattedPrice =
-    btcSection2Stats.price > 0
-      ? btcSection2Stats.price.toLocaleString("en-US", {
+    s2CurrentPrice > 0
+      ? s2CurrentPrice.toLocaleString("en-US", {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         }) + "$"
       : "...";
 
   const s2UpdateTime =
-    btcSection2Stats.price > 0
+    s2CurrentPrice > 0
       ? `Оновлено: ${btcSection2Stats.lastUpdateTime.toLocaleTimeString("uk-UA")}`
       : "Оновлення даних...";
 
@@ -588,13 +625,15 @@ export default function DashboardPage() {
               changeValue = ((lastPoint - firstPoint) / firstPoint) * 100;
               isPositive = changeValue >= 0;
 
-              price =
-                lastPoint < 10
-                  ? lastPoint.toFixed(4)
-                  : lastPoint.toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    });
+              if (!data?.usd) {
+                price =
+                  lastPoint < 10
+                    ? lastPoint.toFixed(4)
+                    : lastPoint.toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      });
+              }
 
               const minVal = Math.min(...chartData.map((d) => d.value));
               const maxVal = Math.max(...chartData.map((d) => d.value));
@@ -1313,7 +1352,7 @@ export default function DashboardPage() {
 
             <div className="absolute top-[373px] left-1/2 -translate-x-1/2">
               <button
-                onClick={() => navigate("/news")}
+                onClick={() => navigate("/news", { state: { from: "dashboard" } })}
                 className="group relative flex h-[44px] w-[243px] items-center justify-center rounded-[28px] text-[14px] font-medium leading-[20px] text-white transition-transform hover:scale-105"
               >
                 <svg

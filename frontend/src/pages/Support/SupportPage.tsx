@@ -2,6 +2,11 @@ import { useState } from 'react';
 
 export default function SupportPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+
+  const sanitizeName = (value: string) =>
+    value.replace(/[^A-Za-zА-Яа-яІіЇїЄєҐґ'ʼ -]/g, '');
 
   const faqs = [
     { 
@@ -167,14 +172,22 @@ export default function SupportPage() {
                   <div className="gradient-border-box group w-[237px] h-[44px] rounded-[28px] overflow-hidden transition-colors hover:bg-white/[0.08]">
                     <input 
                       type="text" 
+                      value={firstName}
+                      onChange={(event) => setFirstName(sanitizeName(event.target.value))}
                       placeholder="Введіть імʼя" 
+                      inputMode="text"
+                      autoComplete="given-name"
                       className="w-full h-full bg-transparent pl-[13px] py-[13px] text-[14px] text-[#9E9E9E] focus:outline-none placeholder:text-[#9E9E9E]" 
                     />
                   </div>
                   <div className="gradient-border-box group w-[237px] h-[44px] rounded-[28px] overflow-hidden transition-colors hover:bg-white/[0.08]">
                     <input 
                       type="text" 
+                      value={lastName}
+                      onChange={(event) => setLastName(sanitizeName(event.target.value))}
                       placeholder="Введіть прізвище" 
+                      inputMode="text"
+                      autoComplete="family-name"
                       className="w-full h-full bg-transparent pl-[13px] py-[13px] text-[14px] text-[#9E9E9E] focus:outline-none placeholder:text-[#9E9E9E]" 
                     />
                   </div>
@@ -185,7 +198,7 @@ export default function SupportPage() {
                 <label className="text-[12px] font-normal text-[#A3A4B0] block mb-[8px]">Тема</label>
                 <div className="gradient-border-box group relative w-[498px] h-[44px] rounded-[28px] overflow-hidden transition-colors hover:bg-white/[0.08]">
                   <select 
-                    className="w-full h-[44px] bg-transparent py-[13px] pl-[13px]  text-[14px] text-[#9E9E9E] focus:outline-none cursor-pointer"
+                    className="w-full h-[44px] bg-transparent pl-[13px] pr-[48px] text-[14px] leading-[44px] text-[#9E9E9E] focus:outline-none cursor-pointer"
                     defaultValue=""
                   >
                     <option value="" disabled>Виберіть тему звернення</option>

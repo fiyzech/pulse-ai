@@ -8,11 +8,8 @@ import { supabase } from '../../supabaseClient';
 import { mergeAccountCache } from '../../utils/accountCache';
 
 
-// @ts-ignore
 import thirdGradPic from '../../assets/images/third-grad-pic.svg?url';
-// @ts-ignore
 import seventhGridPic from '../../assets/images/seventh-grid-pic.svg?url';
-// @ts-ignore
 import eighthGridPic from '../../assets/images/eighth-grid-pic.svg?url';
 
 // ─── Змінні оточення Supabase ────────────────────────────────────────────────
@@ -76,12 +73,6 @@ const EyeOpenIcon = () => (
   </svg>
 );
 
-const ChevronDownIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-    <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
 const CalendarIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
     <rect x="3" y="4" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.5" />
@@ -99,6 +90,38 @@ const CheckIcon = () => (
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const BANNED_COUNTRIES = ['ru', 'by'];
+const normalizeEmailInput = (value: string) => value.replace(/\s/g, '').toLowerCase();
+const sanitizeNameInput = (value: string) =>
+  value.replace(/[^A-Za-zА-Яа-яІіЇїЄєҐґ'ʼ -]/g, '');
+const namePattern = /^[A-Za-zА-Яа-яІіЇїЄєҐґ'ʼ -]+$/;
+const ukrainianCountryNames = new Intl.DisplayNames(['uk'], { type: 'region' });
+
+const parseBirthDateInput = (value: string) => {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value.trim());
+  if (!match) return null;
+
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
+};
+
+const formatBirthDateForDatabase = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const useCountries = () => {
   const [countries, setCountries] = useState<CountryOption[]>([]);
@@ -111,11 +134,11 @@ const useCountries = () => {
         const mapped: CountryOption[] = data
           .filter(c => !['RU', 'BY'].includes(c.cca2))
           .map(c => ({
-            name: c.name.common,
+            name: ukrainianCountryNames.of(c.cca2) || c.name.common,
             code: c.cca2,
             region: c.region || 'Інше',
           }))
-          .sort((a, b) => a.name.localeCompare(b.name));
+          .sort((a, b) => a.name.localeCompare(b.name, 'uk'));
         setCountries(mapped);
       })
       .catch(() => setCountries([]))
@@ -262,7 +285,6 @@ const RegisterPage = () => {
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [usernameAvail, setUsernameAvail] = useState<boolean | null>(null);
   const [isBanned, setIsBanned] = useState(false);
-  const [countrySearch, setCountrySearch] = useState('');
 
   const handlePhoneChange = (value: string, data: PhoneInputData) => {
     setPhoneNumber(value);
@@ -360,10 +382,24 @@ const RegisterPage = () => {
   const validateS2 = () => {
     const e: Step2Fields = {};
     if (!firstName.trim()) e.firstName = "Введіть ім'я";
+    else if (!namePattern.test(firstName.trim())) e.firstName = 'Лише букви';
     if (!lastName.trim()) e.lastName = 'Введіть прізвище';
+    else if (!namePattern.test(lastName.trim())) e.lastName = 'Лише букви';
 
     const rawPhone = phoneNumber.replace(/\D/g, '');
     if (rawPhone.length < 7) e.phone = 'Введіть коректний номер телефону';
+
+    if (birthDate.trim()) {
+      const parsedBirthDate = parseBirthDateInput(birthDate);
+      if (!parsedBirthDate) {
+        e.birthDate = 'Введіть коректну дату';
+      } else {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        parsedBirthDate.setHours(0, 0, 0, 0);
+        if (parsedBirthDate > today) e.birthDate = 'Дата народження не може бути в майбутньому';
+      }
+    }
 
     const u = username.trim();
     if (!u) e.username = "Введіть ім'я користувача";
@@ -392,13 +428,8 @@ const RegisterPage = () => {
     try {
       setLoading(true);
 
-      let formattedDate = null;
-      if (birthDate) {
-        const parts = birthDate.split('/'); 
-        if (parts.length === 3) {
-          formattedDate = `${parts[2]}-${parts[0]}-${parts[1]}`;
-        }
-      }
+      const parsedBirthDate = birthDate ? parseBirthDateInput(birthDate) : null;
+      const formattedDate = parsedBirthDate ? formatBirthDateForDatabase(parsedBirthDate) : null;
 
       const profileData = {
   username: username.trim(),
@@ -543,10 +574,13 @@ setTimeout(() => navigate('/select-plan'), 1500);
                     type="email"
                     value={email}
                     onChange={e => {
-                      setEmail(e.target.value);
+                      setEmail(normalizeEmailInput(e.target.value));
                       if (s1Errors.email) setS1Errors(p => ({ ...p, email: undefined }));
                       setEmailAvail(null);
                     }}
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     placeholder="Введіть електронну пошту"
                     className="w-full h-[44px] px-5 rounded-full text-[14px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
                     style={inputStyle(Boolean(s1Errors.email))}
@@ -564,6 +598,7 @@ setTimeout(() => navigate('/select-plan'), 1500);
                         setPassword(e.target.value);
                         if (s1Errors.password) setS1Errors(p => ({ ...p, password: undefined }));
                       }}
+                      autoComplete="new-password"
                       placeholder="••••••••"
                       className="w-full h-full px-5 pr-12 rounded-full text-[14px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all font-sans focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
                       style={inputStyle(Boolean(s1Errors.password))}
@@ -597,6 +632,7 @@ setTimeout(() => navigate('/select-plan'), 1500);
                         setConfirmPassword(e.target.value);
                         if (s1Errors.confirmPassword) setS1Errors(p => ({ ...p, confirmPassword: undefined }));
                       }}
+                      autoComplete="new-password"
                       placeholder="••••••••"
                       className="w-full h-full px-5 pr-12 rounded-full text-[14px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all font-sans focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
                       style={inputStyle(Boolean(s1Errors.confirmPassword))}
@@ -669,10 +705,11 @@ setTimeout(() => navigate('/select-plan'), 1500);
                       type="text"
                       value={firstName}
                       onChange={e => {
-                        setFirstName(e.target.value);
+                        setFirstName(sanitizeNameInput(e.target.value));
                         if (s2Errors.firstName) setS2Errors(p => ({ ...p, firstName: undefined }));
                       }}
                       placeholder="Вкажіть ім'я"
+                      autoComplete="given-name"
                       maxLength={50}
                       className="w-full h-[44px] px-4 rounded-full text-[13px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
                       style={inputStyle(Boolean(s2Errors.firstName))}
@@ -685,10 +722,11 @@ setTimeout(() => navigate('/select-plan'), 1500);
                       type="text"
                       value={lastName}
                       onChange={e => {
-                        setLastName(e.target.value);
+                        setLastName(sanitizeNameInput(e.target.value));
                         if (s2Errors.lastName) setS2Errors(p => ({ ...p, lastName: undefined }));
                       }}
                       placeholder="Вкажіть прізвище"
+                      autoComplete="family-name"
                       maxLength={50}
                       className="w-full h-[44px] px-4 rounded-full text-[13px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
                       style={inputStyle(Boolean(s2Errors.lastName))}
@@ -709,6 +747,7 @@ setTimeout(() => navigate('/select-plan'), 1500);
                         setUsernameAvail(null);
                       }}
                       placeholder="Вкажіть ім'я користувача"
+                      autoComplete="username"
                       maxLength={20}
                       className="w-full h-full px-5 pr-12 rounded-full text-[14px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
                       style={inputStyle(Boolean(s2Errors.username))}
@@ -834,36 +873,26 @@ setTimeout(() => navigate('/select-plan'), 1500);
               <div className="w-[360px] text-left">
                 <Lbl>Країна проживання</Lbl>
                 <div className="relative" data-country>
-                  <button
-                    type="button"
-                    onClick={() => setCountryOpen(v => !v)}
-                    className="w-full h-[44px] px-5 rounded-full flex items-center justify-between text-[14px] transition-all"
+                  <input
+                    type="text"
+                    value={selectedCountry}
+                    onChange={e => {
+                      setSelectedCountry(e.target.value);
+                      setCountryOpen(true);
+                      if (s2Errors.country) setS2Errors(p => ({ ...p, country: undefined }));
+                    }}
+                    onFocus={() => setCountryOpen(true)}
+                    placeholder="Введіть країну"
+                    autoComplete="country-name"
+                    className="w-full h-[44px] px-5 rounded-full text-[14px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
                     style={inputStyle(Boolean(s2Errors.country))}
-                  >
-                    <span className={selectedCountry ? 'text-white' : 'text-[#A3A4B0]/50'}>
-                      {selectedCountry || 'Оберіть країну'}
-                    </span>
-                    <span className={`text-[#A3A4B0] transition-transform duration-200 ${countryOpen ? 'rotate-180' : ''}`}>
-                      <ChevronDownIcon />
-                    </span>
-                  </button>
+                  />
 
-                  {countryOpen && (
+                  {countryOpen && selectedCountry.trim() && (
                     <div
                       className="absolute top-[calc(100%+6px)] left-0 right-0 z-50 rounded-[16px] overflow-hidden"
                       style={{ background: '#0d0d10', border: '1px solid rgba(82,46,139,0.4)', boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}
                     >
-                      <div className="p-2 border-b border-[rgba(82,46,139,0.3)]">
-                        <input
-                          type="text"
-                          value={countrySearch}
-                          onChange={e => setCountrySearch(e.target.value)}
-                          placeholder="Пошук країни..."
-                          autoFocus
-                          className="w-full bg-[#0a0a0d] rounded-lg px-3 py-2 text-[13px] text-white placeholder:text-[#A3A4B0]/50 outline-none border border-[rgba(82,46,139,0.4)] focus:border-[rgba(131,72,193,0.6)]"
-                        />
-                      </div>
-
                       <div className="max-h-[220px] overflow-y-auto">
                         {loadingCountries ? (
                           <div className="flex items-center justify-center py-6 gap-2 text-[13px] text-[#A3A4B0]">
@@ -871,51 +900,32 @@ setTimeout(() => navigate('/select-plan'), 1500);
                             Завантаження...
                           </div>
                         ) : (() => {
+                          const query = selectedCountry.trim().toLowerCase();
                           const filtered = countries.filter(c =>
-                            c.name.toLowerCase().includes(countrySearch.toLowerCase())
-                          );
-                          const grouped = filtered.reduce<Record<string, CountryOption[]>>((acc, c) => {
-                            const r = c.region;
-                            if (!acc[r]) acc[r] = [];
-                            acc[r].push(c);
-                            return acc;
-                          }, {});
-                          const regionOrder = ['Europe', 'Asia', 'Americas', 'Africa', 'Oceania', 'Antarctic', 'Інше'];
-                          const sorted = Object.entries(grouped).sort(
-                            ([a], [b]) => regionOrder.indexOf(a) - regionOrder.indexOf(b)
-                          );
-                          const regionLabels: Record<string, string> = {
-                            Europe: 'Європа', Asia: 'Азія', Americas: 'Америка',
-                            Africa: 'Африка', Oceania: 'Океанія', Antarctic: 'Антарктика', Інше: 'Інше',
-                          };
-                          if (sorted.length === 0) {
+                            c.name.toLowerCase().includes(query)
+                          ).slice(0, 10);
+
+                          if (filtered.length === 0) {
                             return (
                               <div className="py-4 text-center text-[13px] text-[#A3A4B0]/60">
                                 Країну не знайдено
                               </div>
                             );
                           }
-                          return sorted.map(([region, items]) => (
-                            <div key={region}>
-                              <div className="px-4 py-[6px] text-[10px] font-semibold text-[#8348C1] uppercase tracking-wider bg-[rgba(82,46,139,0.08)] sticky top-0">
-                                {regionLabels[region] ?? region}
-                              </div>
-                              {items.map(c => (
-                                <button
-                                  key={c.code}
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedCountry(c.name);
-                                    setCountryOpen(false);
-                                    setCountrySearch('');
-                                    if (s2Errors.country) setS2Errors(p => ({ ...p, country: undefined }));
-                                  }}
-                                  className={`w-full px-5 py-[9px] text-left text-[13px] transition-colors hover:bg-[#8348C1]/20 flex items-center gap-2 ${selectedCountry === c.name ? 'text-[#C38BFF]' : 'text-[#A3A4B0]'}`}
-                                >
-                                  {c.name}
-                                </button>
-                              ))}
-                            </div>
+                          return filtered.map(c => (
+                            <button
+                              key={c.code}
+                              type="button"
+                              onMouseDown={e => e.preventDefault()}
+                              onClick={() => {
+                                setSelectedCountry(c.name);
+                                setCountryOpen(false);
+                                if (s2Errors.country) setS2Errors(p => ({ ...p, country: undefined }));
+                              }}
+                              className={`w-full px-5 py-[10px] text-left text-[13px] transition-colors hover:bg-[#8348C1]/20 ${selectedCountry === c.name ? 'text-[#C38BFF]' : 'text-[#A3A4B0]'}`}
+                            >
+                              {c.name}
+                            </button>
                           ));
                         })()}
                       </div>
@@ -937,16 +947,18 @@ setTimeout(() => navigate('/select-plan'), 1500);
                         if (v.length > 5) v = v.slice(0, 5) + '/' + v.slice(5);
                         if (v.length > 10) v = v.slice(0, 10);
                         setBirthDate(v);
+                        if (s2Errors.birthDate) setS2Errors(p => ({ ...p, birthDate: undefined }));
                       }}
                       placeholder="ДД/ММ/РРРР"
                       maxLength={10}
                       className="w-full h-full px-5 pr-12 rounded-full text-[14px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
-                      style={inputStyle(false)}
+                      style={inputStyle(Boolean(s2Errors.birthDate))}
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A3A4B0]/60 pointer-events-none">
                       <CalendarIcon />
                     </span>
                   </div>
+                  <ErrorMsg msg={s2Errors.birthDate} />
                 </div>
 
                 <div className="w-[360px] mt-[4px] flex flex-col gap-[16px]">
