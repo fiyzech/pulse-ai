@@ -1,4 +1,4 @@
-export type PlanKey = "free" | "pro" | "business";
+export type PlanKey = "free" | "pro" | "premium";
 export type BillingCycle = "monthly" | "yearly";
 
 export type AccountCache = {
@@ -22,15 +22,15 @@ export const accountCacheKey = "cryptopulse_account_cache";
 export const accountCacheEvent = "cryptopulse-account-cache-updated";
 
 const isPlanKey = (value: unknown): value is PlanKey =>
-  value === "free" || value === "pro" || value === "business";
+  value === "free" || value === "pro" || value === "premium";
 
 const isBillingCycle = (value: unknown): value is BillingCycle =>
   value === "monthly" || value === "yearly";
 
 export const planLabelMap: Record<PlanKey, string> = {
   free: "Безкоштовно",
-  pro: "Pro",
-  business: "Бізнес",
+  pro: "Про",
+  premium: "Преміум",
 };
 
 export const getPlanLabel = (planKey?: string | null) =>
