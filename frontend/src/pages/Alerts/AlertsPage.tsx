@@ -291,7 +291,7 @@ export default function AlertsPage() {
         <div className="rounded-[28px] bg-[#050506] overflow-hidden">
           <div className={`relative ${tableGrid} items-center px-[20px] h-[57px] text-[#A3A4B0] text-[14px] font-normal bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)]`}>
             <div className="absolute bottom-0 left-0 w-full h-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))]" />
-            <span>Валюта</span>
+            <span>Актива</span>
             <span>Умова</span>
             <span>Поточна ціна</span>
             <span>Статус</span>
