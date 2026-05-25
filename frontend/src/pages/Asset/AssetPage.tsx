@@ -854,10 +854,10 @@ const handleFavoriteToggle = async () => {
                   coinData = {
                     market_cap: parseFloat(d.marketCapUsd ?? '0') || 0,
                     circulating_supply: parseFloat(d.supply ?? '0') || 0,
-                    max_supply: d.maxSupply ? parseFloat(d.maxSupply) : null,
-                    total_supply: d.maxSupply ? parseFloat(d.maxSupply) : null,
+                    max_supply: d.maxSupply ? parseFloat(d.maxSupply) : undefined,
+                    total_supply: d.maxSupply ? parseFloat(d.maxSupply) : undefined,
                     total_volume: parseFloat(d.volumeUsd24Hr ?? '0') || 0,
-                    ath: null,
+                    ath: undefined,
                   };
                 }
               }
