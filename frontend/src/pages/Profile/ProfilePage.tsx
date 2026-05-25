@@ -1,10 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import PhoneInput from 'react-phone-input-2';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const Phone = (PhoneInput as any).default ?? PhoneInput;
-import 'react-phone-input-2/lib/style.css';
 import { supabase } from "../../supabaseClient";
 import { getPlanLabel, mergeAccountCache, readAccountCache } from "../../utils/accountCache";
 import userAvatar from "../../assets/images/user_avatar.png";
@@ -41,30 +37,46 @@ type CountryOption = {
   region: string;
 };
 
+type PhoneCountryOption = {
+  name: string;
+  code: string;
+  region: string;
+  dialCode: string;
+};
+
 interface ApiCountry {
-  name: { common: string };
   cca2: string;
   region?: string;
+  idd?: {
+    root?: string;
+    suffixes?: string[];
+  };  
 }
 
-const BANNED_COUNTRIES = ['ru', 'by', 'RU', 'BY'];
+const BANNED_COUNTRIES = ['ru', 'by'];
+
+const countryNameFormatter = new Intl.DisplayNames(['uk'], {
+  type: 'region',
+});
 
 const useCountries = () => {
   const [countries, setCountries] = useState<CountryOption[]>([]);
   const [loadingCountries, setLoadingCountries] = useState(true);
 
   useEffect(() => {
-    fetch('https://restcountries.com/v3.1/all?fields=name,cca2,region')
+    fetch('https://restcountries.com/v3.1/all?fields=cca2,region')
       .then(r => r.json())
       .then((data: ApiCountry[]) => {
         const mapped: CountryOption[] = data
-          .filter(c => !BANNED_COUNTRIES.includes(c.cca2))
+          .filter(c => c.cca2)
+          .filter(c => !BANNED_COUNTRIES.includes(c.cca2.toLowerCase()))
           .map(c => ({
-            name: c.name.common,
+            name: countryNameFormatter.of(c.cca2) || c.cca2,
             code: c.cca2,
             region: c.region || 'Інше',
           }))
-          .sort((a, b) => a.name.localeCompare(b.name));
+          .sort((a, b) => a.name.localeCompare(b.name, 'uk'));
+
         setCountries(mapped);
       })
       .catch(() => setCountries([]))
@@ -72,6 +84,32 @@ const useCountries = () => {
   }, []);
 
   return { countries, loadingCountries };
+};
+
+const usePhoneCountries = () => {
+  const [phoneCountries, setPhoneCountries] = useState<PhoneCountryOption[]>([]);
+
+  useEffect(() => {
+    fetch('https://restcountries.com/v3.1/all?fields=cca2,region,idd')
+      .then(r => r.json())
+      .then((data: ApiCountry[]) => {
+        const mapped = data
+          .filter(c => c.cca2)
+          .filter(c => !BANNED_COUNTRIES.includes(c.cca2.toLowerCase()))
+          .map(c => ({
+            name: countryNameFormatter.of(c.cca2) || c.cca2,
+            code: c.cca2,
+            region: c.region || 'Інше',
+            dialCode: `${c.idd?.root || ''}${c.idd?.suffixes?.[0] || ''}`,
+          }))
+          .filter(c => c.dialCode)
+          .sort((a, b) => a.name.localeCompare(b.name, 'uk'));
+
+        setPhoneCountries(mapped);
+      });
+  }, []);
+
+  return phoneCountries;
 };
 
 const cardWrapper =
@@ -254,7 +292,7 @@ const ProfileInput = ({
       <label className="mb-[12px] block font-montserrat text-[12px] font-normal leading-[16px] text-[#A3A4B0] m-0 p-0">
         {label}
       </label>
-      
+
       <div className="w-[360px] h-[44px] p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
         <div className="relative flex items-center w-full h-full rounded-full bg-[#050506] m-0 p-0">
 
@@ -267,32 +305,50 @@ const ProfileInput = ({
                 </span>
               </div>
               {isOpen && (
-                <div className="absolute left-0 bottom-[calc(100%+8px)] z-[100] w-[360px] p-[1px] rounded-[16px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-lg" onClick={e => e.stopPropagation()}>
-                  <div className="bg-[#050506] rounded-[16px] p-2 flex flex-col max-h-[220px] overflow-y-auto">
-                    <div className="p-2 border-b border-[rgba(82,46,139,0.3)] sticky top-0 bg-[#050506] z-10">
+                <div className="absolute left-[-10px] bottom-[calc(100%+10px)] z-[100] w-[374px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-lg" onClick={e => e.stopPropagation()}>
+                  <div className="bg-[#050506] rounded-[28px] flex flex-col overflow-hidden">
+                    <div className="px-[12px] pt-[12px] pb-[12px] border-b border-[rgba(82,46,139,0.3)] bg-[#050506] z-10">
+                      <div className="w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
                       <input
                         type="text"
+                        name="country-search"
+                        id="country-search"
                         value={countrySearch}
                         onChange={e => setCountrySearch(e.target.value)}
                         placeholder="Пошук країни..."
                         autoFocus
-                        className="w-full bg-[#0a0a0d] rounded-lg px-3 py-2 text-[13px] text-white placeholder:text-[#A3A4B0]/50 outline-none border border-[rgba(82,46,139,0.4)] focus:border-[rgba(131,72,193,0.6)]"
+                        autoComplete="new-password"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck={false}
+                        translate="no"
+                        className="w-full h-[44px] bg-[#050506] rounded-[27px] px-4 text-[14px] text-white placeholder:text-[#A3A4B0]/50 outline-none border-none [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden [&::-webkit-search-cancel-button]:hidden"
                       />
                     </div>
+                    </div>
                     
-                    {loadingCountries ? (
-                      <div className="flex items-center justify-center py-6 gap-2 text-[13px] text-[#A3A4B0]">
-                        <div className="w-4 h-4 rounded-full border-2 border-[#8348C1] border-t-transparent animate-spin" />
-                        Завантаження...
-                      </div>
-                    ) : (() => {
-                      const filtered = countries.filter(c => c.name.toLowerCase().includes(countrySearch.toLowerCase()));
+                    <div className="max-h-[140px] overflow-y-auto overflow-x-hidden overscroll-contain">
+                      {loadingCountries ? (
+                        <div className="flex items-center justify-center py-6 gap-2 text-[13px] text-[#A3A4B0]">
+                          <div className="w-4 h-4 rounded-full border-2 border-[#8348C1] border-t-transparent animate-spin" />
+                          Завантаження...
+                        </div>
+                      ) : (() => {
+                      
+                      const search = countrySearch.toLowerCase().trim();
+
+                      const filtered = countries.filter(c =>
+                        c.name.toLowerCase().includes(search) ||
+                        c.code.toLowerCase().includes(search)
+                      );
+
                       const grouped = filtered.reduce<Record<string, CountryOption[]>>((acc, c) => {
                         const r = c.region;
                         if (!acc[r]) acc[r] = [];
                         acc[r].push(c);
                         return acc;
                       }, {});
+                      
                       const regionOrder = ['Europe', 'Asia', 'Americas', 'Africa', 'Oceania', 'Antarctic', 'Інше'];
                       const sorted = Object.entries(grouped).sort(
                         ([a], [b]) => regionOrder.indexOf(a) - regionOrder.indexOf(b)
@@ -306,8 +362,10 @@ const ProfileInput = ({
                       }
                       return sorted.map(([region, items]) => (
                         <div key={region}>
-                          <div className="px-4 py-[6px] text-[10px] font-semibold text-[#8348C1] uppercase tracking-wider bg-[rgba(82,46,139,0.08)]">
-                            {regionLabels[region] ?? region}
+                          <div className="px-4 py-[6px] text-[10px] font-semibold uppercase tracking-wider bg-[rgba(82,46,139,0.08)]">
+                            <span className="bg-[linear-gradient(90deg,#AA65F4_0%,#C38BFF_70%)] bg-clip-text text-transparent">
+                              {regionLabels[region] ?? region}
+                            </span>
                           </div>
                           {items.map(c => (
                             <button
@@ -318,9 +376,11 @@ const ProfileInput = ({
                                 setIsOpen(false);
                                 setCountrySearch('');
                               }}
-                              className={`w-full px-5 py-[9px] text-left text-[13px] transition-colors hover:bg-[#8348C1]/20 flex items-center gap-2 ${value === c.name ? 'text-[#C38BFF]' : 'text-[#A3A4B0]'}`}
+                              className="w-full px-5 py-[9px] text-left text-[13px] transition-colors hover:bg-[#8348C1]/20 flex items-center gap-2 text-[#A3A4B0]"
                             >
-                              {c.name}
+                              <span className="block w-full min-w-0 truncate">
+                                {c.name}
+                              </span>
                             </button>
                           ))}
                         </div>
@@ -328,6 +388,7 @@ const ProfileInput = ({
                     })()}
                   </div>
                 </div>
+              </div>
               )}
             </div>
           ) : options ? (
@@ -339,7 +400,7 @@ const ProfileInput = ({
                 </span>
               </div>
               {isOpen && (
-                <div className="absolute left-0 bottom-[calc(100%+8px)] z-[100] w-[360px] p-[1px] rounded-[16px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-lg">
+                <div className="absolute left-0 bottom-[calc(100%+8px)] z-[100] w-[374px] p-[1px] rounded-[16px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-lg">
                   <div className="bg-[#050506] rounded-[16px] p-2 flex flex-col gap-1 max-h-[200px] overflow-y-auto">
                     {options.map(opt => (
                       <button 
@@ -401,6 +462,11 @@ export default function ProfilePage() {
   
   const { countries, loadingCountries } = useCountries();
 
+  const phoneCountries = usePhoneCountries();
+  const [phoneDropdownOpen, setPhoneDropdownOpen] = useState(false);
+  const [phoneSearch, setPhoneSearch] = useState("");
+  const [selectedPhoneCountry, setSelectedPhoneCountry] = useState<PhoneCountryOption | null>(null);
+
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [securityModalOpen, setSecurityModalOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -418,6 +484,16 @@ export default function ProfilePage() {
   // Device name (static — derived once from userAgent) & location (async from IP)
   const deviceName = detectDeviceName();
   const [deviceLocation, setDeviceLocation] = useState("в мережі");
+
+  const formatPhoneNumber = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 10);
+
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+    if (digits.length <= 8) return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+
+    return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 8)} ${digits.slice(8, 10)}`;
+  };
 
   useEffect(() => {
     if (profileModalOpen || securityModalOpen) {
@@ -1060,101 +1136,175 @@ useEffect(() => {
               </div>
 
               <div className="absolute left-[24px] top-[108px] grid grid-cols-2 gap-x-[24px] gap-y-[24px] overflow-visible">
-                <ProfileInput label="Ім'я" value={editForm.firstName} onChange={(v) => setEditForm((p) => ({ ...p, firstName: v }))} placeholder="Вкажіть ім'я" />
-                <ProfileInput label="Прізвище" value={editForm.lastName} onChange={(v) => setEditForm((p) => ({ ...p, lastName: v }))} placeholder="Вкажіть прізвище" />
+                <ProfileInput label="Ім'я" value={editForm.firstName} onChange={(v) => setEditForm((p) => ({ ...p, firstName: v.replace(/[^a-zA-Zа-яА-ЯіІїЇєЄґҐ\s]/g, ""), }))} placeholder="Вкажіть ім'я" />
+                <ProfileInput label="Прізвище" value={editForm.lastName} onChange={(v) => setEditForm((p) => ({ ...p, lastName: v.replace(/[^a-zA-Zа-яА-ЯіІїЇєЄґҐ\s]/g, ""), }))} placeholder="Вкажіть прізвище" />
                 <ProfileInput label="Ім'я користувача" value={editForm.username} onChange={(v) => setEditForm((p) => ({ ...p, username: v }))} placeholder="Вкажіть ім'я користувача" />
                 
                 <div className="flex flex-col text-left w-[360px] h-[72px] relative z-20 phone-profile-wrapper">
                   <label className="mb-[12px] block font-montserrat text-[12px] font-normal leading-[16px] text-[#A3A4B0] m-0 p-0">
                     Номер телефону
                   </label>
-                  <style>{`
-                    .phone-profile-wrapper .react-tel-input .form-control {
-                      width: 100% !important;
-                      height: 44px !important;
-                      background: #050506 !important;
-                      border-radius: 28px !important;
-                      border: 1px solid transparent !important;
-                      color: white !important;
-                      font-family: 'Montserrat', sans-serif !important;
-                      font-size: 14px !important;
-                      padding-left: 58px !important;
-                      background-image: linear-gradient(#050506,#050506), linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32)) !important;
-                      background-origin: padding-box, border-box !important;
-                      background-clip: padding-box, border-box !important;
-                      outline: none !important;
-                      box-shadow: 0 20px 70px rgba(131,72,193,0.10), 0 8px 25px rgba(0,0,0,0.35) !important;
-                    }
-                    .phone-profile-wrapper .react-tel-input .form-control:focus {
-                      border-color: #8348C1 !important; 
-                    }
-                    .phone-profile-wrapper .react-tel-input .flag-dropdown {
-                      background: transparent !important;
-                      border: none !important;
-                      border-radius: 28px 0 0 28px !important;
-                    }
-                    .phone-profile-wrapper .react-tel-input .selected-flag {
-                      background: transparent !important;
-                      padding-left: 15px !important;
-                      border-radius: 28px 0 0 28px !important;
-                    }
-                    .phone-profile-wrapper .react-tel-input .selected-flag:hover,
-                    .phone-profile-wrapper .react-tel-input .selected-flag:focus,
-                    .phone-profile-wrapper .react-tel-input .flag-dropdown.open .selected-flag {
-                      background: transparent !important;
-                    }
-                    .phone-profile-wrapper .react-tel-input .country-list {
-                      bottom: calc(100% + 8px) !important; 
-                      top: auto !important;
-                      margin-bottom: 0 !important;
-                      background-color: #0d0d10 !important;
-                      color: #A3A4B0 !important;
-                      border: 1px solid rgba(82,46,139,0.4) !important;
-                      border-radius: 16px !important;
-                      box-shadow: 0 -8px 32px rgba(0,0,0,0.6) !important;
-                    }
-                    .phone-profile-wrapper .react-tel-input .country-list .search {
-                      background-color: #0d0d10 !important;
-                      border-bottom: 1px solid rgba(82,46,139,0.3) !important;
-                      padding: 10px !important;
-                    }
-                    .phone-profile-wrapper .react-tel-input .country-list .search-box {
-                      background-color: #050506 !important;
-                      border: 1px solid rgba(82,46,139,0.4) !important;
-                      color: white !important;
-                      border-radius: 8px !important;
-                      padding: 8px 12px 8px 30px !important;
-                      margin: 0 !important;
-                      width: 100% !important;
-                    }
-                    .phone-profile-wrapper .react-tel-input .country-list .country {
-                      padding: 10px 16px !important;
-                    }
-                    .phone-profile-wrapper .react-tel-input .country-list .country:hover {
-                      background: rgba(131,72,193,0.2) !important;
-                    }
-                    .phone-profile-wrapper .react-tel-input .country-list .country.highlight {
-                      background: rgba(131,72,193,0.15) !important;
-                    }
-                    .phone-profile-wrapper .react-tel-input .country-list .country-name {
-                      color: #A3A4B0 !important;
-                    }
-                    .phone-profile-wrapper .react-tel-input .country-list .dial-code {
-                      color: #8348C1 !important;
-                    }
-                  `}</style>
+ <style>{`
+  .phone-profile-wrapper .react-tel-input .form-control {
+    width: 100% !important;
+    height: 44px !important;
+    padding-left: 58px !important;
+    background: linear-gradient(#050506,#050506) padding-box,
+      linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32)) border-box !important;
+    border: 1px solid transparent !important;
+    border-radius: 28px !important;
+    color: white !important;
+    font-family: 'Montserrat', sans-serif !important;
+    font-size: 14px !important;
+    outline: none !important;
+  }
+
+  .phone-profile-wrapper .react-tel-input .flag-dropdown,
+  .phone-profile-wrapper .react-tel-input .selected-flag {
+    background: transparent !important;
+    border: none !important;
+  }
+
+.phone-profile-wrapper .react-tel-input .country-list {
+  bottom: calc(100% + 10px) !important;
+  top: auto !important;
+  width: 374px !important;
+  max-height: 180px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #050506 !important;
+  border: 1px solid rgba(82,46,139,0.32) !important;
+  border-radius: 28px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+
+.phone-profile-wrapper .react-tel-input .country-list .search {
+  background: #050506 !important;
+  border-bottom: 1px solid rgba(82,46,139,0.3) !important;
+  padding: 12px !important;
+}
+
+.phone-profile-wrapper .react-tel-input .country-list .search::before,
+.phone-profile-wrapper .react-tel-input .country-list .search::after {
+  display: none !important;
+  content: none !important;
+}
+
+.phone-profile-wrapper .react-tel-input .country-list .search-box {
+  width: 100% !important;
+  height: 44px !important;
+  margin: 0 !important;
+  padding: 0 16px !important;
+  background: #050506 !important;
+  color: white !important;
+  border: 1px solid rgba(82,46,139,0.32) !important;
+  border-radius: 28px !important;
+  outline: none !important;
+}
+
+  .phone-profile-wrapper .react-tel-input .country-list .country {
+    padding: 10px 16px !important;
+    color: #A3A4B0 !important;
+  }
+
+  .phone-profile-wrapper .react-tel-input .country-list .country:hover,
+  .phone-profile-wrapper .react-tel-input .country-list .country.highlight {
+    background: rgba(131,72,193,0.2) !important;
+  }
+
+  .phone-profile-wrapper .react-tel-input .country-list .dial-code {
+    color: #8348C1 !important;
+  }
+`}</style>
                   <div className="w-[360px] h-[44px] rounded-full relative">
-                    <Phone
-                      country={'ua'}
-                      value={editForm.phone}
-                      onChange={(v: string) => setEditForm((p) => ({ ...p, phone: v }))}
-                      enableSearch={true}
-                      placeholder="Введіть номер"
-                      searchPlaceholder="Пошук країни..."
-                      excludeCountries={['ru', 'by']}
-                    />
-                  </div>
-                </div>
+  <div className="w-full h-full p-[1px] rounded-full bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
+    <div className="relative w-full h-full rounded-full bg-[#050506] flex items-center">
+      
+      <button
+        type="button"
+        onClick={() => setPhoneDropdownOpen((p) => !p)}
+        className="h-full flex items-center gap-[6px] pl-[14px] pr-[10px] text-[14px] text-white cursor-pointer"
+      >
+        <span>{selectedPhoneCountry?.code || "UA"}</span>
+        <span className="text-white">{selectedPhoneCountry?.dialCode || "+380"}</span>
+        <svg
+          className={`text-[#A3A4B0] transition-transform duration-200 ${phoneDropdownOpen ? 'rotate-180' : ''}`}
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      <input
+        type="tel"
+        value={formatPhoneNumber(
+          editForm.phone.replace(selectedPhoneCountry?.dialCode || "+380", "")
+        )}
+        onChange={(e) => {
+          const dial = selectedPhoneCountry?.dialCode || "+380";
+          const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+          setEditForm((p) => ({ ...p, phone: `${dial}${digits}` }));
+        }}
+        placeholder="Введіть номер"
+        className="flex-1 h-full bg-transparent pr-5 text-[14px] text-white placeholder:text-[#A3A4B0]/50 outline-none"
+      />
+    </div>
+  </div>
+
+  {phoneDropdownOpen && (
+    <div className="absolute left-[-10px] bottom-[calc(100%+10px)] z-[100] w-[374px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-lg">
+      <div className="bg-[#050506] rounded-[28px] flex flex-col overflow-hidden">
+        <div className="px-[12px] py-[12px] border-b border-[rgba(82,46,139,0.3)]">
+          <div className="w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
+            <input
+              type="text"
+              value={phoneSearch}
+              onChange={(e) => setPhoneSearch(e.target.value)}
+              placeholder="Пошук країни..."
+              autoFocus
+              className="w-full h-[44px] bg-[#050506] rounded-[27px] px-4 text-[14px] text-white placeholder:text-[#A3A4B0]/50 outline-none border-none"
+            />
+          </div>
+        </div>
+
+        <div className="max-h-[140px] overflow-y-auto overflow-x-hidden overscroll-contain">
+          {phoneCountries
+            .filter(c =>
+              c.name.toLowerCase().includes(phoneSearch.toLowerCase().trim()) ||
+              c.code.toLowerCase().includes(phoneSearch.toLowerCase().trim()) ||
+              c.dialCode.includes(phoneSearch.trim())
+            )
+            .map(c => (
+              <button
+                key={c.code}
+                type="button"
+                onClick={() => {
+                  setSelectedPhoneCountry(c);
+                  setEditForm((p) => ({ ...p, phone: c.dialCode }));
+                  setPhoneDropdownOpen(false);
+                  setPhoneSearch("");
+                }}
+                className="w-full px-5 py-[9px] text-left text-[13px] transition-colors hover:bg-[#8348C1]/20 flex items-center justify-between gap-2 text-[#A3A4B0]"
+              >
+                <span className="block min-w-0 truncate">{c.name}</span>
+                <span className="shrink-0 text-[#8348C1]">{c.dialCode}</span>
+              </button>
+            ))}
+        </div>
+      </div>
+    </div>
+  )}
+</div>
+</div>
                 
                 <ProfileInput 
                   label="Країна" 
