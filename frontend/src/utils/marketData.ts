@@ -24,6 +24,12 @@ const COINGECKO_COOLDOWN_MS = 10 * 60 * 1000;
 
 let inFlightSnapshot: Promise<SharedMarketCoin[]> | null = null;
 
+// CoinGecko direct URL — browser requests are allowed by their CORS policy.
+// Bypasses Vercel's server-side proxy which often hits CoinGecko IP rate limits.
+const COINGECKO_DIRECT = 'https://api.coingecko.com/api/v3';
+// Proxy path (vite dev server / vercel rewrites) — used as fallback only.
+const COINGECKO_PROXY = '/api/coingecko';
+
 const parseJsonCache = <T,>(value: string | null): T | null => {
   if (!value) return null;
 
@@ -52,6 +58,50 @@ export const subscribeToMarketData = (listener: () => void) => {
   return () => window.removeEventListener(marketDataUpdatedEvent, listener);
 };
 
+/**
+ * Fetches market data from CoinGecko, trying direct browser request first
+ * (bypasses Vercel IP rate-limiting) and falling back to the proxy if needed.
+ */
+const fetchCoinGeckoMarkets = async (perPage: number, cached: SharedMarketCoin[] | null): Promise<SharedMarketCoin[]> => {
+  const path = `/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${perPage}&page=1&sparkline=false&price_change_percentage=1h,24h`;
+
+  // ── Attempt 1: direct browser → CoinGecko (no server proxy) ──────────────
+  let directResp: Response | null = null;
+  try {
+    directResp = await fetch(`${COINGECKO_DIRECT}${path}`);
+  } catch {
+    // Network/CORS error on direct fetch — fall through to proxy
+  }
+
+  if (directResp) {
+    if (directResp.status === 429) {
+      startCoinGeckoCooldown();
+      if (cached) return cached;
+      throw new Error('CoinGecko rate limit');
+    }
+    if (directResp.ok) {
+      return directResp.json() as Promise<SharedMarketCoin[]>;
+    }
+    // Status 403/5xx from direct — try proxy as fallback
+  }
+
+  // ── Attempt 2: Vercel / Vite proxy ────────────────────────────────────────
+  const proxyResp = await fetch(`${COINGECKO_PROXY}${path}`);
+
+  if (proxyResp.status === 429) {
+    startCoinGeckoCooldown();
+    if (cached) return cached;
+    throw new Error('CoinGecko rate limit');
+  }
+
+  if (!proxyResp.ok) {
+    if (cached) return cached;
+    throw new Error('CoinGecko market data request failed');
+  }
+
+  return proxyResp.json() as Promise<SharedMarketCoin[]>;
+};
+
 export const fetchSharedMarketSnapshot = async ({
   force = false,
   perPage = 180,
@@ -70,22 +120,8 @@ export const fetchSharedMarketSnapshot = async ({
   if (isCoinGeckoCoolingDown() && cached) return cached;
   if (inFlightSnapshot) return inFlightSnapshot;
 
-  inFlightSnapshot = fetch(
-    `/api/coingecko/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${perPage}&page=1&sparkline=false&price_change_percentage=1h,24h`
-  )
-    .then(async (response) => {
-      if (response.status === 429) {
-        startCoinGeckoCooldown();
-        if (cached) return cached;
-        throw new Error('CoinGecko rate limit');
-      }
-
-      if (!response.ok) {
-        if (cached) return cached;
-        throw new Error('CoinGecko market data request failed');
-      }
-
-      const data = (await response.json()) as SharedMarketCoin[];
+  inFlightSnapshot = fetchCoinGeckoMarkets(perPage, cached)
+    .then((data) => {
       sessionStorage.setItem(marketSnapshotKey, JSON.stringify(data));
       sessionStorage.setItem(marketSnapshotTimeKey, Date.now().toString());
       window.dispatchEvent(new Event(marketDataUpdatedEvent));

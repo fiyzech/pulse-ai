@@ -1398,6 +1398,142 @@ async def handle_link_bot(request: web.Request) -> web.Response:
 
     return web.json_response({"code": code}, headers=CORS_HEADERS)
 
+# ── /predict endpoint — AI predictions via Groq ────────────────────────────
+
+async def _groq_generate_predictions(symbol: str, snapshot: dict) -> list[dict]:
+    """Call Groq to generate trading predictions; return list of dicts or []."""
+    groq_key = os.environ.get("GROQ_API_KEY", "")
+    if not groq_key:
+        logging.warning("GROQ_API_KEY not set — skipping AI prediction generation")
+        return []
+
+    price      = snapshot.get("price") or 0
+    change_pct = snapshot.get("change_pct") or 0
+    high       = snapshot.get("high") or price
+    low        = snapshot.get("low") or price
+    volume     = snapshot.get("volume") or 0
+
+    prompt = (
+        f"You are a professional cryptocurrency analyst. "
+        f"Based on the following 24-hour market data for {symbol.upper()}USDT:\n"
+        f"- Current price: ${price:.6g}\n"
+        f"- 24h change: {change_pct:+.2f}%\n"
+        f"- 24h high: ${high:.6g}\n"
+        f"- 24h low: ${low:.6g}\n"
+        f"- 24h volume (USDT): ${volume:,.0f}\n\n"
+        f"Generate realistic trading predictions for these four time intervals: 4h, 1d, 1w, 1M.\n"
+        f"For each interval output ONE JSON object with these exact keys:\n"
+        f"  interval (string), signal (\"BUY\"|\"SELL\"|\"HOLD\"), "
+        f"confidence (integer 50-95), accuracy (integer 50-90), "
+        f"stop_loss (number), take_profit (number)\n\n"
+        f"Respond with ONLY a valid JSON array containing exactly 4 objects. "
+        f"No explanation, no markdown, no extra text."
+    )
+
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {groq_key}",
+        "Content-Type": "application/json",
+    }
+    body = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.3,
+        "max_tokens": 400,
+    }
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=body, headers=headers,
+                                    timeout=aiohttp.ClientTimeout(total=20)) as resp:
+                if resp.status != 200:
+                    text = await resp.text()
+                    logging.warning(f"Groq API error {resp.status}: {text[:200]}")
+                    return []
+                data = await resp.json()
+                content = data["choices"][0]["message"]["content"].strip()
+
+                # Strip markdown code fences if present
+                if content.startswith("```"):
+                    content = "\n".join(
+                        line for line in content.splitlines()
+                        if not line.startswith("```")
+                    ).strip()
+
+                import json as _json
+                predictions = _json.loads(content)
+                if not isinstance(predictions, list):
+                    logging.warning(f"Groq returned unexpected format: {content[:200]}")
+                    return []
+                return predictions
+    except Exception as exc:
+        logging.error(f"_groq_generate_predictions error: {exc}")
+        return []
+
+
+async def _save_predictions_to_supabase(symbol: str, price: float, predictions: list[dict]) -> bool:
+    """Insert prediction rows into model_predictions table via Supabase service key."""
+    from telegrambot.database import get_supabase
+    client = get_supabase()
+    if client is None:
+        return False
+
+    sym = normalize_symbol(symbol)
+    rows = []
+    for pred in predictions:
+        interval = pred.get("interval", "")
+        if interval not in ("4h", "1d", "1w", "1M"):
+            continue
+        rows.append({
+            "symbol":     sym,
+            "interval":   interval,
+            "signal":     str(pred.get("signal", "HOLD")).upper(),
+            "price":      price,
+            "confidence": float(pred.get("confidence", 70)),
+            "accuracy":   float(pred.get("accuracy", 65)),
+            "stop_loss":  float(pred.get("stop_loss", price * 0.97)),
+            "take_profit": float(pred.get("take_profit", price * 1.05)),
+        })
+
+    if not rows:
+        return False
+
+    try:
+        await client.table("model_predictions").insert(rows).execute()
+        logging.info(f"Saved {len(rows)} predictions for {sym}")
+        return True
+    except Exception as exc:
+        logging.error(f"_save_predictions_to_supabase error: {exc}")
+        return False
+
+
+async def handle_predict(request: web.Request) -> web.Response:
+    """GET /predict?symbol=BTC
+    Generates AI predictions via Groq and saves them to Supabase model_predictions.
+    Called by the frontend 'Оновити' button with no-cors mode (response body ignored).
+    """
+    symbol = request.query.get("symbol", "").strip().upper()
+    symbol = normalize_symbol(symbol)
+    if not symbol:
+        return web.Response(status=400, text="symbol required")
+
+    logging.info(f"handle_predict: generating predictions for {symbol}")
+
+    snapshot = await fetch_market_snapshot(symbol)
+    price = snapshot.get("price") or 0
+
+    predictions = await _groq_generate_predictions(symbol, snapshot)
+    if not predictions:
+        # Groq unavailable — return 200 so no-cors doesn't treat it as error
+        logging.warning(f"handle_predict: no predictions generated for {symbol}")
+        return web.Response(text="no predictions")
+
+    saved = await _save_predictions_to_supabase(symbol, price, predictions)
+    status_text = "ok" if saved else "generated but not saved"
+    logging.info(f"handle_predict: {status_text} for {symbol}")
+    return web.Response(text=status_text)
+
+
 # ── Main ───────────────────────────────────────────────────────────────────
 # Frontend must set VITE_BOT_NOTIFY_URL=http://localhost:8080 (or prod URL)
 # and NOTIFY_SECRET in both frontend .env and bot .env for secure push notifications.
@@ -1416,6 +1552,7 @@ async def main():
     port = int(os.environ.get("PORT", 8080))
     app = web.Application()
     app.router.add_get("/health", handle_health)
+    app.router.add_get("/predict", handle_predict)
     app.router.add_post("/notify", handle_notify)
     app.router.add_post("/link-bot", handle_link_bot)
     app.router.add_route("OPTIONS", "/link-bot", handle_link_bot)  # CORS preflight

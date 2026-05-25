@@ -2468,7 +2468,10 @@ export default function TradingPage() {
    * 3. Зупиняємось після 3 хвилин (36 спроб) або якщо з'явився новий прогноз
    */
   const requestFreshPrediction = useCallback(async (source: "manual"|"auto" = "manual") => {
-    const BOT_URL = import.meta.env.VITE_BOT_URL as string | undefined;
+    // Prefer the HTTP bot URL (pulse-ai-kzkm.onrender.com) which has /predict endpoint.
+    // Fall back to the old VITE_BOT_URL for legacy deployments.
+    const BOT_URL = (import.meta.env.VITE_BOT_HTTP_URL as string | undefined)?.replace(/\/$/, "")
+                 || (import.meta.env.VITE_BOT_URL as string | undefined);
     const requestKey = `${asset.sym}:${source}`;
     const nowMs = Date.now();
 
