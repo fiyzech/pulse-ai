@@ -1402,6 +1402,10 @@ async def handle_link_bot(request: web.Request) -> web.Response:
 # Frontend must set VITE_BOT_NOTIFY_URL=http://localhost:8080 (or prod URL)
 # and NOTIFY_SECRET in both frontend .env and bot .env for secure push notifications.
 
+async def handle_health(request: web.Request) -> web.Response:
+    """Health check endpoint for Render / uptime monitors."""
+    return web.Response(text="ok")
+
 async def main():
     logging.basicConfig(level=logging.INFO)
     from telegrambot.database import init_supabase
@@ -1409,15 +1413,17 @@ async def main():
     dp.include_router(router)
 
     # HTTP server for alert notifications + bot account linking
+    port = int(os.environ.get("PORT", 8080))
     app = web.Application()
+    app.router.add_get("/health", handle_health)
     app.router.add_post("/notify", handle_notify)
     app.router.add_post("/link-bot", handle_link_bot)
     app.router.add_route("OPTIONS", "/link-bot", handle_link_bot)  # CORS preflight
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", 8080)
+    site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
-    logging.info("Notification HTTP server started on port 8080")
+    logging.info(f"Notification HTTP server started on port {port}")
 
     await dp.start_polling(bot)
 
