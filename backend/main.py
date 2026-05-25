@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,10 +14,18 @@ app = FastAPI(
     description="Бекенд для відстеження криптовалют та алертів"
 )
 
-# 2. Налаштовуємо CORS (бачу, що фронт на Vite, порт 5173 — це правильно)
+# 2. CORS — дозволяємо фронтенд (локально + Vercel)
+_extra_origin = os.getenv("FRONTEND_URL", "")
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+]
+if _extra_origin:
+    ALLOWED_ORIGINS.append(_extra_origin.rstrip("/"))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
