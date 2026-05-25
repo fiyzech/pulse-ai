@@ -285,6 +285,7 @@ export default function SettingsPage() {
   const [notifyCurrency, setNotifyCurrency] = useState("usd");
   const [isCancelHovered, setIsCancelHovered] = useState(false);
   const [hoveredCancelCard, setHoveredCancelCard] = useState(false);
+  const [isCancelActive, setIsCancelActive] = useState(false);
 
 
   const [selectedPlan, setSelectedPlan] = useState<number>(cachedSettings.selectedPlan);
@@ -661,7 +662,7 @@ export default function SettingsPage() {
                     style={{
                       padding: "8px 20px", borderRadius: 999, fontSize: 14, fontWeight: 500,
                       border: "none", cursor: "pointer", transition: "all 0.2s",
-                      background: !isYearly ? "linear-gradient(135deg,#2C1969,#8348C1)" : "transparent",
+                      background: !isYearly ? "linear-gradient(90deg, #6043A4 0%, #010315 100%)"  : "transparent",
                       color: !isYearly ? "#fff" : "rgba(255,255,255,0.5)",
                       boxShadow: !isYearly ? "0 2px 12px rgba(131,72,193,0.4)" : "none",
                     }}
@@ -675,13 +676,13 @@ export default function SettingsPage() {
                       display: "flex", alignItems: "center", gap: 8,
                       padding: "8px 20px", borderRadius: 999, fontSize: 14, fontWeight: 500,
                       border: "none", cursor: "pointer", transition: "all 0.2s",
-                      background: isYearly ? "linear-gradient(135deg,#2C1969,#8348C1)" : "transparent",
+                      background: isYearly ? "linear-gradient(90deg, #6043A4 0%, #010315 100%)" : "transparent",
                       color: isYearly ? "#fff" : "rgba(255,255,255,0.5)",
                       boxShadow: isYearly ? "0 2px 12px rgba(131,72,193,0.4)" : "none",
                     }}
                   >
                     Рік
-                    <span style={{ background: "rgba(36,255,122,0.15)", color: "#24FF7A", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 999, border: "1px solid rgba(36,255,122,0.25)", lineHeight: 1.4 }}>−22%</span>
+                    <span style={{ background:"rgba(37, 222, 40, 0.10)", color: "#25DE28", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 999, border: "1px solid rgba(36,255,122,0.25)", lineHeight: 1.4 }}>−22%</span>
                   </button>
                 </div>
               </div>
@@ -705,7 +706,7 @@ export default function SettingsPage() {
                         cursor: "pointer",
                         background: "linear-gradient(#050508, #050508) padding-box, linear-gradient(90deg, rgba(82, 46, 139, 0.32), rgba(179, 179, 179, 0.32)) border-box",
                         border: "1px solid transparent",
-                        transform: isSelected ? "scale(1.04)" : "scale(1)",
+                        transform: isSelected ? "scale(1.05)" : "scale(1)",
                         transition: "transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease",
                         zIndex: isSelected ? 2 : 1,
                       }}
@@ -716,14 +717,14 @@ export default function SettingsPage() {
                       {isYearly && plan.yearlyMonthEquiv !== null ? (
                         <div style={{ marginBottom: 24 }}>
                           <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                            <span style={{ fontSize: 40, fontWeight: 400, color: "#fff" }}>€{plan.yearlyMonthEquiv.toFixed(2)}</span>
+                            <span style={{ fontSize: 40, fontWeight: 400, color: "#fff" }}>€{plan.yearlyMonthEquiv}</span>
                             <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>/міс</span>
                             <span style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", textDecoration: "line-through" }}>€{plan.monthlyPrice}</span>
                           </div>
                           <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", margin: "4px 0 0" }}>
                             оплата €{plan.yearlyPrice}/рік
                             {plan.yearlySaving && (
-                              <span style={{ marginLeft: 8, color: "#24FF7A", fontWeight: 600 }}>· економите €{plan.yearlySaving}</span>
+                              <span style={{ marginLeft: 8, color: "#25DE28", fontWeight: 600 }}>· економите €{plan.yearlySaving}</span>
                             )}
                           </p>
                         </div>
@@ -784,66 +785,6 @@ export default function SettingsPage() {
             boxShadow: "0 20px 100px rgba(131, 72, 193, 0.15), 0 8px 25px rgba(0, 0, 0, 0.1)",
                 }}>
                 
-                <div style={{ position: "absolute", right: 24, top: 192, zIndex: 10 }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCardErrors({});
-                      setIsEditingCard(true);
-                    }}
-                    onMouseEnter={() => setHoveredEditBtn(true)}
-                    onMouseLeave={() => {
-                      setHoveredEditBtn(false);
-                      setIsEditActive(false);
-                    }}
-                    onMouseDown={() => setIsEditActive(true)}
-                    onMouseUp={() => setIsEditActive(false)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                      width: 135,
-                      height: 36,
-                      borderRadius: 28,
-                      border: "1px solid transparent",
-                      cursor: "pointer",
-                      background: hoveredEditBtn
-                        ? "linear-gradient(#0B0B0D, #0B0B0D) padding-box, linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%) border-box"
-                        : "linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%) border-box",
-                      color: hoveredEditBtn || isEditActive ? "#FFFFFF" : "#A3A4B0",
-                      transition: "all 0.3s ease",
-                      transform: isEditActive ? "scale(0.95)" : hoveredEditBtn ? "scale(1.05)" : "scale(1)",
-                      boxShadow: hoveredEditBtn ? "0 0 15px rgba(131, 72, 193, 0.4)" : "none",
-                      outline: "none",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: 8,
-                        width: "100%",
-                        height: "100%",
-                        borderRadius: 999,
-                        background: hoveredEditBtn ? "#0B0B0D" : "#050506",
-                        color: hoveredEditBtn || isEditActive ? "#FFFFFF" : "#A3A4B0",
-                        transition: "all 0.3s ease",
-                      }}
-                    >
-                      <span style={{ fontSize: 14, fontWeight: 400 }}>Редагувати</span>
-                      <div style={{
-                        display: "flex",
-                        color: hoveredEditBtn || isEditActive ? "#FFFFFF" : "#A3A4B0",
-                        transition: "color 0.3s ease"
-                      }}>
-                        <EditIcon />
-                      </div>
-                    </div>
-                  </button>
-                </div>
-                
                 <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 520, position: "relative" }}>
                   <div>
                     <p style={{ fontSize: 14, fontWeight: 400, letterSpacing: 0, color: "#A3A4B0", marginBottom: 6 }}>Наступна оплата</p>
@@ -859,7 +800,7 @@ export default function SettingsPage() {
                       borderRadius: 28,
                       border: "1px solid rgba(255,255,255,0.08)",
                       background: "linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, rgba(82, 46, 139, 0.32) 0%, rgba(179, 179, 179, 0.32) 100%) border-box",
-                      padding: "8px 16px",
+                      padding: "8px 18px",
                     }}>
                       <VisaBadge width={24.48} height={14.53} />
                       <span style={{ fontSize: 13, fontWeight: 400, letterSpacing: 0, color: "rgba(255,255,255,0.65)",  }}>
@@ -880,16 +821,29 @@ export default function SettingsPage() {
 
                   {/* Pending plan banner — shown when card is required to activate a plan */}
                   {pendingPlanIndex !== null && (
-                    <div style={{
-                      display: "flex", alignItems: "flex-start", gap: 10,
-                      borderRadius: 14, border: "1px solid rgba(131,72,193,0.35)",
-                      background: "rgba(131,72,193,0.10)", padding: "10px 14px",
-                      marginBottom: 16, maxWidth: 448,
-                    }}>
-                      <span style={{ fontSize: 15, lineHeight: 1, flexShrink: 0 }}>💳</span>
-                      <p style={{ fontSize: 12, color: "rgba(195,139,255,0.9)", lineHeight: "1.5", margin: 0 }}>
-                        Для активації плану <strong>{plansData[pendingPlanIndex].name}</strong> необхідно додати картку.
-                        Реального списання не відбудеться.
+                    <div 
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 448,
+                        minHeight: 64,
+                        borderRadius: 20,
+                        border: "1px solid transparent",
+                        background: "linear-gradient(#08060D, #08060D) padding-box, linear-gradient(90deg, rgba(82,46,139,0.55), rgba(195,139,255,0.35)) border-box",
+                        boxShadow: "0 12px 40px rgba(131,72,193,0.14)",
+                        padding: "8px 18px",
+                        marginBottom: 16,
+                      }} 
+                    >
+                      <p
+                        style={{ fontSize: 14, fontWeight: 400, color: "rgba(195,139,255,0.92)", lineHeight: "20px", margin: 0,}}
+                      >
+                        Для активації плану{" "}
+                        <strong style={{ color: "#C38BFF", fontWeight: 600 }}>
+                          {plansData[pendingPlanIndex].name}
+                        </strong>{" "}
+                        необхідно додати картку. Реального списання не відбудеться.
                       </p>
                     </div>
                   )}
@@ -1059,7 +1013,7 @@ export default function SettingsPage() {
                           fontSize: 14,
                           fontWeight: 400,
                           letterSpacing: 0,
-                          padding: "0 20px",
+                          padding: "0 18px",
                           boxSizing: "border-box",
                         }}
                       />
@@ -1160,165 +1114,75 @@ export default function SettingsPage() {
               <div style={{
                 position: "relative",
                 width: 1116,
+                padding: 1,
                 borderRadius: 28,
-                background: "#050506", 
-                border: "none",
-                backdropFilter: "blur(18px)",
-                boxSizing: "border-box",
-                overflow: "hidden",
-            boxShadow: "0 20px 100px rgba(131, 72, 193, 0.15), 0 8px 25px rgba(0, 0, 0, 0.1)",
+                background: "linear-gradient(90deg, rgba(82,46,139,0.32) 0%, rgba(179,179,179,0.32) 100%)",
+                boxShadow: "0 20px 70px rgba(131,72,193,0.10), 0 8px 25px rgba(0,0,0,0.35)",
               }}>
+  <div
+    style={{
+      borderRadius: 28,
+      background: "#050506",
+      overflow: "hidden",
+    }}
+  >
+    <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+      <thead>
+        <tr
+          style={{
+            position: "relative",
+            height: 57,
+            color: "#A3A4B0",
+            fontSize: 14,
+            fontWeight: 400,
+            background:
+              "linear-gradient(90deg, rgba(96,67,164,0.2) 0%, rgba(1,3,21,0.2) 100%)",
+            borderBottom: "1px solid linear-gradient(90deg, rgba(179,179,179,0.32), rgba(82,46,139,0.32))",
+          }}
+        >
+          {["Назва плану", "Вартість", "Картка", "Дата покупки", "Дата завершення", "Дії"].map((h) => (
+            <th
+              key={h}
+              style={{
+                padding: "0 24px",
+                fontWeight: 400,
+                letterSpacing: 0,
+                whiteSpace: "nowrap",
+                verticalAlign: "middle",
+              }}
+            >
+              {h}
+            </th>
+          ))}
+        </tr>
+      </thead>
 
-                {/* 1. ВЕРХНЯ ОБВОДКА (Хедер) - обводка зверху, зліва і справа */}
-  <div style={{
-    position: "absolute",
-    top: 0, 
-    left: 0, 
-    width: "100%", 
-    height: 57,
-    padding: "1px",
-    borderRadius: "28px 28px 0 0",
-    background: "linear-gradient(90deg, rgba(179,179,179,0.03) 0%, rgba(82, 46, 139, 0.32) 100%)",
-    WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-    WebkitMaskComposite: "xor",
-    maskComposite: "exclude",
-    pointerEvents: "none",
-    zIndex: 4,
-    boxSizing: "border-box", // Тепер рамка не вилазить за краї, кути будуть цілими
-  }} />
-
-  {/* 2. НИЖНЯ ОБВОДКА (Тіло таблиці) - обводка знизу, зліва і справа */}
-  <div style={{
-    position: "absolute",
-    top: 57,      // Стикається точно з хедером
-    bottom: 0,    // Йде до самого низу
-    left: 0, 
-    width: "100%", 
-    padding: "0 1px 1px 1px", // 0 для верху, 1px товщина для боків і низу
-    borderRadius: "0 0 28px 28px",
-    background: "linear-gradient(90deg, rgba(82, 46, 139, 0.32) 0%, rgba(179, 179, 179, 0.32) 100%)",
-    WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-    WebkitMaskComposite: "xor",
-    maskComposite: "exclude",
-    pointerEvents: "none",
-    zIndex: 4,
-    boxSizing: "border-box",
-  }} />
-                <div style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  height: "57px",
-                  borderRadius: "28px 28px 0 0",
-                  background: "linear-gradient(270deg, #010315 0%, #342662 54%, #6043A4 100%)",
-                  opacity: 0.2,
-                  pointerEvents: "none",
-                  zIndex: 1,
-                }} />
-
-                <div style={{
-                  position: "relative",
-                  width: "100%",
-                  zIndex: 3
-                }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-                    <thead>
-                      <tr style={{ height: "57px", color: "#A3A4B0", fontSize: "14px", fontWeight: 400 }}>
-                        {["Назва плану", "Вартість", "Картка", "Дата покупки", "Дата завершення", "Дії"].map((h) => (
-                          <th
-                            key={h}
-                            style={{
-                              padding: "0 24px",
-                              fontWeight: 400,
-                              letterSpacing: 0,
-                              whiteSpace: "nowrap",
-                              verticalAlign: "middle"
-                            }}
-                          >
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody style={{ background: "#050506" }}>
-                      {selectedPlan !== 0 && savedCardLast4 ? (
-                        <tr style={{ background: "#050506" }}>
-                          <td style={{ padding: "20px 24px", fontSize: 14, letterSpacing: 0, color: "rgba(255,255,255,0.6)" }}>План "{plansData[selectedPlan].name}"</td>
-                          <td style={{ padding: "20px 24px", fontSize: 14, letterSpacing: 0, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{isYearly ? plansData[selectedPlan].yearlyPrice : plansData[selectedPlan].monthlyPrice} EUR</td>
-                          <td style={{ padding: "20px 24px" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <span style={{ fontSize: 13, letterSpacing: 0, color: "rgba(255,255,255,0.55)" }}>**** **** **** {savedCardLast4}</span>
-                            </div>
-                          </td>
-                          <td style={{ padding: "20px 24px", fontSize: 14, letterSpacing: 0, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{fmtDate(planActivatedAt)}</td>
-                          <td style={{ padding: "20px 24px", fontSize: 14, letterSpacing: 0, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{computeNextBillingDate(planActivatedAt, isYearly)}</td>
-                          <td style={{ padding: "20px 24px", textAlign: "center" }}>
-                            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-                              {["download", "link"].map((key) => (
-                                <button
-                                  key={key}
-                                  type="button"
-                                  onMouseEnter={() => setHoveredIconBtn(key)}
-                                  onMouseLeave={() => setHoveredIconBtn(null)}
-                                  style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    width: 40,
-                                    height: 40,
-                                    padding: "1px",
-                                    borderRadius: "50%",
-                                    border: "none",
-                                    cursor: "pointer",
-                                    background: "linear-gradient(90deg, rgba(179, 179, 179, 0.32), rgba(82, 46, 139, 0.32))",
-                                    transition: "transform 0.3s ease, box-shadow 0.3s ease",
-                                    transform: hoveredIconBtn === key ? "scale(1.1)" : "scale(1)",
-                                    boxShadow: hoveredIconBtn === key ? "0 0 12px rgba(131, 72, 193, 0.28)" : "none",
-                                  }}
-                                >
-                                  <div style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    width: "100%",
-                                    height: "100%",
-                                    borderRadius: "50%",
-                                    background: hoveredIconBtn === key ? "#0B0B0D" : "#050506",
-                                    transition: "background 0.3s ease",
-                                  }}>
-                                    {key === "download" ? (
-                                      <img src={uploadicon2} alt="download" style={{ width: "16px", height: "16px" }} />
-                                    ) : (
-                                      <img src={uploadicon} alt="link" style={{ width: "16px", height: "16px" }} />
-                                    )}
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
-                      ) : (
-                        <tr style={{ background: "#050506" }}>
-                          <td
-                            colSpan={6}
-                            style={{
-                              padding: "40px",
-                              textAlign: "center",
-                              color: "rgba(255,255,255,0.4)",
-                              background: "#050506",
-                              border: "none",
-                            }}
-                          >
-                            Немає історій транзакцій
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </section>
+      <tbody style={{ background: "#050506" }}>
+        {selectedPlan !== 0 && savedCardLast4 ? (
+          <tr style={{ background: "#050506" }}>
+            {/* тут залишаєш свої td без змін */}
+          </tr>
+        ) : (
+          <tr style={{ background: "#050506" }}>
+            <td
+              colSpan={6}
+              style={{
+                padding: "40px",
+                textAlign: "center",
+                color: "rgba(255,255,255,0.4)",
+                background: "#050506",
+                border: "none",
+              }}
+            >
+              Немає історій транзакцій
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+</div>
+  </section>
 
             {selectedPlan !== 0 && (
               <div style={{ display: "flex", justifyContent: "flex-start" }}>
@@ -1326,7 +1190,11 @@ export default function SettingsPage() {
                   type="button"
                   onClick={handleCancelSubscription}
                   onMouseEnter={() => setIsCancelHovered(true)}
-                  onMouseLeave={() => setIsCancelHovered(false)}
+                  onMouseUp={() => setIsCancelActive(false)}
+                  onMouseLeave={() => {
+                    setIsCancelHovered(false);
+                    setIsCancelActive(false);
+                  }}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -1336,15 +1204,18 @@ export default function SettingsPage() {
                     borderRadius: 28,
                     border: "1px solid transparent",
                     cursor: "pointer",
-                    background: isCancelHovered
-                      ? "linear-gradient(#0B0B0D, #0B0B0D) padding-box, linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%) border-box"
-                      : "linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%) border-box",
+                    background: "linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%) border-box",
                     color: "#F40000",
                     fontSize: 13,
                     fontWeight: 400,
                     fontFamily: "'Montserrat', sans-serif",
                     transition: "all 0.3s ease",
-                    transform: isCancelHovered ? "scale(1.02)" : "scale(1)",
+                    transform: isCancelActive
+                      ? "scale(0.95)"
+                      : isCancelHovered 
+                        ? "scale(1.05)" 
+                        : "scale(1)",
+                    boxShadow: isCancelHovered ? "0 0 15px rgba(131,72,193,0.4)" : "none",
                     outline: "none",
                   }}
                 >
