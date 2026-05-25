@@ -70,8 +70,18 @@ const formatMoney = (value: number | null | undefined) => {
   })}`;
 };
 
-const parseTargetPrice = (value: string) =>
-  Number(value.replace(",", ".").replace(/[^0-9.]/g, ""));
+const sanitizePositiveDecimal = (value: string) => {
+  const normalized = value.replace(",", ".").replace(/[^\d.]/g, "");
+  const [whole = "", ...rest] = normalized.split(".");
+  const decimal = rest.join("");
+  return rest.length > 0 ? `${whole}.${decimal}` : whole;
+};
+
+const parseTargetPrice = (value: string) => {
+  const normalized = value.trim().replace(",", ".");
+  if (!/^\d*\.?\d+$/.test(normalized)) return NaN;
+  return Number(normalized);
+};
 
 export default function AlertsPage() {
   const navigate = useNavigate();
@@ -354,7 +364,8 @@ export default function AlertsPage() {
                         <input
                           value={editPrice}
                           inputMode="decimal"
-                          onChange={(event) => setEditPrice(event.target.value)}
+                          min="0"
+                          onChange={(event) => setEditPrice(sanitizePositiveDecimal(event.target.value))}
                           className="h-[38px] w-full min-w-0 rounded-full border border-[#8348C1]/40 bg-[#050506] px-4 text-[13px] text-white outline-none"
                         />
                       </div>

@@ -55,6 +55,17 @@ const tableName = "alerts";
 
 export const normalizeAlertSymbol = (symbol: string) => symbol.trim().toUpperCase();
 
+const assertValidAlertTarget = (condition: PriceAlertCondition, targetPrice: number) => {
+  if (NO_VALUE_CONDITIONS.has(condition)) {
+    if (targetPrice < 0) throw new Error("Значення алерту не може бути від'ємним");
+    return;
+  }
+
+  if (!Number.isFinite(targetPrice) || targetPrice <= 0) {
+    throw new Error("Значення алерту має бути більше нуля");
+  }
+};
+
 export const getAlertConditionLabel = (condition: string) => {
   const labels: Record<string, string> = {
     price_gt:           "Ціна більше ніж",
@@ -194,6 +205,8 @@ export const createPriceAlert = async ({
   targetPrice: number;
   maxTriggers?: number | null;
 }) => {
+  assertValidAlertTarget(condition, targetPrice);
+
   const baseRow = {
     id: crypto.randomUUID(),
     user_id: userId,
@@ -237,6 +250,8 @@ export const updatePriceAlert = async ({
   targetPrice: number;
   maxTriggers?: number | null;
 }) => {
+  assertValidAlertTarget(condition, targetPrice);
+
   const patch: Record<string, unknown> = { condition, target_price: targetPrice };
   if (maxTriggers !== undefined) patch.max_triggers = maxTriggers;
 
@@ -288,6 +303,10 @@ export const togglePriceAlert = async (userId: string, id: string, isActive: boo
 };
 
 export const updateAlertTargetPrice = async (userId: string, id: string, targetPrice: number) => {
+  if (!Number.isFinite(targetPrice) || targetPrice <= 0) {
+    throw new Error("Значення алерту має бути більше нуля");
+  }
+
   const { error } = await supabase
     .from(tableName)
     .update({ target_price: targetPrice })

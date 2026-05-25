@@ -13,6 +13,12 @@ import { formatPrice } from '../../utils/format';
 import { useAccount } from '../../context/accountContextValue';
 import { getPlanLimits } from '../../utils/planLimits';
 import UpgradeModal from '../../components/common/UpgradeModal';
+import {
+  fetchSharedMarketSnapshot,
+  readSharedMarketSnapshot,
+  subscribeToMarketData,
+} from '../../utils/marketData';
+import type { SharedMarketCoin } from '../../utils/marketData';
 
 // === ДАНІ ДЛЯ ВЕРХНІХ КАРТОК ===
 interface MarketItem {
@@ -41,10 +47,6 @@ interface TableMarketItem {
   rawMaxSupply: number;
 }
 
-type BinanceTicker = {
-  symbol: string;
-};
-
 type BinanceTicker24h = {
   symbol: string;
   lastPrice: string;
@@ -52,36 +54,21 @@ type BinanceTicker24h = {
   quoteVolume: string;
 };
 
-type CoinGeckoMarketCoin = {
-  id: string;
-  symbol: string;
-  name: string;
-  current_price: number | null;
-  price_change_percentage_24h: number | null;
-  market_cap: number | null;
-  total_volume: number | null;
-  image: string;
-  ath: number | null;
-  circulating_supply: number | null;
-  total_supply: number | null;
-  max_supply: number | null;
-};
-
 const initialTopCardsData: Record<string, MarketItem[]> = {
   popular: [
-    { symbol: "BTC", price: "...", change: "...", isPositive: true, imgUrl: "https://cryptologos.cc/logos/bitcoin-btc-logo.png" },
-    { symbol: "ETH", price: "...", change: "...", isPositive: true, imgUrl: "https://cryptologos.cc/logos/ethereum-eth-logo.png" },
-    { symbol: "SOL", price: "...", change: "...", isPositive: true, imgUrl: "https://cryptologos.cc/logos/solana-sol-logo.png" },
+    { symbol: "BTC", price: "...", change: "...", isPositive: true, imgUrl: "https://assets.coingecko.com/coins/images/1/large/bitcoin.png" },
+    { symbol: "ETH", price: "...", change: "...", isPositive: true, imgUrl: "https://assets.coingecko.com/coins/images/279/large/ethereum.png" },
+    { symbol: "SOL", price: "...", change: "...", isPositive: true, imgUrl: "https://assets.coingecko.com/coins/images/4128/large/solana.png" },
   ],
   futures: [
-    { symbol: "BNB", price: "...", change: "...", isPositive: true, imgUrl: "https://cryptologos.cc/logos/bnb-bnb-logo.png" },
-    { symbol: "ARB", price: "...", change: "...", isPositive: true, imgUrl: "https://cryptologos.cc/logos/arbitrum-arb-logo.png" },
-    { symbol: "AVAX", price: "...", change: "...", isPositive: true, imgUrl: "https://cryptologos.cc/logos/avalanche-avax-logo.png" },
+    { symbol: "BNB", price: "...", change: "...", isPositive: true, imgUrl: "https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png" },
+    { symbol: "ARB", price: "...", change: "...", isPositive: true, imgUrl: "https://assets.coingecko.com/coins/images/16547/large/arb.jpg" },
+    { symbol: "AVAX", price: "...", change: "...", isPositive: true, imgUrl: "https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png" },
   ],
   new: [
-    { symbol: "SUI", price: "...", change: "...", isPositive: true, imgUrl: "https://cryptologos.cc/logos/sui-sui-logo.png" },
-    { symbol: "PEPE", price: "...", change: "...", isPositive: true, imgUrl: "https://cryptologos.cc/logos/pepe-pepe-logo.png" },
-    { symbol: "TIA", price: "...", change: "...", isPositive: true, imgUrl: "https://cryptologos.cc/logos/celestia-tia-logo.png" },
+    { symbol: "SUI", price: "...", change: "...", isPositive: true, imgUrl: "https://assets.coingecko.com/coins/images/26375/large/sui-ocean-square.png" },
+    { symbol: "PEPE", price: "...", change: "...", isPositive: true, imgUrl: "https://assets.coingecko.com/coins/images/29850/large/pepe-token.jpeg" },
+    { symbol: "TIA", price: "...", change: "...", isPositive: true, imgUrl: "https://assets.coingecko.com/coins/images/31967/large/tia.jpg" },
   ]
 };
 
@@ -91,26 +78,32 @@ const topCardsIds: Record<string, string> = {
   SUI: 'sui', PEPE: 'pepe', TIA: 'celestia'
 };
 
-const COINGECKO_COOLDOWN_MS = 10 * 60 * 1000;
-const coingeckoCooldownKey = 'pulse_coingecko_cooldown_until';
+const ignoredStablecoins = ['USDT', 'USDC', 'DAI', 'FDUSD', 'TUSD', 'USDD', 'USDS'];
 
-const isCoinGeckoCoolingDown = () => {
-  const until = Number(sessionStorage.getItem(coingeckoCooldownKey) || 0);
-  return Date.now() < until;
-};
-
-const startCoinGeckoCooldown = () => {
-  sessionStorage.setItem(coingeckoCooldownKey, String(Date.now() + COINGECKO_COOLDOWN_MS));
-};
-
-const parseJsonCache = <T,>(value: string | null): T | null => {
-  if (!value) return null;
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return null;
-  }
-};
+const mapCoinGeckoTable = (
+  coins: SharedMarketCoin[],
+  formatPrice: (price: number | null) => string,
+  formatChange: (change: number | null) => string,
+  formatCompactNumber: (num: number | null) => string,
+) => coins
+  .filter((coin) => !ignoredStablecoins.includes(coin.symbol.toUpperCase()))
+  .slice(0, 125)
+  .map((coin) => ({
+    id: coin.id,
+    symbol: coin.symbol.toUpperCase(),
+    name: coin.name,
+    price: formatPrice(coin.current_price),
+    change: formatChange(coin.price_change_percentage_24h),
+    isPositive: (coin.price_change_percentage_24h ?? 0) > 0,
+    cap: formatCompactNumber(coin.market_cap),
+    vol: formatCompactNumber(coin.total_volume),
+    imgUrl: coin.image,
+    rawMcap: coin.market_cap || 0,
+    rawAth: coin.ath || 0,
+    rawCircSupply: coin.circulating_supply || 0,
+    rawTotalSupply: coin.total_supply || 0,
+    rawMaxSupply: coin.max_supply || 0,
+  }));
 
 export default function MarketsPage() {
   const navigate = useNavigate();
@@ -144,87 +137,56 @@ export default function MarketsPage() {
   useEffect(() => {
     const fetchTopCards = async () => {
       try {
-        const cachedTopData = sessionStorage.getItem('pulse_top_cards');
-        const cachedTopTime = sessionStorage.getItem('pulse_top_time');
-        const staleTopData = parseJsonCache<Record<string, { price: number; change: number }>>(cachedTopData);
+        const marketData = await fetchSharedMarketSnapshot();
+        const parsedTop: Record<string, { price: number; change: number }> = {};
 
-        if (staleTopData && cachedTopTime && Date.now() - Number(cachedTopTime) < 60000) {
-          setLiveTopData(staleTopData);
-          return;
-        }
+        Object.entries(topCardsIds).forEach(([symbol, id]) => {
+          const coin = marketData.find((item) => item.id === id);
+          if (coin?.current_price !== null && coin?.current_price !== undefined) {
+            parsedTop[symbol] = {
+              price: coin.current_price,
+              change: coin.price_change_percentage_24h || 0,
+            };
+          }
+        });
 
-        if (isCoinGeckoCoolingDown()) {
-          if (staleTopData) setLiveTopData(staleTopData);
-          return;
-        }
-
-        const topIds = Object.values(topCardsIds).join(',');
-        const res = await fetch(`/api/coingecko/simple/price?ids=${topIds}&vs_currencies=usd&include_24hr_change=true`);
-
-        if (res.status === 429) {
-          startCoinGeckoCooldown();
-          if (staleTopData) setLiveTopData(staleTopData);
-          return;
-        }
-
-        if (res.ok) {
-          const topData = await res.json();
-          const parsedTop: Record<string, { price: number; change: number }> = {};
-          Object.entries(topCardsIds).forEach(([symbol, id]) => {
-            if (topData[id]) {
-              parsedTop[symbol] = { price: topData[id].usd, change: topData[id].usd_24h_change };
-            }
-          });
-          setLiveTopData(parsedTop);
-          sessionStorage.setItem('pulse_top_cards', JSON.stringify(parsedTop));
-          sessionStorage.setItem('pulse_top_time', Date.now().toString());
-        }
+        setLiveTopData(parsedTop);
       } catch (error) {
         console.error('Помилка завантаження топ карток:', error);
       }
     };
 
     fetchTopCards();
-    const intervalId = setInterval(fetchTopCards, 60000);
-    return () => clearInterval(intervalId);
+    const unsubscribe = subscribeToMarketData(fetchTopCards);
+    const intervalId = setInterval(fetchTopCards, 30000);
+    return () => {
+      unsubscribe();
+      clearInterval(intervalId);
+    };
   }, []);
 
   useEffect(() => {
     const fetchTableData = async () => {
       try {
         setApiError(null);
+        const cachedMarketData = readSharedMarketSnapshot();
 
-        const cachedTableData = sessionStorage.getItem('pulse_table_cards');
-        const cachedTableTime = sessionStorage.getItem('pulse_table_time');
-        const staleTableData = parseJsonCache<TableMarketItem[]>(cachedTableData);
-
-        if (staleTableData && cachedTableTime && Date.now() - Number(cachedTableTime) < 120000) {
-          setAllTableMarkets(staleTableData);
-          return;
+        if (cachedMarketData) {
+          setAllTableMarkets(mapCoinGeckoTable(cachedMarketData, formatPrice, formatChange, formatCompactNumber));
         }
 
-        if (isCoinGeckoCoolingDown() && staleTableData) {
-          setAllTableMarkets(staleTableData);
-          setApiError(null);
-          return;
-        }
+        const cgData = await fetchSharedMarketSnapshot();
+        const formattedTable = mapCoinGeckoTable(cgData, formatPrice, formatChange, formatCompactNumber);
 
-        const [binanceRes, cgRes] = await Promise.all([
-          fetch('/api/binance/ticker/24hr'),
-          fetch('/api/coingecko/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=false')
-        ]);
+        setAllTableMarkets(formattedTable);
+      } catch (error) {
+        console.error('Помилка завантаження таблиці:', error);
+        if (allTableMarkets.length === 0) {
+          try {
+            const binanceRes = await fetch('/api/binance/ticker/24hr');
+            if (!binanceRes.ok) throw new Error('Binance fallback failed');
 
-        if (cgRes.status === 429) {
-          startCoinGeckoCooldown();
-          if (staleTableData) {
-            setAllTableMarkets(staleTableData);
-            setApiError(null);
-            return;
-          }
-
-          if (binanceRes.ok) {
             const binanceData = await binanceRes.json() as BinanceTicker24h[];
-            const ignoredStablecoins = ['USDT', 'USDC', 'DAI', 'FDUSD', 'TUSD', 'USDD', 'USDS'];
             const fallbackTable = binanceData
               .filter((item) => item.symbol.endsWith('USDT'))
               .map((item) => item.symbol.replace(/USDT$/, ''))
@@ -233,6 +195,7 @@ export default function MarketsPage() {
               .map((symbol) => {
                 const ticker = binanceData.find((item) => item.symbol === `${symbol}USDT`);
                 const change = Number(ticker?.priceChangePercent || 0);
+
                 return {
                   id: topCardsIds[symbol] || symbol.toLowerCase(),
                   symbol,
@@ -252,68 +215,23 @@ export default function MarketsPage() {
               });
 
             setAllTableMarkets(fallbackTable);
-            sessionStorage.setItem('pulse_table_cards', JSON.stringify(fallbackTable));
-            sessionStorage.setItem('pulse_table_time', Date.now().toString());
-            setApiError(null);
-            return;
+          } catch {
+            setApiError("Не вдалося завантажити ринки. Спробуйте оновити сторінку.");
           }
-
-          setApiError("CoinGecko тимчасово обмежив запити. Показуємо останні доступні дані.");
-          return;
         }
-
-        if (binanceRes.ok && cgRes.ok) {
-          const binanceData = await binanceRes.json() as BinanceTicker[];
-          const cgData = await cgRes.json() as CoinGeckoMarketCoin[];
-
-          const validBinancePairs = new Set(
-            binanceData
-              .filter((item) => item.symbol.endsWith('USDT'))
-              .map((item) => item.symbol)
-          );
-
-          const ignoredStablecoins = ['USDT', 'USDC', 'DAI', 'FDUSD', 'TUSD', 'USDD', 'USDS'];
-
-          const validBinanceCoins = cgData.filter((coin) => {
-            const symbolUpper = coin.symbol.toUpperCase();
-            if (ignoredStablecoins.includes(symbolUpper)) return false;
-            return validBinancePairs.has(`${symbolUpper}USDT`);
-          });
-
-          const final125Coins = validBinanceCoins.slice(0, 125);
-
-          const formattedTable = final125Coins.map((coin) => ({
-            id: coin.id,
-            symbol: coin.symbol.toUpperCase(),
-            name: coin.name,
-            price: formatPrice(coin.current_price),
-            change: formatChange(coin.price_change_percentage_24h),
-            isPositive: (coin.price_change_percentage_24h ?? 0) > 0,
-            cap: formatCompactNumber(coin.market_cap),
-            vol: formatCompactNumber(coin.total_volume),
-            imgUrl: coin.image,
-            rawMcap: coin.market_cap || 0,
-            rawAth: coin.ath || 0,
-            rawCircSupply: coin.circulating_supply || 0,
-            rawTotalSupply: coin.total_supply || 0,
-            rawMaxSupply: coin.max_supply || 0
-          }));
-
-          setAllTableMarkets(formattedTable);
-          sessionStorage.setItem('pulse_table_cards', JSON.stringify(formattedTable));
-          sessionStorage.setItem('pulse_table_time', Date.now().toString());
-        }
-      } catch (error) {
-        console.error('Помилка завантаження таблиці:', error);
       } finally {
         setLoading(false);
       }
     };
 
     fetchTableData();
-    const intervalId = setInterval(fetchTableData, 120000);
-    return () => clearInterval(intervalId);
-  }, []);
+    const unsubscribe = subscribeToMarketData(fetchTableData);
+    const intervalId = setInterval(fetchTableData, 30000);
+    return () => {
+      unsubscribe();
+      clearInterval(intervalId);
+    };
+  }, [allTableMarkets.length]);
 
   const mergeLiveStats = (items: MarketItem[]) => {
     return items.map(item => {
@@ -578,7 +496,13 @@ export default function MarketsPage() {
                     >
                       {/* 1. Стовпчик Монета */}
                       <div className="flex items-center gap-3">
-                        <img src={coin.imgUrl} alt="" className="w-7 h-7 rounded-full object-contain" />
+                        <img
+                          src={coin.imgUrl}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="w-7 h-7 rounded-full object-contain"
+                        />
                         <span className="text-[14px] font-medium font-['Montserrat'] text-white uppercase">{coin.symbol}</span>
                       </div>
 
@@ -588,7 +512,7 @@ export default function MarketsPage() {
                       </div>
 
                       {/* 3. Зміна за 24г */}
-                      <div className={`text-[14px] font-normal font-['Montserrat'] ${coin.isPositive ? 'text-[#36D399]' : 'text-[#F87272]'}`}>
+                      <div className={`text-[14px] font-normal font-['Montserrat'] ${coin.isPositive ? 'text-[#25DE28]' : 'text-[#F40000]'}`}>
                         {coin.change}
                       </div>
 
@@ -688,7 +612,12 @@ function MarketStatsCard({ title, items }: { title: string, items: MarketItem[] 
           {items.map((item, idx) => (
             <div key={idx} className="flex items-center justify-between h-[20px]">
               <div className="flex items-center gap-3">
-                <img src={item.imgUrl} alt={item.symbol} className="w-6 h-6 object-contain rounded-full" />
+                <img
+                  src={item.imgUrl}
+                  alt={item.symbol}
+                  decoding="async"
+                  className="w-6 h-6 object-contain rounded-full"
+                />
                 <span className="text-[14px] font-medium font-['Montserrat'] text-[#FFFFFF] leading-none uppercase">
                   {item.symbol}
                 </span>
@@ -697,7 +626,7 @@ function MarketStatsCard({ title, items }: { title: string, items: MarketItem[] 
                 <span className="text-[14px] text-[#FFFFFF] font-normal font-['Montserrat'] leading-none w-[100px] text-left">
                   {item.price}
                 </span>
-                <span className={`text-[14px] w-[50px] text-right font-normal font-['Montserrat'] leading-none ${item.isPositive ? 'text-[#36D399]' : 'text-[#F87272]'}`}>
+                <span className={`text-[14px] w-[50px] text-right font-normal font-['Montserrat'] leading-none ${item.isPositive ? 'text-[#25DE28]' : 'text-[#F40000]'}`}>
                   {item.change}
                 </span>
               </div>

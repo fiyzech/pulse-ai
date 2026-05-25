@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 
 // Імпорти іконок
 import dashboardIcon from "../../assets/icons/dashboard-icon.svg";
@@ -12,6 +12,8 @@ import supportIcon from "../../assets/icons/support-icon.svg";
 import pulseAiIcon from "../../assets/images/activate-pulse-ai.svg";
 
 export default function Sidebar() {
+  const location = useLocation();
+  const isAssetPage = location.pathname.startsWith("/asset/");
   const sidebarItems = [
     { label: "Головна", icon: dashboardIcon, path: "/dashboard", iconSize: "16px" },
     { label: "Обране", icon: watchlistIcon, path: "/assets", iconSize: "24px" },
@@ -52,14 +54,17 @@ export default function Sidebar() {
             <NavLink
               key={item.label}
               to={item.path}
-              style={({ isActive }) => isActive ? activeLinkStyle : {}}
-              className={({ isActive }) =>
+              style={({ isActive }) => (isActive || (isAssetPage && item.path === "/markets")) ? activeLinkStyle : {}}
+              className={({ isActive }) => {
+                const isCurrent = isActive || (isAssetPage && item.path === "/markets");
+                return (
                 `group flex w-full items-center gap-3 rounded-[28px] px-4 py-3 text-left text-[15px] font-montserrat font-regular transition-all duration-300 border border-transparent ${
-                  isActive
+                  isCurrent
                     ? "text-white shadow-[0_4px_20px_rgba(96,67,164,0.25)]" 
                     : "text-[#808080]/40 hover:bg-white/[0.04] hover:text-white/90" 
                 }`
-              }
+                );
+              }}
             >
               {({ isActive }) => (
                 <>
@@ -68,10 +73,10 @@ export default function Sidebar() {
                       src={item.icon}
                       alt={item.label}
                       style={{ width: item.iconSize, height: item.iconSize }}
-                      className={`object-contain transition-all duration-300 ${isActive ? 'scale-[1.15] brightness-0 invert opacity-100' : 'opacity-50 group-hover:opacity-100 scale-100'}`}
+                      className={`object-contain transition-all duration-300 ${isActive || (isAssetPage && item.path === "/markets") ? 'scale-[1.15] brightness-0 invert opacity-100' : 'opacity-50 group-hover:opacity-100 scale-100'}`}
                     />
                   </span>
-                  <span className={`transition-all duration-300 ${isActive ? 'font-medium text-white' : ''}`}>{item.label}</span>
+                  <span className={`transition-all duration-300 ${isActive || (isAssetPage && item.path === "/markets") ? 'font-medium text-white' : ''}`}>{item.label}</span>
                 </>
               )}
             </NavLink>

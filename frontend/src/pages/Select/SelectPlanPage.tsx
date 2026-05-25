@@ -75,14 +75,6 @@ const plansData: Plan[] = [
   },
 ];
 
-function SwitchToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button type="button" onClick={() => onChange(!checked)} className="relative flex items-center w-[48px] h-[26px] rounded-full border-none p-[3px] cursor-pointer shrink-0" style={{ background: checked ? "rgba(60, 60, 67, 0.35)" : "rgba(255, 255, 255, 0.1)" }}>
-      <span className="block w-[20px] h-[20px] rounded-full bg-[#8348C1] transition-transform duration-200" style={{ transform: checked ? "translateX(22px)" : "translateX(0)", boxShadow: "0 0 8px rgba(131, 72, 193, 0.4)" }} />
-    </button>
-  );
-}
-
 export default function SelectPlanPage() {
   const navigate = useNavigate();
   const [isYearly, setIsYearly] = useState(true);

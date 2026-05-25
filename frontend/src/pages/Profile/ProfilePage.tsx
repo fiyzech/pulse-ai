@@ -446,8 +446,7 @@ export default function ProfilePage() {
         .maybeSingle()
         .then(({ data: row }) => {
           setTgLinked(!!row?.telegram_id);
-        })
-        .catch(() => setTgLinked(false));
+        }, () => setTgLinked(false));
     });
   }, []);
 
