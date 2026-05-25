@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { createChart, ColorType, CrosshairMode, CandlestickSeries, AreaSeries, LineStyle } from "lightweight-charts";
+import { createChart, ColorType, CrosshairMode, CandlestickSeries, AreaSeries, LineStyle, LineSeries, HistogramSeries } from "lightweight-charts";
 import type { IChartApi, ISeriesApi, IPriceLine, Time } from "lightweight-charts";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
@@ -11,6 +11,7 @@ import {
   Bell,
   BellOff,
   Bot,
+  Check,
   ChevronDown,
   ChevronUp,
   Edit2,
@@ -20,6 +21,7 @@ import {
   MousePointer2,
   PanelBottom,
   PanelRight,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
@@ -29,6 +31,15 @@ import {
   TrendingUp,
   X,
   Zap,
+  Play,
+  Pause,
+  RotateCcw,
+  BookOpen,
+  Trophy,
+  Rewind,
+  FastForward,
+  Flag,
+  Star,
 } from "lucide-react";
 import {
   createPriceAlert,
@@ -37,13 +48,24 @@ import {
   getAlertConditionUnit,
   listUserPriceAlerts,
   NO_VALUE_CONDITIONS,
+  recordAlertTrigger,
   removePriceAlert,
   togglePriceAlert,
   updateAlertTargetPrice,
+  updatePriceAlert,
 } from "../../utils/priceAlerts";
 import type { PriceAlertCondition, PriceAlertRecord } from "../../utils/priceAlerts";
 import { useAccount } from "../../context/accountContextValue";
 import { supabase } from "../../supabaseClient";
+import { BOT_URL, fetchTelegramStatus, openTelegramBot } from "../../utils/telegram";
+import {
+  listFavoriteAssets,
+  addFavoriteAsset,
+  removeFavoriteAsset,
+} from "../../utils/favoriteAssets";
+import type { FavoriteAssetRecord } from "../../utils/favoriteAssets";
+import { getPlanLimits, getViewedSignalSymbols, recordSignalSymbol } from "../../utils/planLimits";
+import UpgradeModal from "../../components/common/UpgradeModal";
 
 // ─────────────────────────────────────────────
 // CONSTANTS
@@ -105,6 +127,8 @@ type Candle   = { time:number; open:number; high:number; low:number; close:numbe
 type OBRow    = { price:number; qty:number; total:number };
 type Ind      = { ema20:number; ema50:number; ema200:number; rsi:number; macdHist:number; bbPct:number; vwap:number; atr:number; atrPct:number; volSpike:number; support:number; resistance:number; score:number; bias:"LONG"|"SHORT"|"NEUTRAL" };
 type BottomTab = "Positions"|"Orders"|"History";
+type PracticeMode = "live" | "replay";
+const INITIAL_VISIBLE = 100; // initial candles shown in replay before the user starts
 
 type DemoPos = {
   id:string; sym:string; name:string; img:string;
@@ -122,10 +146,6 @@ type DemoTrade = {
   qty:number; price:number; leverage:number; pnl:number; roe:number; createdAt:string;
 };
 type DemoAcc = { cash:number; positions:DemoPos[]; orders:DemoOrder[]; trades:DemoTrade[] };
-
-type TvApi  = { remove?:()=>void };
-type TvCtor = new(o:Record<string,unknown>)=>TvApi;
-declare global { interface Window { TradingView?:{ widget:TvCtor } } }
 
 type MlPred = {
   interval:  string;
@@ -155,7 +175,7 @@ const fRoe  = (v:number) => `${v>=0?"+":""}${v.toFixed(2)}%`;
 const getPair = (sym:string) => { const n=sym.toUpperCase(); if(n==="USDT"||n==="USDC") return "USDCUSDT"; if(n==="MATIC") return "POLUSDT"; return `${n}USDT`; };
 const parseJ  = <T,>(v:string|null):T|null => { if(!v) return null; try{return JSON.parse(v) as T}catch{return null}};
 const clamp   = (v:number,mn:number,mx:number) => Math.min(mx,Math.max(mn,v));
-const now     = () => new Date().toLocaleString("uk-UA",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
+const now     = () => new Date().toISOString(); // ISO 8601 — safe for DB sorting and parsing
 
 // ─────────────────────────────────────────────
 // DEMO ACCOUNT
@@ -249,26 +269,37 @@ async function dbSave(userId:string, acc:DemoAcc): Promise<void> {
       .upsert({user_id:userId, cash:acc.cash, updated_at:new Date().toISOString()},
               {onConflict:"user_id"});
 
-    // 2. Синхронізуємо позиції: видаляємо старі → вставляємо актуальні
-    await supabase.from(DB_POSITIONS).delete().eq("user_id",userId);
+    // 2. Синхронізуємо позиції атомарно: спочатку upsert актуальних,
+    //    потім видаляємо застарілі. Якщо другий крок впаде — дані не втрачаються.
     if(acc.positions.length>0){
-      await supabase.from(DB_POSITIONS).insert(acc.positions.map(p=>({
+      await supabase.from(DB_POSITIONS).upsert(acc.positions.map(p=>({
         id:p.id, user_id:userId, sym:p.sym, name:p.name, img:p.img,
         side:p.side, qty:p.qty, avg_price:p.avgPrice, margin:p.margin,
         leverage:p.leverage, liq_price:p.liqPrice,
         sl:p.sl??null, tp:p.tp??null, opened_at:p.openedAt,
-      })));
+      })), {onConflict:"id"});
+      const keepIds = acc.positions.map(p=>p.id);
+      await supabase.from(DB_POSITIONS).delete()
+        .eq("user_id",userId)
+        .not("id","in",`(${keepIds.join(",")})`);
+    } else {
+      await supabase.from(DB_POSITIONS).delete().eq("user_id",userId);
     }
 
-    // 3. Синхронізуємо ордери
-    await supabase.from(DB_ORDERS).delete().eq("user_id",userId);
+    // 3. Синхронізуємо ордери атомарно (та ж стратегія)
     if(acc.orders.length>0){
-      await supabase.from(DB_ORDERS).insert(acc.orders.map(o=>({
+      await supabase.from(DB_ORDERS).upsert(acc.orders.map(o=>({
         id:o.id, user_id:userId, sym:o.sym, name:o.name, img:o.img,
         side:o.side, order_type:o.type, notional:o.notional, leverage:o.leverage,
         limit_price:o.limitPrice??null, sl:o.sl??null, tp:o.tp??null,
         created_at:o.createdAt,
-      })));
+      })), {onConflict:"id"});
+      const keepOrderIds = acc.orders.map(o=>o.id);
+      await supabase.from(DB_ORDERS).delete()
+        .eq("user_id",userId)
+        .not("id","in",`(${keepOrderIds.join(",")})`);
+    } else {
+      await supabase.from(DB_ORDERS).delete().eq("user_id",userId);
     }
 
     // 4. Upsert угоди (тільки додаємо, не видаляємо)
@@ -327,6 +358,34 @@ const calcInd = (cs:Candle[]): Ind => {
 };
 
 const mapK  = (r:BinKline):Candle => ({time:r[0],open:+r[1],high:+r[2],low:+r[3],close:+r[4],volume:+r[5]});
+
+// ── Indicator array calculations ──
+const calcEmaArr = (closes: number[], period: number): number[] => {
+  if (closes.length < period) return closes.map(() => 0);
+  const k = 2 / (period + 1); const res: number[] = [];
+  let e = closes.slice(0, period).reduce((s,x)=>s+x,0) / period;
+  for (let i = 0; i < closes.length; i++) {
+    if (i < period-1) { res.push(0); continue; }
+    if (i === period-1) { res.push(e); continue; }
+    e = closes[i]*k + e*(1-k); res.push(e);
+  }
+  return res;
+};
+const calcVwapArr = (candles: Candle[]): number[] => {
+  let cpv=0, cv=0;
+  return candles.map(c => { const tp=(c.high+c.low+c.close)/3; cpv+=tp*c.volume; cv+=c.volume; return cv>0?cpv/cv:c.close; });
+};
+const calcBbBands = (closes: number[], period=20, mult=2) => {
+  const upper: number[]=[], lower: number[]=[];
+  for (let i=0; i<closes.length; i++) {
+    if (i<period-1){upper.push(0);lower.push(0);continue;}
+    const sl=closes.slice(i-period+1,i+1), m=sl.reduce((s,x)=>s+x,0)/period;
+    const sd=Math.sqrt(sl.reduce((s,x)=>s+(x-m)**2,0)/period);
+    upper.push(m+mult*sd); lower.push(m-mult*sd);
+  }
+  return {upper,lower};
+};
+
 const getPnl = (pos:DemoPos, price:number) => pos.side==="LONG"?(price-pos.avgPrice)*pos.qty:(pos.avgPrice-price)*pos.qty;
 const getLiqPrice = (side:"LONG"|"SHORT", avgPrice:number, lev:number) =>
   lev<=1 ? 0 : side==="LONG" ? avgPrice*(1-0.9/lev) : avgPrice*(1+0.9/lev);
@@ -397,25 +456,70 @@ async function fetchMarkets(): Promise<Asset[]> {
 // ─────────────────────────────────────────────
 // LIGHTWEIGHT CHART COMPONENT
 // ─────────────────────────────────────────────
-const TF_OPTIONS = ["1m","5m","15m","1h","4h","1d","1w"] as const;
+// Primary TFs shown as buttons; secondary go into the "▾ Ще" dropdown
+const TF_PRIMARY  = ["1m","5m","15m","30m","1h","4h","1d","1w"] as const;
+const TF_SECONDARY = ["3m","2h","6h","8h","12h","3d","1M"] as const;
+const TF_OPTIONS  = [...TF_PRIMARY, ...TF_SECONDARY] as const;
+const IND_LS_KEY = "cpulse_chart_inds_v1";
+const IND_DEFAULTS = { vol:true, ema20:false, ema50:false, ema200:false, vwap:false, bb:false } as Record<string,boolean>;
+const loadInds = (): Record<string,boolean> => { try { return JSON.parse(localStorage.getItem(IND_LS_KEY)??"{}"); } catch { return {}; } };
 type ChartTf = (typeof TF_OPTIONS)[number];
-const TF_BINANCE: Record<ChartTf,string> = {"1m":"1m","5m":"5m","15m":"15m","1h":"1h","4h":"4h","1d":"1d","1w":"1w"};
-const TF_LABELS:  Record<ChartTf,string> = {"1m":"1хв","5m":"5хв","15m":"15хв","1h":"1год","4h":"4год","1d":"1д","1w":"1тиж"};
+const TF_BINANCE: Record<ChartTf,string> = {
+  "1m":"1m","3m":"3m","5m":"5m","15m":"15m","30m":"30m",
+  "1h":"1h","2h":"2h","4h":"4h","6h":"6h","8h":"8h","12h":"12h",
+  "1d":"1d","3d":"3d","1w":"1w","1M":"1M",
+};
+const TF_LABELS: Record<ChartTf,string> = {
+  "1m":"1хв","3m":"3хв","5m":"5хв","15m":"15хв","30m":"30хв",
+  "1h":"1год","2h":"2год","4h":"4год","6h":"6год","8h":"8год","12h":"12год",
+  "1d":"1д","3d":"3д","1w":"1тиж","1M":"1міс",
+};
 
 type DrawMode = "cursor" | "hline";
 const ALERT_CONDS_PRICE = new Set(["price_gt","price_gte","price_lt","price_lte","price_eq"]);
 type PosLines = { entry?: IPriceLine; liq?: IPriceLine; sl?: IPriceLine; tp?: IPriceLine };
 
+/** Floating badge shown bottom-left of the chart when an alert fires */
+function ChartAlertBadge({ msg }: { msg: string }) {
+  const [visible, setVisible] = useState(true);
+  const [fading, setFading]   = useState(false);
+  useEffect(() => {
+    const t1 = setTimeout(() => setFading(true), 4000);
+    const t2 = setTimeout(() => setVisible(false), 4800);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+  if (!visible) return null;
+  return (
+    <div
+      className="absolute bottom-10 left-3 z-20 pointer-events-none flex items-start gap-2
+                 bg-[#0B0B12]/95 border border-[#8348C1]/60 rounded-xl px-3 py-2.5 shadow-xl
+                 max-w-[260px] transition-opacity duration-700"
+      style={{ opacity: fading ? 0 : 1 }}
+    >
+      <span className="text-[16px] leading-none shrink-0">🚨</span>
+      <span className="text-[11px] font-semibold text-[#E0C4FF] leading-snug break-words">
+        {msg.replace("🚨 ", "")}
+      </span>
+    </div>
+  );
+}
+
 function TradingLWChart({
   pair, alerts, positions,
-  onUpdatePositionSlTp, onUpdateAlertPrice, onAlertTriggered,
+  onUpdatePositionSlTp, onUpdateAlertPrice, onAlertTriggered, onAlertClick,
+  chartAlertNotif,
+  replayCandles, replayIndex,
 }: {
   pair: string;
   alerts: PriceAlertRecord[];
   positions: DemoPos[];
   onUpdatePositionSlTp: (posId: string, sl?: number, tp?: number) => void;
   onUpdateAlertPrice: (alertId: string, price: number) => void;
-  onAlertTriggered: (alert: PriceAlertRecord, price: number) => void;
+  onAlertTriggered: (alert: PriceAlertRecord, price: number) => void | Promise<void>;
+  onAlertClick: (alertId: string) => void;
+  chartAlertNotif?: { msg: string; ts: number } | null;
+  replayCandles?: Candle[];
+  replayIndex?: number;
 }) {
   const containerRef     = useRef<HTMLDivElement>(null);
   const chartRef         = useRef<IChartApi|null>(null);
@@ -436,11 +540,23 @@ function TradingLWChart({
   const onUpdateSlTpRef  = useRef(onUpdatePositionSlTp);
   const onUpdateAlertPriceRef = useRef(onUpdateAlertPrice);
   const onAlertTriggeredRef   = useRef(onAlertTriggered);
+  const onAlertClickRef       = useRef(onAlertClick);
 
   const [tf, setTf]           = useState<ChartTf>("4h");
+  const [showTfMore, setShowTfMore] = useState(false);
   const [ctype, setCtype]     = useState<"candle"|"area">("candle");
   const [drawMode, setDrawMode] = useState<DrawMode>("cursor");
   const [loading, setLoading] = useState(true);
+  const [inds, setInds]       = useState<Record<string,boolean>>(() => ({ ...IND_DEFAULTS, ...loadInds() }));
+
+  const indsRef          = useRef(inds);
+  const rawKlinesRef     = useRef<(string|number)[][]>([]);
+  const indSeriesMapRef  = useRef<Map<string, object>>(new Map());
+
+  // Replay chart tracking
+  const prevReplayIdxRef     = useRef(-1);
+  const prevReplayCandlesRef = useRef<Candle[] | undefined>(undefined);
+  const isReplay = !!replayCandles && replayCandles.length > 0;
 
   useEffect(() => { alertsRef.current = alerts; }, [alerts]);
   useEffect(() => { positionsRef.current = positions; }, [positions]);
@@ -449,6 +565,87 @@ function TradingLWChart({
   useEffect(() => { onUpdateSlTpRef.current = onUpdatePositionSlTp; }, [onUpdatePositionSlTp]);
   useEffect(() => { onUpdateAlertPriceRef.current = onUpdateAlertPrice; }, [onUpdateAlertPrice]);
   useEffect(() => { onAlertTriggeredRef.current = onAlertTriggered; }, [onAlertTriggered]);
+  useEffect(() => { onAlertClickRef.current = onAlertClick; }, [onAlertClick]);
+
+  // ── Indicator helpers ──
+  const clearIndSeries = useCallback(() => {
+    if (!chartRef.current) return;
+    indSeriesMapRef.current.forEach(s => {
+      try { chartRef.current!.removeSeries(s as ISeriesApi<"Line">); } catch {/* ignore */}
+    });
+    indSeriesMapRef.current.clear();
+  }, []);
+
+  const buildIndSeries = useCallback((raw: (string|number)[][]) => {
+    if (!chartRef.current || !raw.length) return;
+    const chart = chartRef.current;
+    const cur = indsRef.current;
+    const times = raw.map(k => Math.floor(Number(k[0])/1000) as Time);
+    const closes = raw.map(k => +k[4]);
+
+    if (cur.vol) {
+      try {
+        const vs = chart.addSeries(HistogramSeries, { priceScaleId:"vol", lastValueVisible:false, priceLineVisible:false });
+        chart.priceScale("vol").applyOptions({ scaleMargins:{ top:0.78, bottom:0 } });
+        vs.setData(raw.map((k,i) => ({ time:times[i], value:+k[5], color: +k[4]>= +k[1]?"rgba(38,166,154,0.45)":"rgba(239,83,80,0.45)" })));
+        indSeriesMapRef.current.set("vol", vs);
+      } catch {/* ignore */}
+    }
+    if (cur.ema20) {
+      try {
+        const arr = calcEmaArr(closes, 20);
+        const s = chart.addSeries(LineSeries, { color:"#F7931A", lineWidth:1, lastValueVisible:false, priceLineVisible:false, crosshairMarkerVisible:false });
+        s.setData(arr.map((v,i) => ({ time:times[i], value:v })).filter(d => d.value > 0));
+        indSeriesMapRef.current.set("ema20", s);
+      } catch {/* ignore */}
+    }
+    if (cur.ema50) {
+      try {
+        const arr = calcEmaArr(closes, 50);
+        const s = chart.addSeries(LineSeries, { color:"#9945FF", lineWidth:1, lastValueVisible:false, priceLineVisible:false, crosshairMarkerVisible:false });
+        s.setData(arr.map((v,i) => ({ time:times[i], value:v })).filter(d => d.value > 0));
+        indSeriesMapRef.current.set("ema50", s);
+      } catch {/* ignore */}
+    }
+    if (cur.ema200) {
+      try {
+        const arr = calcEmaArr(closes, 200);
+        const s = chart.addSeries(LineSeries, { color:"#14F195", lineWidth:1, lastValueVisible:false, priceLineVisible:false, crosshairMarkerVisible:false });
+        s.setData(arr.map((v,i) => ({ time:times[i], value:v })).filter(d => d.value > 0));
+        indSeriesMapRef.current.set("ema200", s);
+      } catch {/* ignore */}
+    }
+    if (cur.vwap) {
+      try {
+        const candles2: Candle[] = raw.map(k => ({ time:+k[0], open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5] }));
+        const arr = calcVwapArr(candles2);
+        const s = chart.addSeries(LineSeries, { color:"#00BFFF", lineWidth:1, lineStyle:LineStyle.Dashed, lastValueVisible:false, priceLineVisible:false, crosshairMarkerVisible:false });
+        s.setData(arr.map((v,i) => ({ time:times[i], value:v })));
+        indSeriesMapRef.current.set("vwap", s);
+      } catch {/* ignore */}
+    }
+    if (cur.bb) {
+      try {
+        const { upper, lower } = calcBbBands(closes);
+        const su = chart.addSeries(LineSeries, { color:"rgba(147,196,255,0.55)", lineWidth:1, lastValueVisible:false, priceLineVisible:false, crosshairMarkerVisible:false });
+        su.setData(upper.map((v,i) => ({ time:times[i], value:v })).filter(d => d.value > 0));
+        const sl2 = chart.addSeries(LineSeries, { color:"rgba(147,196,255,0.55)", lineWidth:1, lastValueVisible:false, priceLineVisible:false, crosshairMarkerVisible:false });
+        sl2.setData(lower.map((v,i) => ({ time:times[i], value:v })).filter(d => d.value > 0));
+        indSeriesMapRef.current.set("bb_u", su);
+        indSeriesMapRef.current.set("bb_l", sl2);
+      } catch {/* ignore */}
+    }
+  }, []);
+
+  // Persist inds to localStorage + rebuild on change
+  useEffect(() => {
+    indsRef.current = inds;
+    localStorage.setItem(IND_LS_KEY, JSON.stringify(inds));
+    if (rawKlinesRef.current.length > 0) {
+      clearIndSeries();
+      buildIndSeries(rawKlinesRef.current);
+    }
+  }, [inds, clearIndSeries, buildIndSeries]);
 
   // ── Create chart (once) ──
   useEffect(() => {
@@ -469,7 +666,7 @@ function TradingLWChart({
     chart.subscribeClick((param) => {
       if (drawModeRef.current !== "hline") return;
       if (!param.point || !seriesRef.current) return;
-      const price = chart.priceScale("right").coordinateToPrice(param.point.y);
+      const price = seriesRef.current.coordinateToPrice(param.point.y);
       if (!price || price <= 0) return;
       const label = price < 1 ? price.toFixed(6) : price.toLocaleString("en-US",{maximumFractionDigits:2});
       try {
@@ -479,7 +676,7 @@ function TradingLWChart({
         });
         userLinesRef.current.push(line);
         userPricesRef.current.push(price);
-      } catch {}
+      } catch {/* ignore */}
       setDrawMode("cursor");
     });
 
@@ -493,14 +690,14 @@ function TradingLWChart({
     // Remove old position lines
     posLinesMapRef.current.forEach(lines => {
       for (const line of Object.values(lines)) {
-        if (line) try { seriesRef.current!.removePriceLine(line); } catch {}
+        if (line) try { seriesRef.current!.removePriceLine(line); } catch {/* ignore */}
       }
     });
     posLinesMapRef.current.clear();
 
     // Remove old alert lines
     alertLinesMapRef.current.forEach(line => {
-      try { seriesRef.current!.removePriceLine(line); } catch {}
+      try { seriesRef.current!.removePriceLine(line); } catch {/* ignore */}
     });
     alertLinesMapRef.current.clear();
 
@@ -538,7 +735,7 @@ function TradingLWChart({
           });
         }
         posLinesMapRef.current.set(pos.id, pl);
-      } catch {}
+      } catch {/* ignore */}
     });
 
     // Draw alert lines (price-based only, dashed)
@@ -556,7 +753,7 @@ function TradingLWChart({
             title: isUp ? "▲" : isEq ? "●" : "▼",
           });
           alertLinesMapRef.current.set(al.id, line);
-        } catch {}
+        } catch {/* ignore */}
       });
   }, []);
 
@@ -572,7 +769,7 @@ function TradingLWChart({
           price, color: "#94A3B8", lineWidth: 1, lineStyle: LineStyle.Solid,
           axisLabelVisible: true, title: label,
         }));
-      } catch {}
+      } catch {/* ignore */}
     });
   }, []);
 
@@ -654,24 +851,29 @@ function TradingLWChart({
       e.stopPropagation();
       container.style.cursor = "ns-resize";
       const dragLine = foundLine, dragKind = foundKind, dragPosId = foundPosId, dragAlertId = foundAlertId;
-      const chart = chartRef.current;
       let currentDragPrice = foundInitPrice;
       let isDragging = false;
 
       const onMoveDoc = (ev: MouseEvent) => {
         isDragging = true;
         const r = container.getBoundingClientRect();
-        const price = chart.priceScale("right").coordinateToPrice(ev.clientY - r.top);
+        const price = seriesRef.current?.coordinateToPrice(ev.clientY - r.top);
         if (price && price > 0) {
           currentDragPrice = price;
-          try { dragLine.applyOptions({ price }); } catch {}
+          try { dragLine.applyOptions({ price }); } catch {/* ignore */}
         }
       };
       const onUpDoc = () => {
         document.removeEventListener("mousemove", onMoveDoc);
         document.removeEventListener("mouseup", onUpDoc);
         container.style.cursor = "default";
-        if (!isDragging) return;
+        if (!isDragging) {
+          // It was a click (not a drag) — open edit for alert line
+          if (dragKind === "alert" && dragAlertId) {
+            onAlertClickRef.current(dragAlertId);
+          }
+          return;
+        }
         hasDraggedRef.current = true;
         setTimeout(() => { hasDraggedRef.current = false; }, 200);
         if (dragKind === "sl") {
@@ -696,9 +898,59 @@ function TradingLWChart({
     };
   }, []); // all dynamic data via refs — no re-subscribe needed
 
+  // ── REPLAY: render historical candles (full-rebuild or incremental) ──
+  useEffect(() => {
+    if (!isReplay || !chartRef.current || !replayCandles?.length || replayIndex === undefined) return;
+    const chart = chartRef.current;
+    const idx = replayIndex;
+    const candlesChanged = replayCandles !== prevReplayCandlesRef.current;
+    const needsFull = candlesChanged || prevReplayIdxRef.current < 0 || idx < prevReplayIdxRef.current || !seriesRef.current;
+    prevReplayCandlesRef.current = replayCandles;
+
+    if (needsFull) {
+      if (seriesRef.current) { try { chart.removeSeries(seriesRef.current); } catch {/* ignore */} seriesRef.current = null; }
+      clearIndSeries();
+      const vis = replayCandles.slice(0, idx + 1);
+      rawKlinesRef.current = vis.map(c => [c.time, String(c.open), String(c.high), String(c.low), String(c.close), String(c.volume), 0,"0",0,"0","0","0"]) as unknown as (string|number)[][];
+      if (ctype === "candle") {
+        const s = chart.addSeries(CandlestickSeries, { upColor:"#26a69a", downColor:"#ef5350", borderVisible:false, wickUpColor:"#26a69a", wickDownColor:"#ef5350" });
+        seriesRef.current = s;
+        s.setData(vis.map(c => ({ time:Math.floor(c.time/1000) as Time, open:c.open, high:c.high, low:c.low, close:c.close })));
+        const last = vis[vis.length-1];
+        if (last) currentKRef.current = { o:last.open, h:last.high, l:last.low, c:last.close, t:Math.floor(last.time/1000) };
+      } else {
+        const s = chart.addSeries(AreaSeries, { lineColor:"#B57AFF", topColor:"rgba(181,122,255,0.35)", bottomColor:"rgba(181,122,255,0)", lineWidth:2 });
+        seriesRef.current = s;
+        s.setData(vis.map(c => ({ time:Math.floor(c.time/1000) as Time, value:c.close })));
+      }
+      buildIndSeries(rawKlinesRef.current);
+      refreshLines(); refreshUserLines();
+      setLoading(false);
+    } else {
+      const c = replayCandles[idx];
+      if (c && seriesRef.current) {
+        try {
+          if (ctype === "candle") {
+            (seriesRef.current as ISeriesApi<"Candlestick">).update({ time:Math.floor(c.time/1000) as Time, open:c.open, high:c.high, low:c.low, close:c.close });
+          } else {
+            (seriesRef.current as ISeriesApi<"Area">).update({ time:Math.floor(c.time/1000) as Time, value:c.close });
+          }
+          currentKRef.current = { o:c.open, h:c.high, l:c.low, c:c.close, t:Math.floor(c.time/1000) };
+        } catch {/* ignore */}
+      }
+    }
+    prevReplayIdxRef.current = idx;
+  }, [replayIndex, replayCandles, isReplay, ctype, refreshLines, refreshUserLines, clearIndSeries, buildIndSeries]);
+
+  // Reset replay tracking refs when leaving replay
+  useEffect(() => {
+    if (!isReplay) { prevReplayIdxRef.current = -1; prevReplayCandlesRef.current = undefined; }
+  }, [isReplay]);
+
   // ── Fetch candles + rebuild series ──
   useEffect(() => {
     if (!chartRef.current) return;
+    if (isReplay) { setLoading(false); return; } // eslint-disable-line react-hooks/set-state-in-effect
     let dead = false;
     setLoading(true);
     currentKRef.current = null;
@@ -710,7 +962,10 @@ function TradingLWChart({
         if (!res.ok || dead || !chartRef.current) return;
         const raw = await res.json() as (string|number)[][];
 
-        if (seriesRef.current) { try { chartRef.current.removeSeries(seriesRef.current); } catch {} seriesRef.current = null; }
+        if (seriesRef.current) { try { chartRef.current.removeSeries(seriesRef.current); } catch {/* ignore */} seriesRef.current = null; }
+        clearIndSeries();
+
+        rawKlinesRef.current = raw;
 
         if (ctype === "candle") {
           const s = chartRef.current.addSeries(CandlestickSeries, {
@@ -734,18 +989,20 @@ function TradingLWChart({
           s.setData(raw.map(k => ({ time: Math.floor(Number(k[0])/1000) as Time, value:+k[4] })));
         }
 
+        buildIndSeries(raw);
         refreshLines();
         refreshUserLines();
-      } catch {} finally {
+      } catch {/* ignore */} finally {
         if (!dead) setLoading(false);
       }
     };
     load();
     return () => { dead = true; };
-  }, [pair, tf, ctype, refreshLines, refreshUserLines]);
+  }, [pair, tf, ctype, refreshLines, refreshUserLines, clearIndSeries, buildIndSeries, isReplay]);
 
-  // ── Kline WebSocket — keeps OHLC in sync ──
+  // ── Kline WebSocket — keeps OHLC in sync (live only) ──
   useEffect(() => {
+    if (isReplay) return;
     const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${pair.toLowerCase()}@kline_${TF_BINANCE[tf]}`);
     ws.onmessage = (e: MessageEvent) => {
       const { k } = JSON.parse(e.data as string);
@@ -753,10 +1010,11 @@ function TradingLWChart({
       currentKRef.current = { o:+k.o, h:+k.h, l:+k.l, c:+k.c, t };
     };
     return () => { ws.onmessage = null; if (ws.readyState < 2) ws.close(); };
-  }, [pair, tf]);
+  }, [pair, tf, isReplay]);
 
-  // ── aggTrade WebSocket — tick-by-tick realtime + alert crossing check ──
+  // ── aggTrade WebSocket — tick-by-tick realtime + alert crossing check (live only) ──
   useEffect(() => {
+    if (isReplay) return;
     const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${pair.toLowerCase()}@aggTrade`);
     ws.onmessage = (e: MessageEvent) => {
       if (rafRef.current) return;
@@ -810,11 +1068,11 @@ function TradingLWChart({
       if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
       if (ws.readyState < 2) ws.close();
     };
-  }, [pair]);
+  }, [pair, isReplay]);
 
   // ── Clear all user-drawn lines ──
   const clearUserLines = useCallback(() => {
-    userLinesRef.current.forEach(l => { try { seriesRef.current?.removePriceLine(l); } catch {} });
+    userLinesRef.current.forEach(l => { try { seriesRef.current?.removePriceLine(l); } catch {/* ignore */} });
     userLinesRef.current = [];
     userPricesRef.current = [];
   }, []);
@@ -826,15 +1084,59 @@ function TradingLWChart({
 
   return (
     <div className="h-full w-full flex flex-col bg-[#08080A]">
-      {/* ── Top bar: TF + chart type ── */}
-      <div className="flex items-center gap-0.5 px-2 py-1 border-b border-white/5 shrink-0 bg-[#050506]">
-        {TF_OPTIONS.map(t => (
+      {/* ── Top bar: TF + chart type + indicators ── */}
+      <div className="flex items-center gap-0.5 px-2 py-1 border-b border-white/5 shrink-0 bg-[#050506] overflow-x-auto">
+        {/* Primary TF buttons */}
+        {TF_PRIMARY.map(t => (
           <button key={t} type="button" onClick={() => setTf(t)}
-            className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-colors ${tf===t?"bg-[#8348C1]/20 text-[#C38BFF]":"text-white/35 hover:text-white"}`}>
+            className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-colors shrink-0 ${tf===t?"bg-[#8348C1]/20 text-[#C38BFF]":"text-white/35 hover:text-white"}`}>
             {TF_LABELS[t]}
           </button>
         ))}
-        <div className="ml-auto flex gap-1 items-center">
+        {/* "More" dropdown for secondary TFs */}
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowTfMore(v => !v)}
+            className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-colors flex items-center gap-0.5 ${
+              TF_SECONDARY.includes(tf as typeof TF_SECONDARY[number])
+                ? "bg-[#8348C1]/20 text-[#C38BFF]"
+                : "text-white/35 hover:text-white"
+            }`}
+          >
+            {TF_SECONDARY.includes(tf as typeof TF_SECONDARY[number]) ? TF_LABELS[tf] : "Ще"}
+            <ChevronDown size={10}/>
+          </button>
+          {showTfMore && (
+            <div className="absolute top-full left-0 mt-1 z-50 bg-[#13131A] border border-white/10 rounded-xl shadow-xl py-1 min-w-[80px]">
+              {TF_SECONDARY.map(t => (
+                <button key={t} type="button"
+                  onClick={() => { setTf(t); setShowTfMore(false); }}
+                  className={`w-full text-left px-3 py-1.5 text-[11px] font-semibold transition-colors ${tf===t?"text-[#C38BFF] bg-[#8348C1]/15":"text-white/50 hover:text-white hover:bg-white/5"}`}>
+                  {TF_LABELS[t]}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="w-px h-4 bg-white/10 mx-1 shrink-0"/>
+        {/* Indicators */}
+        {([
+          { key:"vol",   label:"Vol",   color:"text-[#26a69a]" },
+          { key:"ema20", label:"EMA20", color:"text-[#F7931A]" },
+          { key:"ema50", label:"EMA50", color:"text-[#9945FF]" },
+          { key:"ema200",label:"EMA200",color:"text-[#14F195]" },
+          { key:"vwap",  label:"VWAP",  color:"text-[#00BFFF]" },
+          { key:"bb",    label:"BB",    color:"text-[#93C4FF]" },
+        ] as const).map(({ key, label, color }) => (
+          <button key={key} type="button"
+            onClick={() => setInds(prev => ({ ...prev, [key]: !prev[key] }))}
+            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors shrink-0 ${inds[key]?`bg-white/10 ${color}`:"text-white/25 hover:text-white/60"}`}>
+            {label}
+          </button>
+        ))}
+        <div className="ml-auto flex gap-1 items-center shrink-0">
+          <div className="w-px h-4 bg-white/10 mx-0.5"/>
           <button type="button" onClick={() => setCtype("candle")}
             className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-colors ${ctype==="candle"?"bg-white/10 text-white":"text-white/25 hover:text-white"}`}>
             Свічки
@@ -886,6 +1188,10 @@ function TradingLWChart({
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 pointer-events-none bg-[#0B0B12]/90 border border-[#8348C1]/40 rounded-full px-3 py-1 text-[10px] text-[#C38BFF] font-medium">
               Клікніть на графік щоб поставити лінію · Esc — скасувати
             </div>
+          )}
+          {/* Alert fired — bottom-left overlay */}
+          {chartAlertNotif && (
+            <ChartAlertBadge key={chartAlertNotif.ts} msg={chartAlertNotif.msg}/>
           )}
         </div>
       </div>
@@ -1049,42 +1355,131 @@ function ToastNotifications({ items, onDismiss }: { items: ToastItem[]; onDismis
   );
 }
 
-// ─────────────────────────────────────────────
-// TRADINGVIEW WIDGET (kept as fallback, unused)
-// ─────────────────────────────────────────────
-function TvWidget({pair, interval}:{pair:string; interval:string}) {
-  const id = useMemo(()=>`tv_${pair}_${interval}`.replace(/[^a-zA-Z0-9_]/g,"_"),[pair,interval]);
 
-  useEffect(()=>{
-    let w:TvApi|null=null, dead=false;
-    const create=()=>{
-      if(dead||!window.TradingView)return;
-      const el=document.getElementById(id); if(!el)return;
-      el.innerHTML="";
-      w=new window.TradingView.widget({
-        autosize:true, symbol:`BINANCE:${pair}`, interval,
-        timezone:"Europe/Kyiv", theme:"dark", style:"1", locale:"uk",
-        toolbar_bg:"#050506", backgroundColor:"#050506",
-        gridColor:"rgba(255,255,255,0.04)",
-        hide_side_toolbar:false, allow_symbol_change:false, save_image:false,
-        // НЕ додаємо studies — чистий графік за замовчуванням
-        container_id:id,
-      });
-    };
-    if(window.TradingView){ create(); }
-    else {
-      const ex=document.querySelector<HTMLScriptElement>('script[src="https://s3.tradingview.com/tv.js"]');
-      const sc=ex??Object.assign(document.createElement("script"),{src:"https://s3.tradingview.com/tv.js",async:true});
-      sc.onload=create; if(!ex)document.body.appendChild(sc);
-    }
-    return ()=>{
-      dead=true;
-      try{w?.remove?.();}catch{ /* TradingView cleanup bug — ignore */ }
-      const el=document.getElementById(id); if(el)el.innerHTML="";
-    };
-  },[id,interval,pair]);
+// ─────────────────────────────────────────────
+// SESSION SUMMARY MODAL
+// ─────────────────────────────────────────────
+function SessionSummaryModal({ demo, snapshot, onContinue, onNewSession, onClose }: {
+  demo: DemoAcc;
+  snapshot: DemoAcc;
+  onContinue: () => void;
+  onNewSession: () => void;
+  onClose: () => void;
+}) {
+  const snapshotIds = useMemo(() => new Set(snapshot.trades.map(t=>t.id)), [snapshot]);
+  const sessionTrades = demo.trades.filter(t => !snapshotIds.has(t.id) && t.action === "CLOSE");
+  const wins   = sessionTrades.filter(t => t.pnl > 0);
+  const losses = sessionTrades.filter(t => t.pnl < 0);
+  const totalPnl = sessionTrades.reduce((s,t) => s+t.pnl, 0);
+  const winRate  = sessionTrades.length ? (wins.length/sessionTrades.length*100) : 0;
+  const bestTrade  = sessionTrades.reduce<DemoTrade|null>((b,t) => !b||t.pnl>b.pnl?t:b, null);
+  const worstTrade = sessionTrades.reduce<DemoTrade|null>((w,t) => !w||t.pnl<w.pnl?t:w, null);
+  const sessionPnlVsStart = demo.cash - snapshot.cash;
 
-  return <div id={id} className="h-full w-full"/>;
+  const feedback = useMemo(() => {
+    if (sessionTrades.length === 0) return "Ти не відкрив жодної угоди під час цієї сесії. Спробуй знайти точку входу та потренуватись в наступний раз!";
+    if (winRate >= 70) return "Чудова сесія! Ти добре читав ринок. Зверни увагу на свої найкращі угоди і спробуй знайти схожі сетапи в майбутньому.";
+    if (winRate >= 50) return "Непогано! Більше половини угод прибуткові. Спробуй дотримуватись правила R:R ≥ 2:1, щоб навіть з 50% WR мати стабільний дохід.";
+    if (losses.length > wins.length * 2) return "PulseAI помітив, що ти часто входив у позиції без підтвердження від індикаторів. Спробуй чекати, поки RSI або EMA підтвердять напрямок.";
+    return "Є над чим попрацювати. Зверни увагу на управління ризиками: встанови SL перед кожним входом і дотримуйся його.";
+  }, [sessionTrades.length, winRate, losses.length, wins.length]); // eslint-disable-line react-hooks/preserve-manual-memoization
+
+  useEffect(() => {
+    const h = (e:KeyboardEvent) => { if(e.key==="Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-[520px] max-h-[90vh] overflow-y-auto bg-[#0B0B12] border border-[#8348C1]/30 rounded-2xl shadow-2xl p-6" onClick={e=>e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#2C1969] to-[#8348C1] flex items-center justify-center">
+              <Trophy size={16} className="text-white"/>
+            </div>
+            <div>
+              <h2 className="text-[15px] font-bold">Підсумок сесії</h2>
+              <p className="text-[10px] text-white/40">Replay Practice Mode</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-white/30 hover:text-white transition-colors"><X size={15}/></button>
+        </div>
+
+        {/* PnL Banner */}
+        <div className={`rounded-xl px-4 py-3 mb-4 border text-center ${totalPnl>=0?"bg-[#26a69a]/10 border-[#26a69a]/25":"bg-[#ef5350]/10 border-[#ef5350]/25"}`}>
+          <div className={`text-[22px] font-bold ${totalPnl>=0?"text-[#26a69a]":"text-[#ef5350]"}`}>
+            {totalPnl>=0?"+":""}{fUsd(totalPnl)}
+          </div>
+          <div className="text-[10px] text-white/40 mt-0.5">
+            Загальний PnL за сесію · Зміна балансу: {sessionPnlVsStart>=0?"+":""}{fUsd(sessionPnlVsStart)}
+          </div>
+        </div>
+
+        {/* Stats grid */}
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          {[
+            { label:"Угод", value: sessionTrades.length.toString() },
+            { label:"Win Rate", value: sessionTrades.length ? `${winRate.toFixed(0)}%` : "—", color: winRate>=50?"text-[#26a69a]":"text-[#ef5350]" },
+            { label:"Прибуткових", value: wins.length.toString(), color:"text-[#26a69a]" },
+            { label:"Збиткових",   value: losses.length.toString(), color:"text-[#ef5350]" },
+            { label:"Краща угода", value: bestTrade ? (bestTrade.pnl>=0?"+":"")+fUsd(bestTrade.pnl) : "—", color:"text-[#26a69a]" },
+            { label:"Гірша угода", value: worstTrade ? (worstTrade.pnl>=0?"+":"")+fUsd(worstTrade.pnl) : "—", color:"text-[#ef5350]" },
+          ].map(({label,value,color}) => (
+            <div key={label} className="rounded-xl bg-[#050506] border border-white/5 p-2.5 text-center">
+              <div className="text-[9px] text-white/35 font-semibold uppercase tracking-wider mb-1">{label}</div>
+              <div className={`text-[14px] font-bold ${color??""}`}>{value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Win rate bar */}
+        {sessionTrades.length > 0 && (
+          <div className="mb-4">
+            <div className="flex justify-between text-[9px] text-white/40 mb-1">
+              <span>Win {wins.length}</span><span>Loss {losses.length}</span>
+            </div>
+            <div className="h-2 rounded-full bg-[#ef5350]/20 overflow-hidden">
+              <div className="h-full bg-[#26a69a] rounded-full transition-all" style={{width:`${clamp(winRate,0,100)}%`}}/>
+            </div>
+          </div>
+        )}
+
+        {/* PulseAI Review */}
+        <div className="rounded-xl bg-gradient-to-br from-[#2C1969]/30 to-[#0B0B12] border border-[#8348C1]/30 p-3 mb-4">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Bot size={11} className="text-[#C38BFF]"/>
+            <span className="text-[9px] font-bold text-[#C38BFF] uppercase tracking-wider">PulseAI Review</span>
+          </div>
+          <p className="text-[11px] text-white/70 leading-relaxed">{feedback}</p>
+          {sessionTrades.length > 0 && (
+            <div className="mt-2 grid grid-cols-2 gap-1.5 text-[9px] text-white/40">
+              <div>📊 Avg PnL/угода: <span className={totalPnl>=0?"text-[#26a69a]":"text-[#ef5350]"}>{(totalPnl/(sessionTrades.length||1)).toFixed(2)}$</span></div>
+              <div>🎯 Точність: <span className="text-white">{winRate.toFixed(0)}%</span></div>
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="grid grid-cols-3 gap-2">
+          <button type="button" onClick={onContinue}
+            className="py-2 rounded-xl bg-[#8348C1]/15 text-[#C38BFF] text-[11px] font-semibold hover:bg-[#8348C1]/25 transition-colors border border-[#8348C1]/20">
+            Продовжити
+          </button>
+          <button type="button" onClick={onNewSession}
+            className="py-2 rounded-xl bg-[#26a69a]/15 text-[#26a69a] text-[11px] font-semibold hover:bg-[#26a69a]/25 transition-colors border border-[#26a69a]/20">
+            Нова сесія
+          </button>
+          <button type="button" onClick={onClose}
+            className="py-2 rounded-xl bg-white/5 text-white/40 text-[11px] font-semibold hover:bg-white/10 transition-colors">
+            Закрити
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────────
@@ -1095,6 +1490,21 @@ export default function TradingPage() {
   const {symbol} = useParams<{symbol:string}>();
   const {account} = useAccount();
   const routeSym = (symbol??DEFAULT_SYMBOL).toUpperCase();
+
+  // Practice mode
+  const [mode, setMode]             = useState<PracticeMode>("live");
+  const [replayTf, setReplayTf]     = useState<ChartTf>("1h");
+  const [replayStartDate, setReplayStartDate] = useState<string>(() => {
+    const d = new Date(); d.setMonth(d.getMonth() - 3); return d.toISOString().split("T")[0];
+  });
+  const [replayCandles, setReplayCandles]     = useState<Candle[]>([]);
+  const [replayIndex, setReplayIndex]         = useState(0);
+  const [replayPlaying, setReplayPlaying]     = useState(false);
+  const [replaySpeed, setReplaySpeed]         = useState<1|2|5|10>(1);
+  const [replayLoading, setReplayLoading]     = useState(false);
+  const [showSummary, setShowSummary]         = useState(false);
+  const [replaySnapshot, setReplaySnapshot]   = useState<DemoAcc|null>(null);
+  const prevReplayPriceRef = useRef(0);
 
   // Layout
   const [panelOpen, setPanelOpen]   = useState(true);
@@ -1130,6 +1540,13 @@ export default function TradingPage() {
   const demoKey = `${DEMO_KEY_PREFIX}:${userId??"guest"}`;
   const [demo, setDemo]         = useState<DemoAcc>(()=>loadAcc(demoKey));
   const [dbReady, setDbReady]   = useState(!userId); // true = дані вже завантажені
+  const [noAccount, setNoAccount] = useState(false); // true = перший візит, немає demo_accounts
+  const [upgradeModal, setUpgradeModal] = useState<{ title: string; description: string } | null>(null);
+
+  // ── Replay account: completely separate from Live Demo ──
+  // Ephemeral (never persisted), always reset to makeAcc() at session start.
+  // Positions/orders/history in replay NEVER bleed into the live account.
+  const [replayDemo, setReplayDemo] = useState<DemoAcc>(makeAcc);
 
   // Живі ціни для позицій інших символів (не поточний asset)
   const [livePrices, setLivePrices] = useState<Record<string,number>>({});
@@ -1154,33 +1571,58 @@ export default function TradingPage() {
   const v24     = +(ticker?.quoteVolume??asset.vol24h??0);
   const isGreen = pct24h>=0;
 
-  const ind = useMemo(()=>calcInd(candles.length?candles:[{time:0,open:price,high:price,low:price,close:price,volume:1}]),[candles,price]);
+  // ── Active account router ──
+  // All trading UI reads from activeDemo; mutations go through setActiveDemo.
+  const activeDemo = mode === "live" ? demo : replayDemo;
+  // modeRef lets stable callbacks (useCallback with []) know the current mode
+  const modeRef = useRef(mode);
+  useEffect(() => { modeRef.current = mode; }, [mode]);
+  const setActiveDemo = useCallback((fn: (prev: DemoAcc) => DemoAcc) => {
+    if (modeRef.current === "live") setDemo(fn);
+    else setReplayDemo(fn);
+  }, []); // stable — uses ref internally
+
+  // Effective price: live or replay
+  const replayPrice = (mode === "replay" && replayCandles.length > 0 && replayIndex < replayCandles.length)
+    ? replayCandles[replayIndex].close
+    : 0;
+  const effectivePrice = mode === "live" ? price : replayPrice;
+
+  const ind = useMemo(()=>calcInd(candles.length?candles:[{time:0,open:effectivePrice,high:effectivePrice,low:effectivePrice,close:effectivePrice,volume:1}]),[candles,effectivePrice]);
 
   const filtCoins = useMemo(()=>{
     const q=coinQ.trim().toLowerCase();
     return q ? markets.filter(a=>`${a.sym} ${a.name}`.toLowerCase().includes(q)).slice(0,50) : markets.slice(0,80);
   },[coinQ,markets]);
 
-  // Актуальна ціна для будь-якої позиції: поточний asset → живий price, решта → livePrices
-  const posPrice  = useCallback((sym:string)=> sym===asset.sym ? price : (livePrices[sym] || 0), [asset.sym, price, livePrices]);
-  const totalPnl  = demo.positions.reduce((s,p)=>s+getPnl(p,posPrice(p.sym)||p.avgPrice),0);
-  const equity    = demo.cash+demo.positions.reduce((s,p)=>s+p.margin+getPnl(p,posPrice(p.sym)||p.avgPrice),0);
+  // Актуальна ціна для будь-якої позиції: поточний asset → effectivePrice, решта → livePrices
+  const posPrice  = useCallback((sym:string)=> sym===asset.sym ? effectivePrice : (livePrices[sym] || 0), [asset.sym, effectivePrice, livePrices]);
+  const totalPnl  = activeDemo.positions.reduce((s,p)=>s+getPnl(p,posPrice(p.sym)||p.avgPrice),0);
+  const equity    = activeDemo.cash+activeDemo.positions.reduce((s,p)=>s+p.margin+getPnl(p,posPrice(p.sym)||p.avgPrice),0);
   const notN      = +notional;
-  const posSize   = price>0&&notN>0 ? (notN*leverage)/price : 0;
-  const posVal    = posSize*price;
+  const posSize   = effectivePrice>0&&notN>0 ? (notN*leverage)/effectivePrice : 0;
+  const posVal    = posSize*effectivePrice;
 
   // SL/TP suggestion based on ATR
-  const sugSl = side==="LONG" ? price-ind.atr*1.5 : price+ind.atr*1.5;
-  const sugTp = side==="LONG" ? price+ind.atr*2.5 : price-ind.atr*2.5;
+  const sugSl = side==="LONG" ? effectivePrice-ind.atr*1.5 : effectivePrice+ind.atr*1.5;
+  const sugTp = side==="LONG" ? effectivePrice+ind.atr*2.5 : effectivePrice-ind.atr*2.5;
 
   // Risk / Reward
   const slN=+sl, tpN=+tp;
-  const riskPts   = sl&&slN>0 ? Math.abs(price-slN) : 0;
-  const rewardPts = tp&&tpN>0 ? Math.abs(tpN-price) : 0;
+  const riskPts   = sl&&slN>0 ? Math.abs(effectivePrice-slN) : 0;
+  const rewardPts = tp&&tpN>0 ? Math.abs(tpN-effectivePrice) : 0;
   const rrRatio   = riskPts>0&&rewardPts>0 ? (rewardPts/riskPts) : 0;
 
   // Liq price preview
-  const liqPreview = leverage>1 ? getLiqPrice(side,price,leverage) : 0;
+  const liqPreview = leverage>1 ? getLiqPrice(side,effectivePrice,leverage) : 0;
+
+  // allAlerts = every user alert (all symbols); assetAlerts = derived subset for chart
+  // Declared early so the replay effect below can reference them without a forward-reference issue
+  const [allAlerts, setAllAlerts]     = useState<PriceAlertRecord[]>([]);
+  const assetAlerts = useMemo(
+    () => allAlerts.filter(r => r.symbol.toUpperCase() === asset.sym),
+    [allAlerts, asset.sym],
+  );
 
   // ── Effects ──
 
@@ -1192,6 +1634,7 @@ export default function TradingPage() {
     let active=true;
     dbLoad(userId).then(remote=>{
       if(!active) return;
+      if(remote === null) setNoAccount(true);
       setDemo(remote ?? loadAcc(demoKey));
       setDbReady(true);
     });
@@ -1252,13 +1695,13 @@ export default function TradingPage() {
 
   // Окремий тікер для позицій інших символів (щоб Поточна ціна не була "---")
   const otherPosSig = useMemo(()=>{
-    const syms=[...new Set(demo.positions.map(p=>p.sym).filter(s=>s!==asset.sym))].sort();
+    const syms=[...new Set(activeDemo.positions.map(p=>p.sym).filter(s=>s!==asset.sym))].sort();
     return syms.join(",");
-  },[demo.positions, asset.sym]);
+  },[activeDemo.positions, asset.sym]);
 
   useEffect(()=>{
     const syms = otherPosSig ? otherPosSig.split(",") : [];
-    if(!syms.length){ setLivePrices({}); return; }
+    if(!syms.length){ setLivePrices({}); return; } // eslint-disable-line react-hooks/set-state-in-effect
     const fetchAll = async()=>{
       const res: Record<string,number> = {};
       await Promise.all(syms.map(async sym=>{
@@ -1279,12 +1722,59 @@ export default function TradingPage() {
     return()=>clearTimeout(t);
   },[asset.sym]);
 
-  // Авто-закриття позицій (SL / TP / Liquidation)
+  // ── Replay: alert check + auto-close per candle tick ──
+  useEffect(()=>{
+    if(mode !== "replay" || !replayCandles.length || replayIndex === undefined) return;
+    const rPrice = replayCandles[replayIndex]?.close ?? 0;
+    if(!rPrice) return;
+    const prevP = prevReplayPriceRef.current;
+    prevReplayPriceRef.current = rPrice;
+    // Alert crossing in replay
+    if(prevP > 0) {
+      assetAlerts.forEach(al => {
+        if(!al.is_active || !ALERT_CONDS_PRICE.has(al.condition)) return;
+        const t = al.target_price; let hit = false;
+        switch(al.condition){
+          case "price_gt":  hit = prevP<=t && rPrice>t; break;
+          case "price_gte": hit = prevP<t  && rPrice>=t; break;
+          case "price_lt":  hit = prevP>=t && rPrice<t; break;
+          case "price_lte": hit = prevP>t  && rPrice<=t; break;
+          case "price_eq":  hit = Math.abs(rPrice-t)/t<0.001 && Math.abs(prevP-t)/t>=0.001; break;
+        }
+        if(hit) void handleAlertTriggered(al, rPrice); // eslint-disable-line react-hooks/immutability
+      });
+    }
+    // Auto-close SL/TP/Liq in replay (uses replayDemo — NOT live demo)
+    const toastMsgs: string[] = [];
+    setReplayDemo(cur=>{
+      let next=cur, changed=false;
+      cur.positions.forEach(pos=>{
+        if(pos.sym !== asset.sym) return;
+        const hitSl  = pos.sl   ? (pos.side==="LONG"?rPrice<=pos.sl  :rPrice>=pos.sl)   : false;
+        const hitTp  = pos.tp   ? (pos.side==="LONG"?rPrice>=pos.tp  :rPrice<=pos.tp)   : false;
+        const hitLiq = pos.liqPrice>0 ? (pos.side==="LONG"?rPrice<=pos.liqPrice:rPrice>=pos.liqPrice) : false;
+        if(hitSl||hitTp||hitLiq){
+          const fillP = hitLiq?pos.liqPrice:rPrice;
+          const pnl = getPnl(pos,fillP);
+          const reason = hitLiq?"⚠️ Ліквідація":hitSl?"🔴 Stop Loss":"🟢 Take Profit";
+          toastMsgs.push(`${reason} ${pos.sym} ${pos.side} — ${pnl>=0?"+":""}${fUsd(pnl)}`);
+          next=execClose(next,pos,fillP); changed=true;
+        }
+      });
+      return changed?next:cur;
+    });
+    toastMsgs.forEach(m=>pushToastRef.current(m));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[replayIndex, mode]);
+
+  // Авто-закриття позицій (SL / TP / Liquidation) — Live mode only
   // ВАЖЛИВО: перевіряємо ТІЛЬКИ позиції/ордери поточного активу,
   // щоб ціна ETH не закривала позиції BTC при переключенні активу
   useEffect(()=>{
+    if(mode !== "live") return; // handled by replay effect above
     if(!price || !isTickerForPair)return;
     const t=setTimeout(()=>{
+      const toastMsgs: string[] = [];
       setDemo(cur=>{
         let next=cur,changed=false;
         // Limit fills — тільки для поточного символу
@@ -1295,6 +1785,7 @@ export default function TradingPage() {
           if(!fill)return;
           const r=execOpen({...next,orders:next.orders.filter(x=>x.id!==o.id)},o,o.limitPrice);
           next=r.next; changed=true;
+          toastMsgs.push(`✅ Ліміт виконано: ${o.sym} ${o.side} @ ${fUsd(o.limitPrice)}`);
         });
         // SL / TP / Liq — тільки для поточного символу
         next.positions.forEach(pos=>{
@@ -1302,13 +1793,20 @@ export default function TradingPage() {
           const hitSl  = pos.sl   ? (pos.side==="LONG"?price<=pos.sl  :price>=pos.sl)   : false;
           const hitTp  = pos.tp   ? (pos.side==="LONG"?price>=pos.tp  :price<=pos.tp)   : false;
           const hitLiq = pos.liqPrice>0 ? (pos.side==="LONG"?price<=pos.liqPrice:price>=pos.liqPrice) : false;
-          if(hitSl||hitTp||hitLiq){ next=execClose(next,pos,hitLiq?pos.liqPrice:price); changed=true; }
+          if(hitSl||hitTp||hitLiq){
+            const fillP = hitLiq ? pos.liqPrice : price;
+            const pnl = getPnl(pos, fillP);
+            const reason = hitLiq?"⚠️ Ліквідація":hitSl?"🔴 Stop Loss":"🟢 Take Profit";
+            toastMsgs.push(`${reason} ${pos.sym} ${pos.side} — ${pnl>=0?"+":""}${fUsd(pnl)}`);
+            next=execClose(next,pos,fillP); changed=true;
+          }
         });
         return changed?next:cur;
       });
+      toastMsgs.forEach(m => pushToastRef.current(m));
     },0);
     return()=>clearTimeout(t);
-  },[price, asset.sym, isTickerForPair]);
+  },[price, asset.sym, isTickerForPair, mode]);
 
   // ── Actions ──
   const goAsset = (a:Asset)=>{ setCoinOpen(false);setCoinQ(""); navigate(`/trading/${a.sym}`); };
@@ -1317,6 +1815,15 @@ export default function TradingPage() {
     setTradeErr("");
     const amt=+notional, lp=+limitPx, slN2=+sl, tpN2=+tp;
     if(!Number.isFinite(amt)||amt<=0) return setTradeErr("Вкажіть суму угоди в USDT.");
+    const entryP = otype==="Limit"&&lp>0 ? lp : effectivePrice;
+    if(slN2>0 && entryP>0) {
+      if(side==="LONG"  && slN2>=entryP) return setTradeErr("Stop Loss для LONG повинен бути нижче ціни входу.");
+      if(side==="SHORT" && slN2<=entryP) return setTradeErr("Stop Loss для SHORT повинен бути вище ціни входу.");
+    }
+    if(tpN2>0 && entryP>0) {
+      if(side==="LONG"  && tpN2<=entryP) return setTradeErr("Take Profit для LONG повинен бути вище ціни входу.");
+      if(side==="SHORT" && tpN2>=entryP) return setTradeErr("Take Profit для SHORT повинен бути нижче ціни входу.");
+    }
     const order:DemoOrder = {
       id:crypto.randomUUID(), sym:asset.sym, name:asset.name, img:asset.img,
       side, type:otype, notional:amt, leverage,
@@ -1324,27 +1831,93 @@ export default function TradingPage() {
     };
     if(otype==="Limit"){
       if(!Number.isFinite(lp)||lp<=0) return setTradeErr("Вкажіть ліміт ціну.");
-      setDemo(cur=>({...cur,orders:[{...order,limitPrice:lp},...cur.orders].slice(0,20)}));
+      setActiveDemo(cur=>({...cur,orders:[{...order,limitPrice:lp},...cur.orders].slice(0,20)}));
       setBotTab("Orders"); if(!bottomOpen)setBottomOpen(true); return;
     }
-    const r=execOpen(demo,order,price);
+    const r=execOpen(activeDemo,order,effectivePrice);
     if(r.error)return setTradeErr(r.error);
-    setDemo(r.next); setBotTab("Positions"); if(!bottomOpen)setBottomOpen(true);
+    setActiveDemo(()=>r.next);
+    if(mode === "live" && userId) void dbSave(userId, r.next);
+    setBotTab("Positions"); if(!bottomOpen)setBottomOpen(true);
   };
 
-  const cancelOrder   = (id:string)     => setDemo(cur=>({...cur,orders:cur.orders.filter(o=>o.id!==id)}));
-  const closePosition = (pos:DemoPos, fill = price) => setDemo(cur=>execClose(cur,pos,fill));
-  const addBalance    = (amt:number)    => setDemo(cur=>({...cur,cash:cur.cash+amt}));
+  const cancelOrder   = (id:string)     => setActiveDemo(cur=>({...cur,orders:cur.orders.filter(o=>o.id!==id)}));
+  const closePosition = (pos:DemoPos, fill = effectivePrice) => setActiveDemo(cur=>{
+    const next = execClose(cur,pos,fill);
+    if(mode === "live" && userId) void dbSave(userId, next);
+    return next;
+  });
+  const addBalance    = (amt:number)    => setActiveDemo(cur=>({...cur,cash:cur.cash+amt}));
   const resetDemo     = ()=>{
     if(!window.confirm("Скинути демо рахунок? Усі позиції та історія будуть видалені."))return;
-    setDemo(makeAcc());
+    if(mode === "live"){
+      setDemo(makeAcc());
+      if(userId) void dbReset(userId);
+    } else {
+      setReplayDemo(makeAcc());
+    }
     setTradeErr("");
-    if(userId) void dbReset(userId);
   };
 
   // ── ATR Quick SL presets ──
-  const applyAtrSl = (mult:number)=>setSl((side==="LONG"?price-ind.atr*mult:price+ind.atr*mult).toFixed(price<1?6:2));
-  const applyAtrTp = (mult:number)=>setTp((side==="LONG"?price+ind.atr*mult:price-ind.atr*mult).toFixed(price<1?6:2));
+  const applyAtrSl = (mult:number)=>setSl((side==="LONG"?effectivePrice-ind.atr*mult:effectivePrice+ind.atr*mult).toFixed(effectivePrice<1?6:2));
+  const applyAtrTp = (mult:number)=>setTp((side==="LONG"?effectivePrice+ind.atr*mult:effectivePrice-ind.atr*mult).toFixed(effectivePrice<1?6:2));
+
+  // ── Replay actions ──
+  const loadReplayCandles = useCallback(async () => {
+    if(!replayStartDate) return;
+    setReplayLoading(true); setReplayPlaying(false);
+    try {
+      const startMs = new Date(replayStartDate).getTime();
+      const res = await fetch(`/api/binance/klines?symbol=${pair}&interval=${TF_BINANCE[replayTf]}&startTime=${startMs}&limit=500`);
+      if(!res.ok) return;
+      const raw = await res.json() as BinKline[];
+      const candles2 = raw.map(mapK);
+      setReplayCandles(candles2);
+      setReplayIndex(Math.min(INITIAL_VISIBLE - 1, candles2.length - 1));
+      // Reset replay account to $25k fresh — completely isolated from live demo
+      const freshAcc = makeAcc();
+      setReplayDemo(freshAcc);
+      setReplaySnapshot(freshAcc);
+      prevReplayPriceRef.current = 0;
+    } catch {/* ignore */}
+    finally { setReplayLoading(false); }
+  }, [replayStartDate, pair, replayTf]); // no `demo` dep — replay is independent
+
+  const handleReplayRestart = useCallback(() => {
+    setReplayIndex(Math.min(INITIAL_VISIBLE - 1, replayCandles.length - 1));
+    setReplayPlaying(false);
+    prevReplayPriceRef.current = 0;
+  }, [replayCandles.length]);
+
+  const handleEndSession = useCallback(() => {
+    setReplayPlaying(false);
+    setShowSummary(true);
+  }, []);
+
+  // Replay timer: advance one candle at a time
+  useEffect(()=>{
+    if(mode !== "replay" || !replayPlaying || !replayCandles.length) return;
+    const delay = Math.max(50, 1000 / replaySpeed);
+    const id = setInterval(()=>{
+      setReplayIndex(i=>{
+        if(i >= replayCandles.length - 1){
+          setReplayPlaying(false);
+          setShowSummary(true);
+          return i;
+        }
+        return i + 1;
+      });
+    }, delay);
+    return ()=>clearInterval(id);
+  },[mode, replayPlaying, replaySpeed, replayCandles.length]);
+
+  // When switching mode, clean up replay state
+  useEffect(()=>{
+    if(mode === "live"){
+      setReplayCandles([]); setReplayIndex(0); setReplayPlaying(false); prevReplayPriceRef.current = 0; // eslint-disable-line react-hooks/set-state-in-effect
+    }
+  },[mode]);
 
   // ── Алерти ──
   const [alertCond, setAlertCond]         = useState<PriceAlertCondition>("price_gt");
@@ -1352,10 +1925,27 @@ export default function TradingPage() {
   const [alertMsg, setAlertMsg]           = useState("");
   const [alertErr, setAlertErr]           = useState("");
   const [alertLoading, setAlertLoading]   = useState(false);
-  const [assetAlerts, setAssetAlerts]     = useState<PriceAlertRecord[]>([]);
+  const [alertMaxTriggers, setAlertMaxTriggers] = useState<number | null>(null); // null = unlimited
+  // Inline edit state for existing alerts
+  const [editingAlertId, setEditingAlertId]       = useState<string | null>(null);
+  const [editAlertCond, setEditAlertCond]         = useState<PriceAlertCondition>("price_gt");
+  const [editAlertVal, setEditAlertVal]           = useState("");
+  const [editAlertMaxTriggers, setEditAlertMaxTriggers] = useState<number | null>(null);
+  const [editAlertLoading, setEditAlertLoading]   = useState(false);
+  // Chart overlay notification when alert fires
+  const [chartAlertNotif, setChartAlertNotif]     = useState<{msg: string; ts: number} | null>(null);
+  // Telegram connection status
+  const [tgConnected, setTgConnected]             = useState<boolean | null>(null);
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [deletingId, setDeletingId]       = useState<string|null>(null);
   const [togglingId, setTogglingId]       = useState<string|null>(null);
+
+  // Watchlist (user_favorites)
+  const [watchlist, setWatchlist]         = useState<FavoriteAssetRecord[]>([]);
+  const [watchlistPrices, setWatchlistPrices] = useState<Record<string, number>>({});
+  const [watchlistOpen, setWatchlistOpen] = useState(true);
+
+  const isFavorite = useMemo(() => watchlist.some(w => w.symbol === asset.sym), [watchlist, asset.sym]);
 
   // Position edit modal + toasts
   const [editingPos, setEditingPos]       = useState<DemoPos|null>(null);
@@ -1366,6 +1956,9 @@ export default function TradingPage() {
     setToasts(prev => [...prev.slice(-4), { id, msg }]); // max 5 toasts
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 8_000);
   }, []);
+  const pushToastRef = useRef(pushToast);
+  // eslint-disable-next-line react-hooks/immutability
+  useEffect(() => { pushToastRef.current = pushToast; }, [pushToast]);
 
   const dismissToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
@@ -1374,7 +1967,7 @@ export default function TradingPage() {
   // ── Alert helpers ──
   const getAlertDefault = useCallback((cond: PriceAlertCondition): string => {
     if (NO_VALUE_CONDITIONS.has(cond)) return "";
-    const p = price > 0 ? price : 0;
+    const p = effectivePrice > 0 ? effectivePrice : 0;
     const dec = p < 1 ? 6 : 2;
     switch (cond) {
       case "price_gt":         return (p * 1.02).toFixed(dec);
@@ -1391,12 +1984,12 @@ export default function TradingPage() {
       case "vol_24h_gt":       return "1000000000";
       default:                 return "";
     }
-  }, [price]);
+  }, [effectivePrice]);
 
   const getAlertCondContext = (cond: PriceAlertCondition): string => {
     switch (cond) {
       case "price_gt": case "price_lt": case "price_gte": case "price_lte": case "price_eq":
-        return `Ціна зараз: ${fUsd(price)}`;
+        return `Ціна зараз: ${fUsd(effectivePrice)}`;
       case "pct_change_24h_gt": case "pct_change_24h_lt":
         return `24h зараз: ${fPct(pct24h)}`;
       case "rsi_gt": case "rsi_lt":
@@ -1436,15 +2029,15 @@ export default function TradingPage() {
     return Number(normalized);
   };
 
-  const loadAssetAlerts = useCallback(async () => {
+  const loadAllAlerts = useCallback(async () => {
     if (!userId) return;
     setAlertsLoading(true);
     try {
       const rows = await listUserPriceAlerts(userId);
-      setAssetAlerts(rows.filter(r => r.symbol.toUpperCase() === asset.sym));
+      setAllAlerts(rows);
     } catch { /* ігноруємо */ }
     finally { setAlertsLoading(false); }
-  }, [userId, asset.sym]);
+  }, [userId]);
 
   const handleCreateAlert = async () => {
     setAlertMsg(""); setAlertErr("");
@@ -1452,12 +2045,45 @@ export default function TradingPage() {
     const isNoValue = NO_VALUE_CONDITIONS.has(alertCond);
     const num = isNoValue ? 0 : parseAlertValue(alertVal);
     if (!isNoValue && (!Number.isFinite(num) || num <= 0)) { setAlertErr("Введіть коректне значення."); return; }
+
+    // ── Plan limit checks ──
+    const limits = getPlanLimits(account?.planKey);
+    const activeAlerts = allAlerts.filter(a => a.is_active !== false);
+    const alertSymbols = new Set(activeAlerts.map(a => a.symbol.toUpperCase()));
+    const isNewSymbol = !alertSymbols.has(asset.sym.toUpperCase());
+
+    if (limits.alertSymbolsMax !== null && isNewSymbol && alertSymbols.size >= limits.alertSymbolsMax) {
+      setUpgradeModal({
+        title: "Ліміт алертів",
+        description: `Ваш план дозволяє створювати алерти для ${limits.alertSymbolsMax} ${limits.alertSymbolsMax === 1 ? "криптовалюти" : "криптовалют"}. Оновіть план для більшої кількості.`,
+      });
+      return;
+    }
+    if (limits.totalActiveAlertsMax !== null && activeAlerts.length >= limits.totalActiveAlertsMax) {
+      setUpgradeModal({
+        title: "Ліміт алертів",
+        description: `Ваш план дозволяє мати до ${limits.totalActiveAlertsMax} активних алертів. Видаліть існуючий або оновіть план.`,
+      });
+      return;
+    }
+    if (limits.alertsPerSymbolMax !== null) {
+      const perSymbol = activeAlerts.filter(a => a.symbol.toUpperCase() === asset.sym.toUpperCase()).length;
+      if (perSymbol >= limits.alertsPerSymbolMax) {
+        setUpgradeModal({
+          title: "Ліміт алертів",
+          description: `Ваш план дозволяє до ${limits.alertsPerSymbolMax} активних алертів для кожної криптовалюти. Видаліть існуючий або оновіть план.`,
+        });
+        return;
+      }
+    }
+
     setAlertLoading(true);
     try {
-      await createPriceAlert({ userId, symbol: asset.sym, condition: alertCond, targetPrice: num });
+      await createPriceAlert({ userId, symbol: asset.sym, condition: alertCond, targetPrice: num, maxTriggers: alertMaxTriggers });
       setAlertMsg("Алерт створено!");
+      setTimeout(() => setAlertMsg(m => m === "Алерт створено!" ? "" : m), 3000);
       setAlertVal(getAlertDefault(alertCond));
-      void loadAssetAlerts();
+      void loadAllAlerts();
     } catch { setAlertErr("Помилка при створенні алерту."); }
     finally { setAlertLoading(false); }
   };
@@ -1467,7 +2093,7 @@ export default function TradingPage() {
     setDeletingId(id);
     try {
       await removePriceAlert(userId, id);
-      setAssetAlerts(prev => prev.filter(a => a.id !== id));
+      setAllAlerts(prev => prev.filter(a => a.id !== id));
     } catch { /* ігноруємо */ }
     finally { setDeletingId(null); }
   };
@@ -1475,56 +2101,214 @@ export default function TradingPage() {
   const handleToggleAlert = useCallback(async (id: string, currentActive: boolean|null) => {
     if (!userId) return;
     const newActive = !currentActive;
-    setAssetAlerts(prev => prev.map(a => a.id === id ? { ...a, is_active: newActive } : a));
+    setAllAlerts(prev => prev.map(a => a.id === id ? { ...a, is_active: newActive } : a));
     setTogglingId(id);
     try { await togglePriceAlert(userId, id, newActive); }
-    catch { setAssetAlerts(prev => prev.map(a => a.id === id ? { ...a, is_active: currentActive } : a)); }
+    catch { setAllAlerts(prev => prev.map(a => a.id === id ? { ...a, is_active: currentActive } : a)); }
     finally { setTogglingId(null); }
   }, [userId]);
 
-  const handleUpdateSlTp = useCallback((posId: string, sl?: number, tp?: number) => {
-    setDemo(cur => ({
+  const handleUpdateSlTp = useCallback((posId: string, sl?: number, tp?: number) => { // eslint-disable-line react-hooks/preserve-manual-memoization
+    setActiveDemo(cur => ({
       ...cur,
       positions: cur.positions.map(p => p.id === posId ? { ...p, sl, tp } : p),
     }));
     // Keep editingPos in sync if it's the same position
     setEditingPos(prev => prev?.id === posId ? { ...prev, sl, tp } : prev);
-  }, []);
+  }, [setActiveDemo]);
 
   const handleUpdateAlertPrice = useCallback(async (alertId: string, newPrice: number) => {
     if (!userId) return;
-    setAssetAlerts(prev => prev.map(a => a.id === alertId ? { ...a, target_price: newPrice } : a));
+    setAllAlerts(prev => prev.map(a => a.id === alertId ? { ...a, target_price: newPrice } : a));
     try { await updateAlertTargetPrice(userId, alertId, newPrice); }
-    catch { void loadAssetAlerts(); } // revert on error
-  }, [userId, loadAssetAlerts]);
+    catch { void loadAllAlerts(); } // revert on error
+  }, [userId, loadAllAlerts]);
 
-  const handleAlertTriggered = useCallback((alert: PriceAlertRecord, triggerPrice: number) => {
+  const openAlertEdit = useCallback((alert: PriceAlertRecord) => { // eslint-disable-line react-hooks/preserve-manual-memoization
+    setEditingAlertId(alert.id);
+    setEditAlertCond(alert.condition);
+    setEditAlertVal(alert.target_price > 0 ? String(alert.target_price) : "");
+    setEditAlertMaxTriggers(alert.max_triggers ?? null);
+  }, []);
+
+  const handleSaveAlertEdit = async () => {
+    if (!userId || !editingAlertId) return;
+    const isNoValue = NO_VALUE_CONDITIONS.has(editAlertCond);
+    const num = isNoValue ? 0 : parseAlertValue(editAlertVal);
+    if (!isNoValue && (!Number.isFinite(num) || num <= 0)) return;
+    setEditAlertLoading(true);
+    try {
+      const updated = await updatePriceAlert({
+        userId, id: editingAlertId,
+        condition: editAlertCond, targetPrice: num,
+        maxTriggers: editAlertMaxTriggers,
+      });
+      setAllAlerts(prev => prev.map(a => a.id === editingAlertId ? { ...a, ...updated } : a));
+      setEditingAlertId(null);
+    } catch { /* ignore */ }
+    finally { setEditAlertLoading(false); }
+  };
+
+  const handleAlertClickOnChart = useCallback((alertId: string) => {
+    setRightTab("Alerts");
+    const alert = assetAlerts.find(a => a.id === alertId);
+    if (alert) openAlertEdit(alert);
+  }, [assetAlerts, openAlertEdit]);
+
+  const handleAlertTriggered = useCallback(async (alert: PriceAlertRecord, triggerPrice: number) => { // eslint-disable-line react-hooks/preserve-manual-memoization
     const condLabel = getAlertConditionShortLabel(alert.condition);
     const priceStr  = fUsd(triggerPrice);
     const targetStr = alert.target_price > 0 ? ` @ ${fUsd(alert.target_price)}` : "";
-    pushToast(`🚨 ${alert.symbol}: ${condLabel}${targetStr} — ціна ${priceStr}`);
-  }, [pushToast]);
+    const msg = `🚨 ${alert.symbol}: ${condLabel}${targetStr} — ціна ${priceStr}`;
+    pushToast(msg);
+    setChartAlertNotif({ msg, ts: Date.now() });
+
+    if (userId) {
+      // Optimistic update of trigger_count in local state
+      const newCount = (alert.trigger_count ?? 0) + 1;
+      const willDeactivate = alert.max_triggers != null && newCount >= alert.max_triggers;
+      setAllAlerts(prev => prev.map(a =>
+        a.id === alert.id
+          ? { ...a, trigger_count: newCount, is_active: willDeactivate ? false : a.is_active }
+          : a
+      ));
+
+      // Persist to DB: increment counter + deactivate if limit reached
+      void recordAlertTrigger(userId, alert).catch(() => {});
+
+      // Send Telegram notification if user is connected via bot
+      void fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId, message: msg }),
+      }).catch(() => {/* silently ignore if bot is not available */});
+    }
+  }, [pushToast, userId]);
 
   // Авто-заповнення значення при зміні умови
   useEffect(() => {
-    setAlertVal(getAlertDefault(alertCond));
+    setAlertVal(getAlertDefault(alertCond)); // eslint-disable-line react-hooks/set-state-in-effect
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alertCond]);
 
-  // Завантажуємо алерти при відкритті вкладки або при зміні символу
+  // Завантажуємо всі алерти при логіні або при відкритті вкладки
   useEffect(() => {
-    void loadAssetAlerts();
-  }, [loadAssetAlerts]);
+    void loadAllAlerts(); // eslint-disable-line react-hooks/set-state-in-effect
+  }, [loadAllAlerts]);
 
   useEffect(() => {
-    if (rightTab === "Alerts") void loadAssetAlerts();
-  }, [rightTab, loadAssetAlerts]);
+    if (rightTab === "Alerts") void loadAllAlerts(); // eslint-disable-line react-hooks/set-state-in-effect
+  }, [rightTab, loadAllAlerts]);
+
+  // Fetch Telegram connection status once when userId is known
+  useEffect(() => {
+    if (userId) fetchTelegramStatus(userId).then(setTgConnected).catch(() => setTgConnected(false));
+  }, [userId]);
+
+  // ── Watchlist ──
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    listFavoriteAssets(userId)
+      .then(rows => { if (active) setWatchlist(rows); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!watchlist.length) { setWatchlistPrices({}); return; } // eslint-disable-line react-hooks/set-state-in-effect
+    let active = true;
+    const fetchWlPrices = async () => {
+      const res: Record<string, number> = {};
+      await Promise.all(watchlist.map(async w => {
+        try {
+          const r = await fetch(`/api/binance/ticker/24hr?symbol=${getPair(w.symbol)}`);
+          if (r.ok) {
+            const d = await r.json() as { lastPrice?: string };
+            res[w.symbol] = +(d.lastPrice || 0);
+          }
+        } catch { /* ignore */ }
+      }));
+      if (active) setWatchlistPrices(res);
+    };
+    void fetchWlPrices();
+    const wlId = setInterval(() => void fetchWlPrices(), 15_000);
+    return () => { active = false; clearInterval(wlId); };
+  }, [watchlist]);
+
+  const toggleFavorite = useCallback(async () => {
+    if (!userId) return;
+    if (isFavorite) {
+      setWatchlist(prev => prev.filter(w => w.symbol !== asset.sym));
+      try { await removeFavoriteAsset(userId, asset.sym); }
+      catch { listFavoriteAssets(userId).then(r => setWatchlist(r)).catch(() => {}); }
+    } else {
+      // Plan limit check
+      const limits = getPlanLimits(account?.planKey);
+      if (limits.watchlistMax !== null && watchlist.length >= limits.watchlistMax) {
+        setUpgradeModal({
+          title: "Ліміт Watchlist",
+          description: `Ваш план дозволяє додавати до ${limits.watchlistMax} активів у Watchlist. Оновіть план, щоб розширити список.`,
+        });
+        return;
+      }
+      try {
+        const added = await addFavoriteAsset(userId, {
+          coinId: asset.id,
+          symbol: asset.sym,
+          name: asset.name,
+          imageUrl: asset.img,
+        });
+        setWatchlist(prev => [added, ...prev]);
+      } catch { /* ignore */ }
+    }
+  }, [userId, asset, isFavorite, watchlist, account]);
 
   // ── ML прогнози з Supabase ──
   const [mlPreds, setMlPreds]         = useState<MlPred[]>([]);
   const [mlAges,  setMlAges]          = useState<Record<string,string>>({});
   const [mlLoading, setMlLoading]     = useState(false);
   const [mlRefreshing, setMlRefreshing] = useState(false);
+
+  // ── Signal quota (plan-based per-symbol monthly limit) ──
+  const [signalUnlocked, setSignalUnlocked] = useState(false);
+
+  // On symbol change — check if already unlocked this month
+  useEffect(() => {
+    const limits = getPlanLimits(account?.planKey);
+    if (limits.signalSymbolsPerMonth === null) {
+      // Business = unlimited, always open
+      setSignalUnlocked(true);
+      return;
+    }
+    if (!userId) {
+      setSignalUnlocked(false);
+      return;
+    }
+    const viewed = getViewedSignalSymbols(userId);
+    // Only auto-open if user previously unlocked this symbol
+    setSignalUnlocked(viewed.has(asset.sym.toUpperCase()));
+  }, [asset.sym, account?.planKey, userId]);
+
+  // Called when user clicks "Відкрити сигнал"
+  const handleUnlockSignal = () => {
+    if (!userId) return;
+    const limits = getPlanLimits(account?.planKey);
+    if (limits.signalSymbolsPerMonth === null) {
+      setSignalUnlocked(true);
+      return;
+    }
+    const viewed = getViewedSignalSymbols(userId);
+    if (viewed.size < limits.signalSymbolsPerMonth) {
+      recordSignalSymbol(userId, asset.sym);
+      setSignalUnlocked(true);
+    } else {
+      setUpgradeModal({
+        title: "Ліміт AI-сигналів",
+        description: `Ваш план дозволяє відкривати AI-сигнали для ${limits.signalSymbolsPerMonth} символів на місяць. Оновіть план для необмеженого доступу.`,
+      });
+    }
+  };
 
   /** Завантажує прогнози з Supabase для поточного asset.sym */
   const fetchPreds = useCallback(async (active?: { ok: boolean }): Promise<MlPred[]> => {
@@ -1566,7 +2350,7 @@ export default function TradingPage() {
 
   useEffect(()=>{
     const active = { ok: true };
-    void fetchPreds(active);
+    void fetchPreds(active); // eslint-disable-line react-hooks/set-state-in-effect
     return ()=>{ active.ok = false; };
   },[fetchPreds]);
 
@@ -1626,7 +2410,7 @@ export default function TradingPage() {
   }, [asset.sym, fetchPreds, mlPreds]);
 
   useEffect(()=>{
-    void requestFreshPrediction("auto");
+    void requestFreshPrediction("auto"); // eslint-disable-line react-hooks/set-state-in-effect
 
     if(autoPredictionTimer.current) clearInterval(autoPredictionTimer.current);
     autoPredictionTimer.current = setInterval(()=>{
@@ -1656,6 +2440,61 @@ export default function TradingPage() {
     );
   }
 
+  // ════════════════════════════════════════════
+  // Перший візит — запрошення розпочати demo
+  if(noAccount && userId){
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-[#010004] text-white gap-0" style={{fontFamily:"'Montserrat',sans-serif"}}>
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-[-200px] left-[10%] w-[600px] h-[600px] bg-[#522E8B]/20 blur-[140px] rounded-full"/>
+          <div className="absolute bottom-[-200px] right-[10%] w-[500px] h-[500px] bg-[#8348C1]/15 blur-[140px] rounded-full"/>
+        </div>
+        <div className="relative z-10 flex flex-col items-center text-center max-w-[480px] px-6">
+          {/* Chart icon */}
+          <div className="mb-8 flex h-[80px] w-[80px] items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,rgba(131,72,193,0.25),rgba(44,25,105,0.4))] border border-[#8348C1]/30 shadow-[0_0_40px_rgba(131,72,193,0.2)]">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke="#8348C1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <h2 className="text-[28px] font-bold mb-3 bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent">
+            Demo Trading
+          </h2>
+          <p className="text-[14px] text-white/50 leading-relaxed mb-2">
+            Практикуйте торгівлю криптовалютами без ризику.
+          </p>
+          <p className="text-[13px] text-[#8348C1] font-medium mb-10">
+            Стартовий баланс: <span className="text-white font-bold">$25,000</span> віртуальних коштів
+          </p>
+
+          {/* Features */}
+          <div className="w-full grid grid-cols-3 gap-3 mb-10">
+            {[
+              { icon: "📊", title: "Реальні графіки", desc: "Binance live data" },
+              { icon: "⚡", title: "Ф'ючерси з плечем", desc: "До 100×" },
+              { icon: "🎯", title: "Аналітика", desc: "PnL, Win rate" },
+            ].map(f=>(
+              <div key={f.title} className="rounded-[16px] bg-white/[0.04] border border-white/[0.07] p-4 flex flex-col items-center gap-2 text-center">
+                <span className="text-[22px]">{f.icon}</span>
+                <span className="text-[12px] font-medium text-white/80">{f.title}</span>
+                <span className="text-[11px] text-white/40">{f.desc}</span>
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={()=>setNoAccount(false)}
+            className="w-full max-w-[320px] h-[50px] rounded-full bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[15px] font-semibold transition-transform hover:scale-[1.03] active:scale-[0.97] shadow-[0_4px_24px_rgba(131,72,193,0.35)]"
+          >
+            Розпочати з $25,000
+          </button>
+          <button onClick={()=>window.history.back()} className="mt-4 text-[12px] text-white/30 hover:text-white/60 transition-colors">
+            ← Назад
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen flex-col bg-[#010004] text-white overflow-hidden" style={{fontFamily:"'Montserrat',sans-serif"}}>
 
@@ -1667,6 +2506,19 @@ export default function TradingPage() {
           <Link to="/dashboard" className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-white/50 hover:bg-white/5 hover:text-white transition-colors">
             <ArrowLeft size={15}/>
           </Link>
+          <div className="h-4 w-px bg-white/10 shrink-0"/>
+
+          {/* Mode switcher */}
+          <div className="flex shrink-0 items-center bg-[#0B0B12] border border-white/10 rounded-lg p-0.5">
+            <button type="button" onClick={()=>setMode("live")}
+              className={`px-2.5 py-1 rounded text-[10px] font-bold transition-colors ${mode==="live"?"bg-[#8348C1] text-white":"text-white/35 hover:text-white"}`}>
+              Live Demo
+            </button>
+            <button type="button" onClick={()=>setMode("replay")}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-bold transition-colors ${mode==="replay"?"bg-[#F7931A] text-[#0B0B12]":"text-white/35 hover:text-white"}`}>
+              <Rewind size={9}/> Replay
+            </button>
+          </div>
           <div className="h-4 w-px bg-white/10 shrink-0"/>
 
           {/* Coin selector */}
@@ -1715,13 +2567,40 @@ export default function TradingPage() {
           </div>
 
           <div className="h-4 w-px bg-white/10 shrink-0"/>
+          {/* Favorite / Watchlist star */}
+          {userId && (
+            <button type="button"
+              title={isFavorite ? "Видалити з вотчлісту" : "Додати до вотчлісту"}
+              onClick={() => void toggleFavorite()}
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded transition-colors hover:bg-white/5">
+              <Star size={13} className={isFavorite ? "fill-yellow-400 text-yellow-400" : "text-white/30 hover:text-yellow-400"} fill={isFavorite ? "currentColor" : "none"}/>
+            </button>
+          )}
+          {/* Live dot (live mode only) */}
+          {mode === "live" && (
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00E676] opacity-60"/>
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#00E676]"/>
+            </span>
+          )}
+          {/* Replay indicator */}
+          {mode === "replay" && replayCandles.length > 0 && (
+            <span className="shrink-0 flex items-center gap-1 text-[9px] font-semibold text-[#F7931A] bg-[#F7931A]/10 rounded px-1.5 py-0.5 border border-[#F7931A]/20">
+              <Rewind size={8}/>
+              {new Date(replayCandles[replayIndex]?.time ?? 0).toLocaleDateString("uk-UA",{day:"2-digit",month:"short",year:"numeric"})}
+              <span className="text-white/30">·</span>
+              {replayIndex+1}/{replayCandles.length}
+            </span>
+          )}
           {/* Price */}
           <span className={`text-[15px] font-bold shrink-0 ${isGreen?"text-[#00E676]":"text-[#F40000]"}`}>
-            {loading&&!price?<Loader2 size={13} className="animate-spin inline"/>:fUsd(price)}
+            {loading&&!effectivePrice?<Loader2 size={13} className="animate-spin inline"/>:fUsd(effectivePrice)}
           </span>
+          {mode === "live" && (
           <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${isGreen?"bg-[#00E676]/10 text-[#00E676]":"bg-[#F40000]/10 text-[#F40000]"}`}>
             {fPct(pct24h)}
           </span>
+          )}
           {h24>0&&(
             <div className="hidden xl:flex items-center gap-3 ml-2 text-[10px] text-white/40">
               <span>H: <span className="text-white">{fUsd(h24)}</span></span>
@@ -1741,6 +2620,11 @@ export default function TradingPage() {
           <button type="button" onClick={()=>void loadData()} className="flex h-7 w-7 items-center justify-center rounded-lg text-white/50 hover:bg-white/5 hover:text-white transition-colors">
             <RefreshCw size={13} className={loading?"animate-spin":""}/>
           </button>
+          <button type="button" onClick={() => setWatchlistOpen(v => !v)}
+            title="Вотчліст"
+            className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${watchlistOpen ? "bg-[#8348C1]/20 text-[#C38BFF]" : "text-white/50 hover:bg-white/5 hover:text-white"}`}>
+            <Star size={14} fill={watchlistOpen ? "currentColor" : "none"}/>
+          </button>
           <div className="h-4 w-px bg-white/10"/>
           <button type="button" onClick={()=>setPanelOpen(v=>!v)}
             className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${panelOpen?"bg-[#8348C1]/20 text-[#C38BFF]":"text-white/50 hover:bg-white/5 hover:text-white"}`}>
@@ -1749,8 +2633,130 @@ export default function TradingPage() {
         </div>
       </header>
 
+      {/* ══ REPLAY CONTROLS BAR ══ */}
+      {mode === "replay" && (
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#050506] border-b border-[#F7931A]/20 shrink-0 overflow-x-auto">
+          {/* Educational badge */}
+          <span className="shrink-0 flex items-center gap-1 text-[9px] font-bold text-[#F7931A] bg-[#F7931A]/10 rounded-lg px-2 py-1 border border-[#F7931A]/20 whitespace-nowrap">
+            <BookOpen size={9}/> PRACTICE REPLAY
+          </span>
+
+          <div className="w-px h-5 bg-white/10 shrink-0"/>
+
+          {/* Date selector */}
+          <label className="text-[9px] text-white/40 shrink-0">Старт:</label>
+          <input type="date" value={replayStartDate} onChange={e=>setReplayStartDate(e.target.value)}
+            className="bg-[#0B0B12] border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white outline-none focus:border-[#F7931A]/50 transition-colors shrink-0"
+            max={new Date().toISOString().split("T")[0]}/>
+
+          {/* TF selector */}
+          <select value={replayTf} onChange={e=>setReplayTf(e.target.value as ChartTf)}
+            className="bg-[#0B0B12] border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white outline-none shrink-0">
+            {TF_OPTIONS.map(t=><option key={t} value={t}>{TF_LABELS[t]}</option>)}
+          </select>
+
+          {/* Load button */}
+          <button type="button" onClick={()=>void loadReplayCandles()} disabled={replayLoading}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#F7931A]/15 text-[#F7931A] text-[10px] font-semibold hover:bg-[#F7931A]/25 transition-colors disabled:opacity-50 shrink-0 border border-[#F7931A]/20 whitespace-nowrap">
+            {replayLoading?<Loader2 size={10} className="animate-spin"/>:<FastForward size={10}/>}
+            {replayLoading?"Завантаження...":"Завантажити"}
+          </button>
+
+          {replayCandles.length > 0 && (
+            <>
+              <div className="w-px h-5 bg-white/10 shrink-0"/>
+
+              {/* Play / Pause */}
+              <button type="button" onClick={()=>setReplayPlaying(p=>!p)}
+                className={`flex h-7 w-7 items-center justify-center rounded-lg text-white transition-colors shrink-0 ${replayPlaying?"bg-[#F7931A]/20 text-[#F7931A]":"bg-white/5 hover:bg-white/10"}`}>
+                {replayPlaying?<Pause size={13}/>:<Play size={13}/>}
+              </button>
+
+              {/* Restart */}
+              <button type="button" onClick={handleReplayRestart}
+                className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 text-white/50 hover:bg-white/10 hover:text-white transition-colors shrink-0">
+                <RotateCcw size={12}/>
+              </button>
+
+              {/* Speed selector */}
+              <div className="flex items-center gap-0.5 bg-[#0B0B12] border border-white/10 rounded-lg p-0.5 shrink-0">
+                {([1,2,5,10] as const).map(s=>(
+                  <button key={s} type="button" onClick={()=>setReplaySpeed(s)}
+                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-colors ${replaySpeed===s?"bg-[#F7931A] text-[#0B0B12]":"text-white/40 hover:text-white"}`}>
+                    {s}x
+                  </button>
+                ))}
+              </div>
+
+              {/* Progress bar */}
+              <div className="flex-1 min-w-[80px] max-w-[200px]">
+                <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full bg-[#F7931A] rounded-full transition-all"
+                    style={{width:`${replayCandles.length>0?((replayIndex+1)/replayCandles.length*100):0}%`}}/>
+                </div>
+              </div>
+
+              <div className="w-px h-5 bg-white/10 shrink-0"/>
+
+              {/* End session */}
+              <button type="button" onClick={handleEndSession}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 text-white/50 text-[10px] font-semibold hover:bg-red-500/10 hover:text-red-400 transition-colors shrink-0 border border-white/5 whitespace-nowrap">
+                <Flag size={9}/> Завершити
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* ══ WORKSPACE ══ */}
       <div className="flex flex-1 overflow-hidden">
+
+        {/* LEFT WATCHLIST SIDEBAR */}
+        <aside className={`shrink-0 overflow-hidden border-r border-white/10 bg-[#050506] transition-all duration-300 flex flex-col ${watchlistOpen ? "w-[150px]" : "w-0 border-transparent"}`}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-2 h-[38px] border-b border-white/10 shrink-0">
+            <div className="text-[9px] font-bold text-white/35 uppercase tracking-wider flex items-center gap-1">
+              <Star size={8}/> Вотчліст
+            </div>
+            {userId && (
+              <button type="button"
+                title={isFavorite ? "Видалити з вотчлісту" : "Додати поточний"}
+                onClick={() => void toggleFavorite()}
+                className="flex h-5 w-5 items-center justify-center rounded text-white/30 hover:text-yellow-400 hover:bg-white/5 transition-colors">
+                <Star size={10} className={isFavorite ? "fill-yellow-400 text-yellow-400" : ""} fill={isFavorite ? "currentColor" : "none"}/>
+              </button>
+            )}
+          </div>
+          {/* List */}
+          <div className="flex-1 overflow-y-auto py-1">
+            {!userId ? (
+              <div className="text-center text-[9px] text-white/20 px-2 py-4 leading-relaxed">Увійдіть,<br/>щоб додати</div>
+            ) : watchlist.length === 0 ? (
+              <div className="text-center text-[9px] text-white/20 px-2 py-4 leading-relaxed">Порожньо.<br/>Натисни ★ щоб<br/>зберегти монету</div>
+            ) : (
+              watchlist.map(w => {
+                const wPrice = watchlistPrices[w.symbol] || 0;
+                const isCur = w.symbol === asset.sym;
+                return (
+                  <button key={w.id} type="button"
+                    onClick={() => navigate(`/trading/${w.symbol}`)}
+                    className={`w-full flex items-center gap-1.5 px-2 py-1.5 hover:bg-white/5 transition-colors text-left border-b border-white/[0.03] ${isCur ? "bg-[#8348C1]/10" : ""}`}
+                  >
+                    <img src={w.image_url} alt={w.symbol} className="h-5 w-5 rounded-full shrink-0 object-contain"
+                      onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}/>
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                      <div className={`text-[10px] font-semibold truncate ${isCur ? "text-[#C38BFF]" : "text-white/80"}`}>{w.symbol}</div>
+                      {wPrice > 0 && (
+                        <div className="text-[8px] font-mono text-white/35 truncate">{fUsd(wPrice)}</div>
+                      )}
+                    </div>
+                    {isCur && <span className="w-1.5 h-1.5 rounded-full bg-[#C38BFF] shrink-0"/>}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </aside>
 
         {/* CENTER */}
         <main className="flex flex-1 flex-col min-w-0 bg-[#08080A]">
@@ -1760,10 +2766,14 @@ export default function TradingPage() {
             <TradingLWChart
               pair={pair}
               alerts={assetAlerts}
-              positions={demo.positions.filter(p=>p.sym===asset.sym)}
+              positions={activeDemo.positions.filter(p=>p.sym===asset.sym)}
               onUpdatePositionSlTp={handleUpdateSlTp}
               onUpdateAlertPrice={handleUpdateAlertPrice}
               onAlertTriggered={handleAlertTriggered}
+              onAlertClick={handleAlertClickOnChart}
+              chartAlertNotif={chartAlertNotif}
+              replayCandles={mode==="replay"?replayCandles:undefined}
+              replayIndex={mode==="replay"?replayIndex:undefined}
             />
           </div>
 
@@ -1774,7 +2784,7 @@ export default function TradingPage() {
             <div className="flex h-[34px] items-center justify-between px-3 border-b border-white/5 shrink-0 bg-[#08080A]">
               <div className="flex items-center h-full">
                 {(["Positions","Orders","History"] as BottomTab[]).map(tab=>{
-                  const cnt=tab==="Positions"?demo.positions.length:tab==="Orders"?demo.orders.length:demo.trades.length;
+                  const cnt=tab==="Positions"?activeDemo.positions.length:tab==="Orders"?activeDemo.orders.length:activeDemo.trades.length;
                   return (
                     <button key={tab} type="button"
                       onClick={()=>{setBotTab(tab);if(!bottomOpen)setBottomOpen(true);}}
@@ -1802,7 +2812,7 @@ export default function TradingPage() {
 
                 {/* POSITIONS */}
                 {botTab==="Positions"&&(
-                  demo.positions.length===0
+                  activeDemo.positions.length===0
                     ? <Empty text="Немає відкритих позицій"/>
                     : <table className="w-full text-left text-[10.5px]">
                         <thead className="sticky top-0 bg-[#050506] z-10">
@@ -1813,7 +2823,7 @@ export default function TradingPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {demo.positions.map(pos=>{
+                          {activeDemo.positions.map(pos=>{
                             const liveP = posPrice(pos.sym);
                             const fillP = liveP || pos.avgPrice;
                             const pnl=getPnl(pos,fillP);
@@ -1823,7 +2833,7 @@ export default function TradingPage() {
                               <tr key={pos.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] cursor-pointer"
                                 onClick={e=>{
                                   if((e.target as HTMLElement).closest("button")) return;
-                                  setEditingPos(pos);
+                                  navigate(`/trading/${pos.sym}`);
                                 }}>
                                 <td className="px-2.5 py-2">
                                   <div className="flex items-center gap-1.5">
@@ -1874,7 +2884,7 @@ export default function TradingPage() {
 
                 {/* ORDERS */}
                 {botTab==="Orders"&&(
-                  demo.orders.length===0
+                  activeDemo.orders.length===0
                     ? <Empty text="Немає активних ордерів"/>
                     : <table className="w-full text-left text-[10.5px]">
                         <thead className="sticky top-0 bg-[#050506] z-10">
@@ -1885,7 +2895,7 @@ export default function TradingPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {demo.orders.map(o=>(
+                          {activeDemo.orders.map(o=>(
                             <tr key={o.id} className="border-b border-white/[0.04] hover:bg-white/[0.02]">
                               <td className="px-2.5 py-2"><div className="flex items-center gap-1.5"><img src={o.img} alt={o.sym} className="h-4 w-4 rounded-full" onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none"}}/><span className="font-semibold">{o.sym}</span></div></td>
                               <td className={`px-2.5 py-2 font-bold ${o.side==="LONG"?"text-[#00E676]":"text-[#F40000]"}`}>{o.side}</td>
@@ -1907,22 +2917,32 @@ export default function TradingPage() {
 
                 {/* HISTORY */}
                 {botTab==="History"&&(
-                  demo.trades.length===0
+                  activeDemo.trades.length===0
                     ? <Empty text="Немає закритих угод"/>
                     : <table className="w-full text-left text-[10.5px]">
                         <thead className="sticky top-0 bg-[#050506] z-10">
                           <tr className="text-white/30 border-b border-white/5">
-                            {["Символ","Сторона","Плечі","Дія","Кількість","Ціна","PnL","ROE%","Час"].map(h=>(
+                            {["Символ","Сторона","Плечі","Результат","Дія","Кількість","Ціна","PnL","ROE%","Час"].map(h=>(
                               <th key={h} className="px-2.5 py-2 font-medium whitespace-nowrap">{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
-                          {demo.trades.map(t=>(
+                          {activeDemo.trades.map(t=>{
+                            const isWin = t.action==="CLOSE" && t.pnl>0;
+                            const isLoss= t.action==="CLOSE" && t.pnl<0;
+                            return (
                             <tr key={t.id} className="border-b border-white/[0.04] hover:bg-white/[0.02]">
                               <td className="px-2.5 py-2 font-semibold">{t.sym}</td>
                               <td className={`px-2.5 py-2 font-bold ${t.side==="LONG"?"text-[#00E676]":"text-[#F40000]"}`}>{t.side}</td>
                               <td className="px-2.5 py-2"><span className="bg-[#8348C1]/20 text-[#C38BFF] rounded px-1.5 py-0.5 text-[9px] font-bold">{t.leverage}x</span></td>
+                              <td className="px-2.5 py-2">
+                                {t.action==="CLOSE"?(
+                                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${isWin?"bg-[#00E676]/15 text-[#00E676]":isLoss?"bg-[#F40000]/15 text-[#F40000]":"bg-white/10 text-white/40"}`}>
+                                    {isWin?"WIN":isLoss?"LOSS":"0"}
+                                  </span>
+                                ):<span className="text-white/20 text-[9px]">—</span>}
+                              </td>
                               <td className="px-2.5 py-2">
                                 <span className={`rounded px-1.5 py-0.5 text-[9px] font-semibold ${t.action==="OPEN"?"bg-[#8348C1]/20 text-[#C38BFF]":"bg-white/10 text-white/60"}`}>
                                   {t.action==="OPEN"?"Відкрито":"Закрито"}
@@ -1938,7 +2958,7 @@ export default function TradingPage() {
                               </td>
                               <td className="px-2.5 py-2 text-white/30 whitespace-nowrap">{t.createdAt}</td>
                             </tr>
-                          ))}
+                          );})}
                         </tbody>
                       </table>
                 )}
@@ -1967,9 +2987,15 @@ export default function TradingPage() {
               <>
                 {/* Balance */}
                 <div className="rounded-xl border border-white/5 bg-[#08080A] p-3 space-y-1.5">
+                  {/* Account label */}
+                  {mode === "replay" && (
+                    <div className="flex items-center gap-1 text-[9px] font-bold text-[#F7931A] bg-[#F7931A]/10 rounded px-1.5 py-0.5 w-fit mb-1">
+                      📚 Replay Account
+                    </div>
+                  )}
                   <div className="flex justify-between text-[11px]">
                     <span className="text-white/40">Demo баланс</span>
-                    <span className={`font-bold ${demo.cash<0?"text-[#F40000]":"text-white"}`}>{fUsd(demo.cash)}</span>
+                    <span className={`font-bold ${activeDemo.cash<0?"text-[#F40000]":"text-white"}`}>{fUsd(activeDemo.cash)}</span>
                   </div>
                   <div className="flex justify-between text-[11px]">
                     <span className="text-white/40">Equity</span>
@@ -1990,7 +3016,7 @@ export default function TradingPage() {
                       </button>
                     ))}
                   </div>
-                  {demo.cash<1000&&(
+                  {activeDemo.cash<1000&&(
                     <div className="flex items-center gap-1 rounded-lg bg-amber-500/10 border border-amber-500/20 p-1.5 text-[10px] text-amber-300">
                       <AlertTriangle size={10}/> Поповніть баланс
                     </div>
@@ -2148,12 +3174,81 @@ export default function TradingPage() {
                       </button>
                     </div>
                   </div>
-                  {mlPreds.length===0&&!mlLoading&&(
+                  {mlPreds.length===0&&!mlLoading&&signalUnlocked&&(
                     <div className="rounded-xl border border-white/5 bg-[#08080A] p-3 text-center text-[10px] text-white/25">
                       Немає прогнозів для {asset.sym}
                     </div>
                   )}
-                  {(["4h","1d","1w","1M"] as const).map(tf2=>{
+
+                  {/* Signal lock screen — explicit unlock required */}
+                  {!signalUnlocked&&(()=>{
+                    const limits = getPlanLimits(account?.planKey);
+                    const max = limits.signalSymbolsPerMonth ?? 0;
+                    const used = userId ? getViewedSignalSymbols(userId).size : 0;
+                    const remaining = Math.max(0, max - used);
+                    const canUnlock = remaining > 0;
+                    return (
+                      <div className="relative rounded-xl overflow-hidden">
+                        {/* Blurred fake signal cards */}
+                        <div className="blur-sm pointer-events-none select-none space-y-2" aria-hidden>
+                          {(["4h","1d","1w","1M"] as const).map(tf2=>(
+                            <div key={tf2} className="rounded-xl border border-[#00E676]/20 bg-[#00E676]/10 p-2.5">
+                              <div className="flex items-center justify-between mb-1.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[9px] font-bold bg-white/10 rounded px-1.5 py-0.5 text-white/60">{tf2}</span>
+                                  <span className="text-[11px] font-bold text-[#00E676]">LONG</span>
+                                </div>
+                                <span className="text-[8px] text-white/25">1год тому</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[9px]">
+                                <div className="flex justify-between"><span className="text-white/35">Впевненість</span><span className="font-semibold text-white">82.5%</span></div>
+                                <div className="flex justify-between"><span className="text-white/35">Точність</span><span className="font-semibold text-white">76.3%</span></div>
+                              </div>
+                              <div className="mt-2 h-[3px] w-full bg-white/10 rounded-full overflow-hidden">
+                                <div className="h-full rounded-full bg-[#00E676]" style={{width:"82%"}}/>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {/* Lock overlay */}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#08080A]/85 backdrop-blur-[2px] rounded-xl px-3 py-4 text-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-[#8348C1]/20 border border-[#8348C1]/40 flex items-center justify-center">
+                            <Bot size={16} className="text-[#C38BFF]"/>
+                          </div>
+                          <div className="text-[11px] font-bold text-white/90">AI Сигнал · {asset.sym}</div>
+                          {canUnlock ? (
+                            <>
+                              <div className="text-[9px] text-white/50 leading-relaxed">
+                                Залишилось відкриттів: <span className="text-[#C38BFF] font-semibold">{remaining}</span> з <span className="text-[#C38BFF] font-semibold">{max}</span> цього місяця
+                              </div>
+                              <button
+                                type="button"
+                                onClick={handleUnlockSignal}
+                                className="mt-1 rounded-lg bg-[#8348C1] hover:bg-[#9B59D6] px-4 py-1.5 text-[10px] font-semibold text-white transition-colors flex items-center gap-1.5"
+                              >
+                                🔓 Відкрити сигнал
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-[9px] text-white/50 leading-relaxed">
+                                Ліміт вичерпано — <span className="text-[#C38BFF] font-semibold">{max}/{max}</span> символів відкрито цього місяця
+                              </div>
+                              <button
+                                type="button"
+                                onClick={()=>setUpgradeModal({ title:"Більше AI-сигналів", description:`Ваш план дозволяє відкривати AI-сигнали для ${max} символів на місяць. Оновіть план для необмеженого доступу.` })}
+                                className="mt-1 rounded-lg bg-[#8348C1] hover:bg-[#9B59D6] px-3 py-1.5 text-[10px] font-semibold text-white transition-colors"
+                              >
+                                Оновити план
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {signalUnlocked&&(["4h","1d","1w","1M"] as const).map(tf2=>{
                     const p = mlPreds.find(x=>x.interval===tf2);
                     if(!p) return null;
                     const isLong  = p.signal?.includes("LONG");
@@ -2458,6 +3553,38 @@ export default function TradingPage() {
                   </div>
                 )}
 
+                {/* Trigger limit selector */}
+                <div className="space-y-1">
+                  <label className="block text-[9px] text-white/40 font-medium">Кількість спрацювань</label>
+                  <div className="grid grid-cols-4 gap-1">
+                    {([
+                      { label: "∞", value: null,  hint: "Кожного разу" },
+                      { label: "1×", value: 1,    hint: "Один раз" },
+                      { label: "2×", value: 2,    hint: "Двічі" },
+                      { label: "5×", value: 5,    hint: "П'ять разів" },
+                    ] as { label: string; value: number | null; hint: string }[]).map(opt => (
+                      <button
+                        key={String(opt.value)}
+                        type="button"
+                        title={opt.hint}
+                        onClick={() => setAlertMaxTriggers(opt.value)}
+                        className={`h-[28px] rounded-lg text-[11px] font-bold border transition-colors ${
+                          alertMaxTriggers === opt.value
+                            ? "bg-[#8348C1] border-[#8348C1] text-white"
+                            : "bg-transparent border-white/10 text-white/50 hover:border-[#8348C1]/50 hover:text-white/80"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  {alertMaxTriggers !== null && (
+                    <div className="text-[9px] text-white/30">
+                      Алерт деактивується після {alertMaxTriggers === 1 ? "першого" : alertMaxTriggers === 2 ? "другого" : `${alertMaxTriggers}-го`} спрацювання
+                    </div>
+                  )}
+                </div>
+
                 {/* Feedback */}
                 {(alertErr||alertMsg)&&(
                   <div className={`rounded-lg px-2.5 py-1.5 text-[10px] ${alertErr?"bg-red-500/10 border border-red-500/20 text-red-300":"bg-[#00E676]/10 border border-[#00E676]/20 text-[#00E676]"}`}>
@@ -2481,45 +3608,171 @@ export default function TradingPage() {
                 {/* Divider */}
                 <div className="border-t border-white/5 pt-1"/>
 
-                {/* Existing alerts for this asset */}
+                {/* All user alerts */}
                 <div className="text-[9px] font-semibold text-white/35 uppercase tracking-wider flex items-center justify-between">
-                  <span>Активні · {asset.sym}</span>
+                  <span>Всі алерти</span>
                   {alertsLoading&&<Loader2 size={9} className="animate-spin text-[#8348C1]"/>}
                 </div>
 
                 {!userId?(
                   <div className="text-[10px] text-white/25 text-center py-2">Увійдіть, щоб бачити алерти</div>
-                ):assetAlerts.length===0&&!alertsLoading?(
-                  <div className="text-[10px] text-white/25 text-center py-2">Немає алертів для {asset.sym}</div>
+                ):allAlerts.length===0&&!alertsLoading?(
+                  <div className="text-[10px] text-white/25 text-center py-2">Немає алертів</div>
                 ):(
                   <div className="space-y-1.5">
-                    {assetAlerts.map(al=>{
+                    {allAlerts.map(al=>{
                       const isPrice = ALERT_CONDS_PRICE.has(al.condition);
                       const isUp = al.condition.includes("_up")||al.condition.includes("_gt")||al.condition==="golden_cross"||al.condition==="new_ath"||al.condition==="bb_upper_break";
                       const isActive = al.is_active !== false;
                       const dotColor = !isActive?"bg-white/20":isUp?"bg-[#26a69a]":"bg-[#ef5350]";
                       const unit = getAlertConditionUnit(al.condition);
+                      const isEditing = editingAlertId === al.id;
+                      const cardCls = isEditing
+                        ? "border-[#8348C1]/50 bg-[#8348C1]/10"
+                        : !isActive ? "border-white/5 bg-white/[0.02]"
+                        : "border-[#8348C1]/20 bg-[#8348C1]/5";
                       return (
-                        <div key={al.id} className={`rounded-xl border px-2.5 py-2 transition-colors ${!isActive?"border-white/5 bg-white/[0.02]":"border-[#8348C1]/20 bg-[#8348C1]/5"}`}>
-                          <div className="flex items-center justify-between gap-2">
+                        <div key={al.id} className={`rounded-xl border transition-colors ${cardCls}`}>
+                          {isEditing ? (
+                            /* ── Inline edit form ── */
+                            <div className="px-2.5 py-2.5 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[9px] font-semibold text-[#C38BFF] uppercase tracking-wide">Редагувати алерт</span>
+                                <button type="button" onClick={()=>setEditingAlertId(null)} className="text-white/30 hover:text-white/70 transition-colors">
+                                  <X size={11}/>
+                                </button>
+                              </div>
+                              {/* Condition select */}
+                              <div className="relative">
+                                <select
+                                  value={editAlertCond}
+                                  onChange={e=>setEditAlertCond(e.target.value as PriceAlertCondition)}
+                                  className="w-full appearance-none bg-[#08080A] border border-white/10 rounded-lg px-2.5 py-1.5 text-[10px] text-white/80 outline-none focus:border-[#8348C1]/60 pr-6"
+                                >
+                                  <option value="price_gt">Вище</option>
+                                  <option value="price_gte">Вище або =</option>
+                                  <option value="price_lt">Нижче</option>
+                                  <option value="price_lte">Нижче або =</option>
+                                  <option value="price_eq">Дорівнює</option>
+                                  <option value="pct_change_24h_gt">24h зростання %</option>
+                                  <option value="pct_change_24h_lt">24h падіння %</option>
+                                  <option value="rsi_gt">RSI більше</option>
+                                  <option value="rsi_lt">RSI менше</option>
+                                  <option value="ema20_cross_up">EMA20 ↑</option>
+                                  <option value="ema20_cross_down">EMA20 ↓</option>
+                                  <option value="ema50_cross_up">EMA50 ↑</option>
+                                  <option value="ema50_cross_down">EMA50 ↓</option>
+                                  <option value="volume_spike_gt">Сплеск об'єму ×</option>
+                                  <option value="trailing_stop_pct">Trailing stop %</option>
+                                  <option value="golden_cross">Золотий хрест</option>
+                                  <option value="death_cross">Смертний хрест</option>
+                                  <option value="bb_upper_break">BB верх ↑</option>
+                                  <option value="bb_lower_break">BB низ ↓</option>
+                                  <option value="new_ath">Новий ATH</option>
+                                  <option value="vol_24h_gt">Об'єм 24h</option>
+                                  <option value="macd_cross_up">MACD ↑</option>
+                                  <option value="macd_cross_down">MACD ↓</option>
+                                </select>
+                                <ChevronDown size={10} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-white/30"/>
+                              </div>
+                              {/* Value input (hidden for no-value conditions) */}
+                              {!NO_VALUE_CONDITIONS.has(editAlertCond) && (
+                                <label className="flex bg-[#08080A] border border-white/10 rounded-lg px-2.5 py-1.5 focus-within:border-[#8348C1]/60 transition-colors cursor-text gap-2 items-center">
+                                  <input
+                                    type="number" inputMode="decimal"
+                                    value={editAlertVal}
+                                    onChange={e=>setEditAlertVal(sanitizeAlertValue(e.target.value))}
+                                    className="flex-1 bg-transparent text-[11px] text-white font-medium outline-none placeholder:text-white/20 min-w-0"
+                                    placeholder="0"
+                                  />
+                                  <span className="text-[9px] text-white/40 shrink-0">{getAlertConditionUnit(editAlertCond)||"RSI"}</span>
+                                </label>
+                              )}
+                              {/* Trigger limit selector */}
+                              <div className="space-y-1">
+                                <label className="block text-[9px] text-white/35">Спрацювань</label>
+                                <div className="grid grid-cols-4 gap-1">
+                                  {([
+                                    { label:"∞", value:null },
+                                    { label:"1×", value:1 },
+                                    { label:"2×", value:2 },
+                                    { label:"5×", value:5 },
+                                  ] as {label:string;value:number|null}[]).map(opt=>(
+                                    <button key={String(opt.value)} type="button"
+                                      onClick={()=>setEditAlertMaxTriggers(opt.value)}
+                                      className={`h-[24px] rounded-lg text-[10px] font-bold border transition-colors ${
+                                        editAlertMaxTriggers===opt.value
+                                          ?"bg-[#8348C1] border-[#8348C1] text-white"
+                                          :"bg-transparent border-white/10 text-white/45 hover:border-[#8348C1]/50 hover:text-white/80"
+                                      }`}>
+                                      {opt.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              {/* Save / Cancel */}
+                              <div className="flex gap-1.5">
+                                <button type="button" onClick={()=>setEditingAlertId(null)}
+                                  className="flex-1 h-[28px] rounded-lg text-[10px] border border-white/10 text-white/40 hover:text-white/70 hover:border-white/20 transition-colors">
+                                  Скасувати
+                                </button>
+                                <button type="button" onClick={()=>void handleSaveAlertEdit()} disabled={editAlertLoading}
+                                  className="flex-1 h-[28px] rounded-lg text-[10px] font-bold bg-[#8348C1] text-white hover:bg-[#9B5FD4] disabled:opacity-60 transition-colors flex items-center justify-center gap-1">
+                                  {editAlertLoading?<Loader2 size={9} className="animate-spin"/>:<Check size={9}/>}
+                                  Зберегти
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                          /* ── Normal row ── */
+                          <div className="px-2.5 py-2 flex items-center justify-between gap-2"
+                            onClick={() => {
+                              if (al.symbol.toUpperCase() === asset.sym) {
+                                openAlertEdit(al);
+                              } else {
+                                navigate(`/trading/${al.symbol.toUpperCase()}`);
+                              }
+                            }}
+                            style={{cursor:"pointer"}}
+                          >
                             <div className="min-w-0 flex-1">
                               <div className="text-[10px] font-semibold text-white truncate">
+                                <span className={`text-[8px] rounded px-1 py-0.5 mr-1 font-bold ${al.symbol.toUpperCase() === asset.sym ? "bg-[#8348C1]/20 text-[#C38BFF]" : "bg-white/5 text-white/40"}`}>
+                                  {al.symbol.toUpperCase()}
+                                </span>
                                 {getAlertConditionShortLabel(al.condition)}
                                 {al.target_price>0&&isPrice&&<span className="ml-1 font-mono text-white/60">{fUsd(al.target_price)}</span>}
                                 {al.target_price>0&&!isPrice&&<span className="ml-1 font-mono text-white/60">{al.target_price}{unit?" "+unit:""}</span>}
                               </div>
-                              <div className="flex items-center gap-1 mt-0.5">
+                              <div className="flex items-center gap-1.5 mt-0.5">
                                 <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${dotColor}`}/>
                                 <span className={`text-[9px] ${!isActive?"text-white/25":"text-[#26a69a]/70"}`}>
                                   {!isActive?"Призупинено":"Активний"}
                                 </span>
+                                {/* Trigger counter badge */}
+                                {al.max_triggers != null ? (
+                                  <span className="text-[8px] font-mono text-white/30 bg-white/5 rounded px-1">
+                                    {al.trigger_count ?? 0}/{al.max_triggers}×
+                                  </span>
+                                ) : (al.trigger_count ?? 0) > 0 ? (
+                                  <span className="text-[8px] font-mono text-white/20 bg-white/5 rounded px-1">
+                                    {al.trigger_count}×
+                                  </span>
+                                ) : null}
                               </div>
                             </div>
                             <div className="flex items-center gap-0.5 shrink-0">
+                              {/* Edit button */}
+                              <button type="button"
+                                onClick={e=>{e.stopPropagation();openAlertEdit(al);}}
+                                title="Редагувати"
+                                className="flex h-6 w-6 items-center justify-center rounded-lg text-white/25 hover:bg-[#8348C1]/20 hover:text-[#C38BFF] transition-colors">
+                                <Pencil size={10}/>
+                              </button>
                               {/* Toggle active/paused */}
                               <button type="button"
                                 disabled={togglingId===al.id}
-                                onClick={()=>void handleToggleAlert(al.id, al.is_active)}
+                                onClick={e=>{e.stopPropagation();void handleToggleAlert(al.id, al.is_active);}}
                                 title={isActive?"Призупинити":"Активувати"}
                                 className={`flex h-6 w-6 items-center justify-center rounded-lg transition-colors disabled:opacity-40 ${isActive?"text-[#26a69a]/60 hover:bg-[#26a69a]/10 hover:text-[#26a69a]":"text-white/25 hover:bg-white/10 hover:text-white"}`}>
                                 {togglingId===al.id?<Loader2 size={10} className="animate-spin"/>:isActive?<Bell size={10}/>:<BellOff size={10}/>}
@@ -2527,17 +3780,39 @@ export default function TradingPage() {
                               {/* Delete */}
                               <button type="button"
                                 disabled={deletingId===al.id}
-                                onClick={()=>void handleDeleteAlert(al.id)}
+                                onClick={e=>{e.stopPropagation();void handleDeleteAlert(al.id);}}
                                 title="Видалити"
                                 className="flex h-6 w-6 items-center justify-center rounded-lg text-white/25 hover:bg-red-500/20 hover:text-red-400 transition-colors disabled:opacity-40">
                                 {deletingId===al.id?<Loader2 size={10} className="animate-spin"/>:<Trash2 size={10}/>}
                               </button>
                             </div>
                           </div>
+                          )}
                         </div>
                       );
                     })}
                   </div>
+                )}
+
+                {/* Telegram status / connect banner */}
+                {tgConnected === false && (
+                  <button type="button" onClick={openTelegramBot}
+                    className="w-full flex items-center gap-2 rounded-xl border border-[#8348C1]/25 bg-[#8348C1]/5 px-2.5 py-2 hover:bg-[#8348C1]/10 transition-colors text-left">
+                    <span className="text-[14px] shrink-0">📱</span>
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-semibold text-[#C38BFF]">Підключити Telegram</div>
+                      <div className="text-[8px] text-white/35 truncate">Отримуй алерти прямо в боті</div>
+                    </div>
+                    <span className="ml-auto text-[9px] text-[#8348C1] shrink-0">→</span>
+                  </button>
+                )}
+                {tgConnected === true && (
+                  <a href={BOT_URL} target="_blank" rel="noopener noreferrer"
+                    className="w-full flex items-center gap-2 rounded-xl border border-[#26a69a]/20 bg-[#26a69a]/5 px-2.5 py-2 hover:bg-[#26a69a]/10 transition-colors">
+                    <span className="text-[14px] shrink-0">✅</span>
+                    <div className="text-[10px] font-semibold text-[#26a69a]">Telegram підключено</div>
+                    <span className="ml-auto text-[9px] text-white/25 shrink-0">Відкрити →</span>
+                  </a>
                 )}
 
                 {/* Link to all alerts */}
@@ -2556,14 +3831,40 @@ export default function TradingPage() {
       {/* Position edit modal */}
       <PosEditModal
         pos={editingPos}
-        currentPrice={editingPos ? posPrice(editingPos.sym) : 0}
+        currentPrice={editingPos ? (editingPos.sym === asset.sym ? effectivePrice : posPrice(editingPos.sym)) : 0}
         onClose={() => setEditingPos(null)}
         onSave={handleUpdateSlTp}
-        onClosePos={pos => closePosition(pos, posPrice(pos.sym) || pos.avgPrice)}
+        onClosePos={pos => closePosition(pos, pos.sym === asset.sym ? effectivePrice : (posPrice(pos.sym) || pos.avgPrice))}
       />
+
+      {/* Session summary modal (Replay Practice) */}
+      {showSummary && replaySnapshot && (
+        <SessionSummaryModal
+          demo={replayDemo}
+          snapshot={replaySnapshot}
+          onContinue={() => setShowSummary(false)}
+          onNewSession={() => {
+            setShowSummary(false);
+            setReplayCandles([]);
+            setReplayIndex(0);
+            setReplayPlaying(false);
+            prevReplayPriceRef.current = 0;
+          }}
+          onClose={() => setShowSummary(false)}
+        />
+      )}
 
       {/* Alert toasts */}
       <ToastNotifications items={toasts} onDismiss={dismissToast}/>
+
+      {/* Plan upgrade modal */}
+      <UpgradeModal
+        isOpen={upgradeModal !== null}
+        onClose={() => setUpgradeModal(null)}
+        title={upgradeModal?.title ?? ""}
+        description={upgradeModal?.description ?? ""}
+        currentPlanKey={account?.planKey ?? "free"}
+      />
     </div>
   );
 }

@@ -258,6 +258,16 @@ const RegisterPage = () => {
   const navigate = useNavigate();
   const { countries, loadingCountries } = useCountries();
   const [step, setStep] = useState(1);
+  const [oauthError, setOauthError] = useState('');
+
+  const handleOAuth = async (provider: 'google' | 'apple') => {
+    setOauthError('');
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: `${window.location.origin}/dashboard` },
+    });
+    if (error) setOauthError(error.message);
+  };
 
   // Step 1
   const [email, setEmail] = useState('');
@@ -658,18 +668,23 @@ setTimeout(() => navigate('/select-plan'), 1500);
                   <div className="flex-1 h-[1px]" style={{ background: 'linear-gradient(90deg,#2C1969 0%,#8348C1 52%,#000 100%)' }} />
                 </div>
 
+                {oauthError && (
+                  <div className="w-[360px] mb-[-8px] text-[11px] text-red-300 text-center">{oauthError}</div>
+                )}
                 <div className="flex flex-col gap-[24px] w-full">
-                  {[
-                    { src: 'https://www.svgrepo.com/show/475656/google-color.svg', label: 'Увійти з Google' },
-                    { src: 'https://www.svgrepo.com/show/475647/facebook-color.svg', label: 'Увійти з Facebook' },
-                  ].map(({ src, label }) => (
-                    <button key={label} type="button" className="relative w-[360px] h-[44px] p-[1px] rounded-full overflow-hidden group transition-all hover:scale-105 active:scale-95">
-                      <div className="absolute inset-0 bg-[linear-gradient(90deg,#2C1969,#8348C1,#C38BFF)]" />
-                      <div className="relative flex items-center justify-center w-full h-full bg-[#050506] rounded-full gap-3 text-[14px] text-white group-hover:bg-[#0a0a0c] transition-colors">
-                        <img src={src} alt="" className="w-5 h-5" /><span>{label}</span>
-                      </div>
-                    </button>
-                  ))}
+                  <button type="button" onClick={() => handleOAuth('google')} className="relative w-[360px] h-[44px] p-[1px] rounded-full overflow-hidden group transition-all hover:scale-105 active:scale-95">
+                    <div className="absolute inset-0 bg-[linear-gradient(90deg,#2C1969,#8348C1,#C38BFF)]" />
+                    <div className="relative flex items-center justify-center w-full h-full bg-[#050506] rounded-full gap-3 text-[14px] text-white group-hover:bg-[#0a0a0c] transition-colors">
+                      <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="" className="w-5 h-5" /><span>Зареєструватися з Google</span>
+                    </div>
+                  </button>
+                  <button type="button" onClick={() => handleOAuth('apple')} className="relative w-[360px] h-[44px] p-[1px] rounded-full overflow-hidden group transition-all hover:scale-105 active:scale-95">
+                    <div className="absolute inset-0 bg-[linear-gradient(90deg,#2C1969,#8348C1,#C38BFF)]" />
+                    <div className="relative flex items-center justify-center w-full h-full bg-[#050506] rounded-full gap-3 text-[14px] text-white group-hover:bg-[#0a0a0c] transition-colors">
+                      <svg className="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.7 9.05 7.42c1.33.07 2.26.73 3.04.78 1.15-.24 2.26-.93 3.48-.84 1.49.12 2.6.7 3.33 1.77-3.06 1.84-2.33 5.9.65 7.02-.48 1.36-1.13 2.7-2.5 4.13zM12 7.33c-.12-2.84 2.2-5.19 4.9-5.33.36 3.12-2.83 5.46-4.9 5.33z"/></svg>
+                      <span>Зареєструватися з Apple</span>
+                    </div>
+                  </button>
                 </div>
               </form>
             </div>

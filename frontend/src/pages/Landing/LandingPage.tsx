@@ -252,7 +252,7 @@ const StepCard: React.FC<{ number: string; title: string; description: string; i
 // --- ГОЛОВНА СТОРІНКА ---
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
-  const [isYearly, setIsYearly] = useState(false);
+  const [isYearly, setIsYearly] = useState(true);
 
   const navLinks = [
     { label: 'Чому CryptoPulse', href: '#why-cryptopulse' },
@@ -614,17 +614,24 @@ const LandingPage: React.FC = () => {
         </h2>
 
         {/* Перемикач Місяць/Рік */}
-        <div className="flex items-center justify-center gap-4 mb-16">
-          <span className={`font-montserrat text-[16px] transition-colors duration-300 ${!isYearly ? 'text-white' : 'text-white/50'}`}>Місяць</span>
-          
-          <div 
-            className="w-[48px] h-[26px] rounded-full bg-[#120924] border border-[#2C1969] p-[3px] cursor-pointer relative shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] transition-colors hover:border-[#8348C1]"
-            onClick={() => setIsYearly(!isYearly)}
-          >
-            <div className={`w-[18px] h-[18px] rounded-full bg-[#A78BFA] shadow-[0_0_8px_rgba(167,139,250,0.8)] absolute top-[3px] transition-transform duration-300 ease-out ${isYearly ? 'translate-x-[22px]' : 'translate-x-0'}`}></div>
+        <div className="flex items-center justify-center mb-16">
+          <div className="flex items-center bg-white/[0.06] rounded-full p-1 gap-1 border border-white/[0.08]">
+            <button
+              type="button"
+              onClick={() => setIsYearly(false)}
+              className={`px-6 py-2 rounded-full font-montserrat text-[14px] font-medium transition-all duration-200 ${!isYearly ? "bg-[#8348C1] text-white shadow-[0_2px_12px_rgba(131,72,193,0.4)]" : "text-white/50 hover:text-white/80"}`}
+            >
+              Місяць
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsYearly(true)}
+              className={`flex items-center gap-2 px-6 py-2 rounded-full font-montserrat text-[14px] font-medium transition-all duration-200 ${isYearly ? "bg-[#8348C1] text-white shadow-[0_2px_12px_rgba(131,72,193,0.4)]" : "text-white/50 hover:text-white/80"}`}
+            >
+              Рік
+              <span className="bg-[#24FF7A]/15 text-[#24FF7A] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#24FF7A]/25 leading-none">−22%</span>
+            </button>
           </div>
-          
-          <span className={`font-montserrat text-[16px] transition-colors duration-300 ${isYearly ? 'text-white' : 'text-white/50'}`}>Рік</span>
         </div>
 
         {/* Контейнер тарифів */}
@@ -639,7 +646,7 @@ const LandingPage: React.FC = () => {
               <h3 className="font-montserrat text-[16px] font-medium text-white mb-[16px]">Безкоштовно</h3>
               <div className="flex items-end gap-1 mb-[24px]">
                 <span className="font-montserrat text-[40px] font-normal text-white leading-[40px]">€0</span>
-                <span className="font-montserrat text-[14px] text-white/50 mb-[4px]">/{isYearly ? 'рік' : 'місяць'}</span>
+                <span className="font-montserrat text-[14px] text-white/50 mb-[4px]">/місяць</span>
               </div>
               
               {/* Згасаюча лінія */}
@@ -648,12 +655,15 @@ const LandingPage: React.FC = () => {
               {/* Список з gap 12px */}
               <ul className="flex flex-col gap-[12px]">
                 {[
-                  "Відстеження до 60 криптовалют",
-                  "Оновлення даних кожних 60 секунд",
+                  "Доступ до 125 активів",
+                  "Demo Trading ($25,000 стартовий баланс)",
+                  "Бектестинг стратегій",
+                  "До 5 активів у Watchlist",
+                  "Алерти для 1 криптовалюти",
                   "До 3 активних алертів",
-                  "Telegram сповіщення",
-                  "Історія сповіщень до 7 днів",
-                  "Базовий Dashboard"
+                  "Telegram-сповіщення",
+                  "До 5 PulseAI-запитів на місяць",
+                  "Історія алертів до 7 днів",
                 ].map((text, idx) => (
                   <li key={idx} className="flex items-center gap-3">
                     <div className="w-[4px] h-[4px] rounded-full bg-white shrink-0"></div>
@@ -664,7 +674,7 @@ const LandingPage: React.FC = () => {
               
               <div className="mt-auto">
                 <div className="w-full h-[48px] p-[1px] rounded-[28px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] via-[52%] to-[#FFFFFF]">
-                  <button className="w-full h-full bg-[#000008] rounded-[28px] flex items-center justify-center text-[14px] font-montserrat font-medium text-white hover:bg-white/5 transition-colors uppercase tracking-wider">
+                  <button onClick={() => navigate('/register')} className="w-full h-full bg-[#000008] rounded-[28px] flex items-center justify-center text-[14px] font-montserrat font-medium text-white hover:bg-white/5 transition-colors uppercase tracking-wider cursor-pointer">
                     ПОЧАТИ ЗАРАЗ
                   </button>
                 </div>
@@ -689,27 +699,38 @@ const LandingPage: React.FC = () => {
                 </div>
               </div>
               
-              <div className="flex items-end gap-1 mb-[20px]">
-                <span className="font-montserrat text-[40px] font-normal text-white leading-[40px]">€{isYearly ? '70' : '7'}</span>
-                <span className="font-montserrat text-[14px] text-white/50 mb-[4px]">/{isYearly ? 'рік' : 'місяць'}</span>
-              </div>
+              {isYearly ? (
+                <div className="mb-[20px]">
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-montserrat text-[40px] font-normal text-white leading-[40px]">€7</span>
+                    <span className="font-montserrat text-[14px] text-white/50">/міс</span>
+                    <span className="font-montserrat text-[13px] text-white/30 line-through">€9</span>
+                  </div>
+                  <p className="font-montserrat text-[11px] text-white/35 mt-1">
+                    оплата €84/рік <span className="text-[#24FF7A] font-semibold">· економите €24</span>
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-end gap-1 mb-[20px]">
+                  <span className="font-montserrat text-[40px] font-normal text-white leading-[40px]">€9</span>
+                  <span className="font-montserrat text-[14px] text-white/50 mb-[4px]">/місяць</span>
+                </div>
+              )}
               
               {/* Згасаюча лінія */}
               <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-[#8348C1]/50 to-transparent mb-[20px]"></div>
               
-              <p className="font-montserrat font-normal text-[15px] text-white mb-[12px]">Все з Free, +:</p>
-              
+              <p className="font-montserrat font-normal text-[15px] text-white mb-[12px]">Все з Free, плюс:</p>
+
               {/* Список з gap 9px */}
               <ul className="flex flex-col gap-[9px]">
                 {[
-                  "Відстеження до 100 криптовалют",
-                  "Оновлення даних кожні 15 секунд",
-                  "Повна інтеграція з Telegram",
-                  "Розширені типи алертів",
-                  "Історія сповіщень до 90 днів",
-                  "До 5 Watchlist",
-                  "Портфоліо трекер (прибуток/збиток)",
-
+                  "До 15 активів у Watchlist",
+                  "Алерти для 5 криптовалют",
+                  "До 5 активних алертів для кожної",
+                  "До 100 PulseAI-запитів на місяць",
+                  "Історія алертів до 30 днів",
+                  "Швидка підтримка",
                 ].map((text, idx) => (
                   <li key={idx} className="flex items-center gap-3">
                     <div className="w-[4px] h-[4px] rounded-full bg-white shrink-0"></div>
@@ -719,38 +740,51 @@ const LandingPage: React.FC = () => {
               </ul>
               
               
-              <button className="w-full h-[48px] mt-auto rounded-[28px] flex items-center justify-center font-montserrat font-medium text-[14px] uppercase tracking-wider bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white hover:shadow-[0_0_25px_rgba(131,72,193,0.5)] transition-all active:scale-[0.98]">
+              <button onClick={() => navigate('/register')} className="w-full h-[48px] mt-auto rounded-[28px] flex items-center justify-center font-montserrat font-medium text-[14px] uppercase tracking-wider bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white hover:shadow-[0_0_25px_rgba(131,72,193,0.5)] transition-all active:scale-[0.98] cursor-pointer">
                 ПОЧАТИ ЗАРАЗ
               </button>
             </div>
           </div>
 
-          {/* Картка "Бізнес" (405x456) */}
+          {/* Картка "Преміум" (405x456) */}
           <div 
             className="w-full lg:w-[405px] h-auto lg:h-[456px] rounded-[24px] p-[1px] bg-gradient-to-br from-[#522E8B]/60 to-[#B3B3B3]/60 flex flex-col shrink-0 opacity-0 animate-fade-up transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(131,72,193,0.1)] relative group"
             style={{ animationDelay: '400ms' }}
           >
             <div className="w-full h-full rounded-[23px] bg-[#000008] px-[32px] py-[32px] flex flex-col text-left">
-              <h3 className="font-montserrat text-[16px] font-normal text-white/70 mb-[16px]">Бізнес</h3>
-              <div className="flex items-end gap-1 mb-[24px]">
-                <span className="font-montserrat text-[40px] font-normal text-white leading-[40px]">€{isYearly ? '190' : '19'}</span>
-                <span className="font-montserrat text-[14px] text-white/50 mb-[4px]">/{isYearly ? 'рік' : 'місяць'}</span>
-              </div>
+              <h3 className="font-montserrat text-[16px] font-normal text-white/70 mb-[16px]">Преміум</h3>
+              {isYearly ? (
+                <div className="mb-[24px]">
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-montserrat text-[40px] font-normal text-white leading-[40px]">€15</span>
+                    <span className="font-montserrat text-[14px] text-white/50">/міс</span>
+                    <span className="font-montserrat text-[13px] text-white/30 line-through">€19</span>
+                  </div>
+                  <p className="font-montserrat text-[11px] text-white/35 mt-1">
+                    оплата €180/рік <span className="text-[#24FF7A] font-semibold">· економите €48</span>
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-end gap-1 mb-[24px]">
+                  <span className="font-montserrat text-[40px] font-normal text-white leading-[40px]">€19</span>
+                  <span className="font-montserrat text-[14px] text-white/50 mb-[4px]">/місяць</span>
+                </div>
+              )}
               
               {/* Згасаюча лінія */}
               <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-[#2C1969] to-transparent mb-[20px]"></div>
               
-              <p className="font-montserrat font-normal text-[15px] text-white mb-[12px]">Все з Pro, +:</p>
-              
-              {/* Список ТІЛЬКИ з 5 пунктів (як у твоєму коді) та gap 8px */}
+              <p className="font-montserrat font-normal text-[15px] text-white mb-[12px]">Все з Pro, плюс:</p>
+
+              {/* Список Преміум */}
               <ul className="flex flex-col gap-[8px]">
                 {[
-                  "Необмежена кількість активів",
+                  "Необмежений Watchlist",
+                  "Алерти для 15 криптовалют",
                   "Необмежена кількість алертів",
-                  "AI помічник",
-                  "Розширена аналітика",
-                  "Необмежена історія даних",
-                  "Пріорітетна підтримка"
+                  "Необмежені PulseAI-запити",
+                  "Історія алертів до 3 місяців",
+                  "Пріоритетна підтримка",
                 ].map((text, idx) => (
                   <li key={idx} className="flex items-center gap-3">
                     <div className="w-[4px] h-[4px] rounded-full bg-white shrink-0"></div>
@@ -761,7 +795,7 @@ const LandingPage: React.FC = () => {
               
               <div className="mt-auto">
                 <div className="w-full h-[48px] p-[1px] rounded-[28px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] via-[52%] to-[#FFFFFF]">
-                  <button className="w-full h-full bg-[#000008] rounded-[28px] flex items-center justify-center text-[14px] font-montserrat font-medium text-white hover:bg-white/5 transition-colors uppercase tracking-wider">
+                  <button onClick={() => navigate('/register')} className="w-full h-full bg-[#000008] rounded-[28px] flex items-center justify-center text-[14px] font-montserrat font-medium text-white hover:bg-white/5 transition-colors uppercase tracking-wider cursor-pointer">
                     ПОЧАТИ ЗАРАЗ
                   </button>
                 </div>
@@ -910,7 +944,7 @@ const LandingPage: React.FC = () => {
             <div className="flex flex-col gap-[12px]">
               <h4 className="font-montserrat font-semibold text-[13px] leading-[20px] text-white mb-2">Соцмережі</h4>
               <a href="#" className="font-montserrat font-normal text-[13px] leading-[16px] text-[#8B8B8B] hover:text-white transition-colors">Twitter (X)</a>
-              <a href="#" className="font-montserrat font-normal text-[13px] leading-[16px] text-[#8B8B8B] hover:text-white transition-colors">Telegram</a>
+              <a href="https://t.me/Crypto_Pulse_Official_Bot" target="_blank" rel="noopener noreferrer" className="font-montserrat font-normal text-[13px] leading-[16px] text-[#8B8B8B] hover:text-white transition-colors">Telegram Bot</a>
               <a href="#" className="font-montserrat font-normal text-[13px] leading-[16px] text-[#8B8B8B] hover:text-white transition-colors">LinkedIn</a>
               <a href="#" className="font-montserrat font-normal text-[13px] leading-[16px] text-[#8B8B8B] hover:text-white transition-colors">GitHub</a>
             </div>
