@@ -13,8 +13,9 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копіюємо весь код проєкту
-COPY . .
+# Копіюємо весь код у підпапку telegrambot/
+# щоб імпорти telegrambot.xxx працювали правильно
+COPY . ./telegrambot/
 
 # Команда для запуску бота як модуля
 CMD ["python", "-m", "telegrambot.tg_bot"]
