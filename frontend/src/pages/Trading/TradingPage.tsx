@@ -2278,6 +2278,7 @@ export default function TradingPage() {
     const limits = getPlanLimits(account?.planKey);
     if (limits.signalSymbolsPerMonth === null) {
       // Business = unlimited, always open
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSignalUnlocked(true);
       return;
     }

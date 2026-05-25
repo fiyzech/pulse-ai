@@ -31,6 +31,7 @@ type SettingsCache = {
   selectedPlan: number;
   isYearly: boolean;
   savedCardLast4: string | null;
+  planActivatedAt: string | null;
 };
 
 const gradientFill = "linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%)";
@@ -48,6 +49,7 @@ const defaultSettingsCache: SettingsCache = {
   selectedPlan: 0,
   isYearly: true,  // за замовчуванням показуємо річну підписку
   savedCardLast4: null,
+  planActivatedAt: null,
 };
 
 const plansData: Plan[] = [
@@ -121,6 +123,7 @@ const readCachedSettings = (): SettingsCache => {
       selectedPlan: selectedPlan >= 0 ? selectedPlan : 0,
       isYearly: account.billingCycle === "yearly",
       savedCardLast4: account.cardLast4,
+      planActivatedAt: account.planActivatedAt,
     };
   }
 
@@ -135,6 +138,7 @@ const readCachedSettings = (): SettingsCache => {
       selectedPlan: typeof parsed.selectedPlan === "number" ? parsed.selectedPlan : 0,
       isYearly: Boolean(parsed.isYearly),
       savedCardLast4: parsed.savedCardLast4 || null,
+      planActivatedAt: parsed.planActivatedAt || null,
       userId: parsed.userId,
     };
   } catch {
@@ -150,6 +154,7 @@ const writeCachedSettings = (settings: SettingsCache) => {
     planKey: plansData[settings.selectedPlan]?.key || "free",
     billingCycle: settings.isYearly ? "yearly" : "monthly",
     cardLast4: settings.savedCardLast4,
+    planActivatedAt: settings.planActivatedAt,
   });
 };
 
@@ -344,11 +349,19 @@ export default function SettingsPage() {
         setSelectedPlan(nextSettings.selectedPlan);
         setIsYearly(nextSettings.isYearly);
         setSavedCardLast4(nextSettings.savedCardLast4);
-        // updated_at може бути null — fallback до localStorage
+        // updated_at може бути null — fallback до localStorage/account cache.
         const dbDate = (data.updated_at as string | null) ?? null;
         const localDate = localStorage.getItem(PLAN_ACT_KEY(user.id));
-        setPlanActivatedAt(dbDate ?? localDate ?? null);
-        writeCachedSettings(nextSettings);
+        const cachedDate = readAccountCache()?.planActivatedAt ?? readCachedSettings().planActivatedAt;
+        const shouldHaveBillingDate = nextSettings.selectedPlan !== 0 && Boolean(nextSettings.savedCardLast4);
+        const resolvedPlanDate = dbDate ?? localDate ?? cachedDate ?? (shouldHaveBillingDate ? new Date().toISOString() : null);
+
+        if (resolvedPlanDate && shouldHaveBillingDate) {
+          localStorage.setItem(PLAN_ACT_KEY(user.id), resolvedPlanDate);
+        }
+
+        setPlanActivatedAt(resolvedPlanDate);
+        writeCachedSettings({ ...nextSettings, planActivatedAt: shouldHaveBillingDate ? resolvedPlanDate : null });
       }
     };
 
@@ -397,19 +410,23 @@ export default function SettingsPage() {
       return false;
     }
 
+    // Зберігаємо дату активації плану (для відображення у платіжній секції)
+    let nextPlanActivatedAt: string | null = null;
+    if (planIndex !== 0) {
+      nextPlanActivatedAt = new Date().toISOString();
+      localStorage.setItem(PLAN_ACT_KEY(userId), nextPlanActivatedAt);
+    } else {
+      localStorage.removeItem(PLAN_ACT_KEY(userId));
+    }
+
+    setPlanActivatedAt(nextPlanActivatedAt);
     writeCachedSettings({
       userId,
       selectedPlan: planIndex,
       isYearly: yearly,
       savedCardLast4,
+      planActivatedAt: nextPlanActivatedAt,
     });
-
-    // Зберігаємо дату активації плану (для відображення у платіжній секції)
-    if (planIndex !== 0) {
-      const now = new Date().toISOString();
-      localStorage.setItem(PLAN_ACT_KEY(userId), now);
-      setPlanActivatedAt(now);
-    }
 
     return true;
   };
@@ -536,6 +553,7 @@ export default function SettingsPage() {
         selectedPlan,
         isYearly,
         savedCardLast4: last4,
+        planActivatedAt,
       });
     }
   };
@@ -584,6 +602,7 @@ export default function SettingsPage() {
       selectedPlan,
       isYearly,
       savedCardLast4: null,
+      planActivatedAt,
     });
   };
 

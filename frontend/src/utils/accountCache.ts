@@ -14,6 +14,7 @@ export type AccountCache = {
   planKey: PlanKey;
   billingCycle: BillingCycle;
   cardLast4: string | null;
+  planActivatedAt: string | null;
   passwordLastChanged: string;
   updatedAt: number;
 };
@@ -65,6 +66,7 @@ export const readAccountCache = (): AccountCache | null => {
       planKey: normalizePlanKey(parsed.planKey),
       billingCycle: normalizeBillingCycle(parsed.billingCycle),
       cardLast4: parsed.cardLast4 || null,
+      planActivatedAt: parsed.planActivatedAt || null,
       passwordLastChanged: parsed.passwordLastChanged || "",
       updatedAt: typeof parsed.updatedAt === "number" ? parsed.updatedAt : 0,
     };
@@ -100,6 +102,7 @@ export const mergeAccountCache = (patch: Partial<AccountCache>) => {
     planKey: patch.planKey ?? current?.planKey ?? "free",
     billingCycle: patch.billingCycle ?? current?.billingCycle ?? "monthly",
     cardLast4: patch.cardLast4 !== undefined ? patch.cardLast4 : current?.cardLast4 ?? null,
+    planActivatedAt: patch.planActivatedAt !== undefined ? patch.planActivatedAt : current?.planActivatedAt ?? null,
     passwordLastChanged: patch.passwordLastChanged ?? current?.passwordLastChanged ?? "",
     updatedAt: Date.now(),
   });

@@ -56,6 +56,7 @@ const buildAccountFromRows = (
     planKey,
     billingCycle: normalizeBillingCycle(typeof row?.billing_cycle === "string" ? row.billing_cycle : "monthly"),
     cardLast4: typeof row?.card_last4 === "string" ? row.card_last4 : null,
+    planActivatedAt: readAccountCache()?.planActivatedAt ?? null,
     passwordLastChanged: str(row?.password_last_changed) ?? "",
     updatedAt: Date.now(),
   };

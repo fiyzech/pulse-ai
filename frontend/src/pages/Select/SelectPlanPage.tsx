@@ -141,6 +141,13 @@ export default function SelectPlanPage() {
         if (insertError) throw insertError;
       }
 
+      const planActivatedAt = planIndex === 0 ? null : new Date().toISOString();
+      if (planActivatedAt) {
+        localStorage.setItem(`cpulse_plan_activated_${user.id}`, planActivatedAt);
+      } else {
+        localStorage.removeItem(`cpulse_plan_activated_${user.id}`);
+      }
+
       mergeAccountCache({
         userId: user.id,
         email: user.email || "",
@@ -153,6 +160,7 @@ export default function SelectPlanPage() {
         planKey: planName,
         billingCycle: cycle,
         cardLast4,
+        planActivatedAt,
       });
 
       navigate("/dashboard");
