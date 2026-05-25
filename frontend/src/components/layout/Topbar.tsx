@@ -1,10 +1,55 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { supabase } from "../../supabaseClient"; // Використовуємо спільний клієнт
+import { supabase } from "../../supabaseClient";
 import { clearAccountCache } from "../../utils/accountCache";
-import notificationsIcon from "../../assets/icons/notifications-icon.svg"; 
-import logOutIcon from "../../assets/icons/log-out-icon.svg"; 
+import notificationsIcon from "../../assets/icons/notifications-icon.svg";
+import logOutIcon from "../../assets/icons/log-out-icon.svg";
+
+// ── Notification types ────────────────────────────────────────────────────────
+type AppNotification = {
+  id: string;
+  icon: string;
+  title: string;
+  subtitle: string;
+  ts: number; // ms timestamp; 0 = no time (triggered alerts)
+};
+
+// ID-based "seen" tracking — persists correctly across page reloads
+const NOTIF_SEEN_KEY = "cryptopulse_notif_seen_ids";
+
+function getSeenIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(NOTIF_SEEN_KEY);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch { return new Set(); }
+}
+
+function saveSeenIds(ids: Set<string>): void {
+  localStorage.setItem(NOTIF_SEEN_KEY, JSON.stringify(Array.from(ids).slice(-300)));
+}
+
+function fmtRelTime(ts: number): string {
+  if (!ts) return "";
+  const d = Date.now() - ts;
+  if (d < 60_000)    return "Щойно";
+  if (d < 3_600_000) return `${Math.floor(d / 60_000)} хв тому`;
+  if (d < 86_400_000)return `${Math.floor(d / 3_600_000)} год тому`;
+  return `${Math.floor(d / 86_400_000)} дн тому`;
+}
+
+function alertCondLabel(cond: string): string {
+  const m: Record<string, string> = {
+    price_gt:"Ціна >", price_gte:"Ціна ≥", price_lt:"Ціна <", price_lte:"Ціна ≤",
+    price_eq:"Ціна =", pct_change_24h_gt:"24h ↑%", pct_change_24h_lt:"24h ↓%",
+    rsi_gt:"RSI ↑", rsi_lt:"RSI ↓", golden_cross:"Золотий хрест",
+    death_cross:"Смертний хрест", ema20_cross_up:"EMA20 ↑", ema20_cross_down:"EMA20 ↓",
+    ema50_cross_up:"EMA50 ↑", ema50_cross_down:"EMA50 ↓", new_ath:"Новий ATH",
+    volume_spike_gt:"Сплеск об'єму", macd_cross_up:"MACD ↑", macd_cross_down:"MACD ↓",
+    trailing_stop_pct:"Trailing stop",
+  };
+  return m[cond] ?? "Алерт";
+}
 
 type CachedMarketAsset = {
   id: string;
@@ -88,6 +133,135 @@ export default function Topbar() {
   const [searchValue, setSearchValue] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
+  // ── Notifications ──────────────────────────────────────────────────────────
+  const notifRef      = useRef<HTMLDivElement>(null);
+  const [showNotif,   setShowNotif]   = useState(false);
+  const [notifItems,  setNotifItems]  = useState<AppNotification[]>([]);
+  const [notifLoad,   setNotifLoad]   = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Helper: build notification list from DB rows
+  const buildNotifications = (
+    trades: Record<string, unknown>[],
+    alerts: Record<string, unknown>[],
+  ): AppNotification[] => {
+    const items: AppNotification[] = [];
+
+    trades.forEach(t => {
+      const ts    = new Date(t.created_at as string).getTime();
+      const pnl   = Number(t.pnl);
+      const roe   = Number(t.roe);
+      const price = Number(t.price);
+      const qty   = Number(t.qty);
+      const lev   = Number(t.leverage);
+      const sym   = t.sym   as string;
+      const side  = t.side  as string;
+      const act   = t.action as string;
+
+      if (act === "OPEN") {
+        items.push({
+          id: `trade_${t.id as string}`,
+          icon: side === "LONG" ? "📈" : "📉",
+          title: `${side === "LONG" ? "Відкрито LONG" : "Відкрито SHORT"} ${sym}`,
+          subtitle: `${qty} × x${lev} @ $${price >= 1 ? price.toFixed(2) : price.toFixed(6)}`,
+          ts,
+        });
+      } else {
+        const pnlStr = pnl >= 0 ? `+$${pnl.toFixed(2)}` : `-$${Math.abs(pnl).toFixed(2)}`;
+        const roeStr = `${roe >= 0 ? "+" : ""}${roe.toFixed(1)}%`;
+        items.push({
+          id: `trade_${t.id as string}`,
+          icon: pnl >= 0 ? "✅" : "❌",
+          title: `Закрито ${side} ${sym}`,
+          subtitle: `PnL: ${pnlStr} (${roeStr})`,
+          ts,
+        });
+      }
+    });
+
+    alerts.forEach(a => {
+      const tp   = Number(a.target_price);
+      const cond = a.condition as string;
+      const tpStr = tp > 0 ? ` $${tp >= 1 ? tp.toFixed(2) : tp.toFixed(6)}` : "";
+      items.push({
+        id: `alert_${a.id as string}`,
+        icon: "🔔",
+        title: `Алерт: ${a.symbol as string}`,
+        subtitle: `${alertCondLabel(cond)}${tpStr} — ×${a.trigger_count as number}`,
+        ts: 0,
+      });
+    });
+
+    items.sort((a, b) => b.ts - a.ts);
+    return items;
+  };
+
+  // Fetch IDs on mount → compare with seen set → compute badge
+  useEffect(() => {
+    const loadBadge = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const [{ data: trades }, { data: alerts }] = await Promise.all([
+        supabase.from("demo_trades").select("id").eq("user_id", user.id)
+          .order("created_at", { ascending: false }).limit(8),
+        supabase.from("alerts").select("id").eq("user_id", user.id)
+          .gt("trigger_count", 0).limit(5),
+      ]);
+
+      const seen = getSeenIds();
+      const allIds = [
+        ...(trades  ?? []).map((r: { id: string }) => `trade_${r.id}`),
+        ...(alerts ?? []).map((r: { id: string }) => `alert_${r.id}`),
+      ];
+      setUnreadCount(allIds.filter(id => !seen.has(id)).length);
+    };
+    void loadBadge();
+  }, []);
+
+  // Close panel on outside click
+  useEffect(() => {
+    if (!showNotif) return;
+    const onDown = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node))
+        setShowNotif(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [showNotif]);
+
+  const openNotifications = async () => {
+    if (showNotif) { setShowNotif(false); return; }
+    setShowNotif(true);
+    setNotifLoad(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setNotifLoad(false); return; }
+
+    const [{ data: trades }, { data: alerts }] = await Promise.all([
+      supabase.from("demo_trades")
+        .select("id, sym, side, action, qty, price, leverage, pnl, roe, created_at")
+        .eq("user_id", user.id).order("created_at", { ascending: false }).limit(8),
+      supabase.from("alerts")
+        .select("id, symbol, condition, target_price, trigger_count")
+        .eq("user_id", user.id).gt("trigger_count", 0).limit(5),
+    ]);
+
+    const items = buildNotifications(
+      (trades  as Record<string, unknown>[] | null) ?? [],
+      (alerts as Record<string, unknown>[] | null) ?? [],
+    );
+
+    // Mark all as seen — persists across reloads
+    const seen = getSeenIds();
+    items.forEach(n => seen.add(n.id));
+    saveSeenIds(seen);
+
+    setNotifItems(items);
+    setUnreadCount(0);
+    setNotifLoad(false);
+  };
+
   const getPageTitle = () => {
     const path = location.pathname;
     if (path.includes("dashboard")) return "Головна";
@@ -108,11 +282,13 @@ export default function Topbar() {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
-      // 2. Чистимо localStorage
-      clearAccountCache();
-      localStorage.removeItem('user_meta');
-      localStorage.removeItem('crypto_pulse_plan');
-      localStorage.removeItem('crypto_pulse_card');
+      // 2. Чистимо кеш — видаляємо всі cryptopulse_* ключі
+      clearAccountCache(); // видаляє cryptopulse_account_cache, _profile_cache, _settings_cache
+      sessionStorage.removeItem('pulse_table_cards'); // ринковий кеш
+      // Видаляємо demo-trading стан та налаштування графіку
+      localStorage.removeItem('cpulse_chart_inds_v1');
+      const demoPrefix = 'cryptopulse_demo_trading_account:';
+      Object.keys(localStorage).filter(k => k.startsWith(demoPrefix)).forEach(k => localStorage.removeItem(k));
       
       setShowLogoutModal(false);
       
@@ -265,9 +441,79 @@ export default function Topbar() {
             )}
           </form>
           
-          <button className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-transparent hover:bg-white/5 transition-colors">
-            <img src={notificationsIcon} alt="Сповіщення" className="h-5 w-5 opacity-70" />
-          </button>
+          {/* ── Notification Bell ─────────────────────────────────── */}
+          <div className="relative" ref={notifRef}>
+            <button
+              onClick={openNotifications}
+              className={`relative flex h-10 w-10 items-center justify-center rounded-full border bg-transparent transition-all duration-300 hover:bg-white/5 ${
+                unreadCount > 0
+                  ? "border-[#8348C1]/70 shadow-[0_0_14px_rgba(131,72,193,0.55)]"
+                  : "border-white/10"
+              }`}
+            >
+              <img src={notificationsIcon} alt="Сповіщення" className="h-5 w-5 opacity-70" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#8348C1] px-[3px] text-[9px] font-bold text-white shadow-[0_0_6px_rgba(131,72,193,0.7)]">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {showNotif && (
+              <div className="absolute right-0 top-[calc(100%+12px)] z-[200] w-[360px] overflow-hidden rounded-[20px] border border-[#8348C1]/30 bg-[#050506] shadow-[0_18px_60px_rgba(0,0,0,0.6),0_0_28px_rgba(131,72,193,0.15)]">
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
+                  <span className="text-[15px] font-semibold text-white">Сповіщення</span>
+                  {notifItems.length > 0 && (
+                    <span className="text-[11px] text-[#A3A4B0]">{notifItems.length} подій</span>
+                  )}
+                </div>
+
+                {/* Content */}
+                {notifLoad ? (
+                  <div className="flex items-center justify-center py-10">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#8348C1]/30 border-t-[#8348C1]" />
+                  </div>
+                ) : notifItems.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-10">
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#A3A4B0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                    </svg>
+                    <span className="text-[13px] text-[#A3A4B0]">Немає нових сповіщень</span>
+                  </div>
+                ) : (
+                  <div className="max-h-[400px] overflow-y-auto">
+                    {notifItems.map(n => {
+                      const dest = n.id.startsWith("alert_") ? "/alerts" : "/trading";
+                      return (
+                        <button
+                          key={n.id}
+                          type="button"
+                          onClick={() => { navigate(dest); setShowNotif(false); }}
+                          className="flex w-full cursor-pointer items-start gap-3 border-b border-white/[0.04] px-5 py-3.5 text-left last:border-0 transition-colors hover:bg-white/[0.05] active:bg-white/[0.08]"
+                        >
+                          <span className="mt-0.5 shrink-0 text-[18px]">{n.icon}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[13px] font-medium text-white">{n.title}</p>
+                            <p className="truncate text-[11px] text-[#A3A4B0]">{n.subtitle}</p>
+                          </div>
+                          <div className="mt-0.5 flex shrink-0 flex-col items-end gap-1">
+                            {n.ts > 0 && (
+                              <span className="text-[10px] text-[#A3A4B0]/60">{fmtRelTime(n.ts)}</span>
+                            )}
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#A3A4B0" strokeWidth="1.5" strokeLinecap="round">
+                              <path d="M2 5h6M5 2l3 3-3 3" />
+                            </svg>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <button 
             onClick={() => setShowLogoutModal(true)}

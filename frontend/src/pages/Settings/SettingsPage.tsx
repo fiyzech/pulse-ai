@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { supabase } from "../../supabaseClient";
 import { mergeAccountCache, readAccountCache } from "../../utils/accountCache";
@@ -11,6 +11,8 @@ interface Plan {
   key: "free" | "pro" | "business";
   monthlyPrice: number;
   yearlyPrice: number;
+  yearlyMonthEquiv: number | null;
+  yearlySaving: number | null;
   features: string[];
   cta: string;
   highlighted: boolean;
@@ -32,23 +34,19 @@ type SettingsCache = {
 };
 
 const gradientFill = "linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%)";
-const quietInputBorder = "1px solid rgba(255,255,255,0.1)";
-const errorInputBorder = "1px solid rgba(248,113,113,0.72)";
 const inputBgQuiet = "linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, rgba(82, 46, 139, 0.32) 0%, rgba(179, 179, 179, 0.32) 100%) border-box";
 const inputBgError = "linear-gradient(#0A0A0A, #0A0A0A) padding-box, linear-gradient(90deg, rgba(248, 113, 113, 0.72) 0%, rgba(248, 113, 113, 0.72) 100%) border-box";
 const settingsCacheKey = "cryptopulse_settings_cache";
 
 
-const tableGradientBorder = "linear-gradient(90deg, #522E8B 0%, #B3B3B3 100%)";
-
 const cancelGradientBorder =
   "linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%) border-box";
 
-const FEATURE_LINES_WITHOUT_BULLET = new Set(["Все з Free +", "Все з Pro, +:"]);
+const FEATURE_LINES_WITHOUT_BULLET = new Set(["Все з Free, плюс:", "Все з Pro, плюс:"]);
 
 const defaultSettingsCache: SettingsCache = {
   selectedPlan: 0,
-  isYearly: false,
+  isYearly: true,  // за замовчуванням показуємо річну підписку
   savedCardLast4: null,
 };
 
@@ -58,13 +56,17 @@ const plansData: Plan[] = [
     key: "free",
     monthlyPrice: 0,
     yearlyPrice: 0,
+    yearlyMonthEquiv: null,
+    yearlySaving: null,
     features: [
       "Доступ до 125 активів",
+      "Demo Trading ($25,000 стартовий баланс)",
+      "Бектестинг стратегій",
       "До 5 активів у Watchlist",
-      "Алерти для 1 вибраної криптовалюти",
-      "До 3 активних алертів для вибраної криптовалюти",
+      "Алерти для 1 криптовалюти",
+      "До 3 активних алертів",
       "Telegram-сповіщення",
-      "Базовий AI-прогноз",
+      "До 5 PulseAI-запитів на місяць",
       "Історія алертів до 7 днів",
     ],
     cta: "План оновлення",
@@ -73,15 +75,17 @@ const plansData: Plan[] = [
   {
     name: "Про",
     key: "pro",
-    monthlyPrice: 7,
-    yearlyPrice: 70,
+    monthlyPrice: 9,
+    yearlyPrice: 84,
+    yearlyMonthEquiv: 7,
+    yearlySaving: 24,
     features: [
-      "Все з Free +",
+      "Все з Free, плюс:",
       "До 15 активів у Watchlist",
-      "Алерти для до 5 вибраних криптовалют",
-      "До 5 активних алертів для кожної вибраної криптовалюти",
+      "Алерти для 5 криптовалют",
+      "До 5 активних алертів для кожної",
       "До 100 PulseAI-запитів на місяць",
-      "сторія алертів до 30 днів",
+      "Історія алертів до 30 днів",
       "Швидка підтримка",
     ],
     cta: "План оновлення",
@@ -91,12 +95,14 @@ const plansData: Plan[] = [
     name: "Преміум",
     key: "business",
     monthlyPrice: 19,
-    yearlyPrice: 190,
+    yearlyPrice: 180,
+    yearlyMonthEquiv: 15,
+    yearlySaving: 48,
     features: [
-      "Все з Pro, +:",
-      "Необмежена кількість активів у Watchlist",
-      "Алерти для до 15 вибраних криптовалют",
-      "Необмежена кількість активних алертів для вибраних криптовалют",
+      "Все з Pro, плюс:",
+      "Необмежений Watchlist",
+      "Алерти для 15 криптовалют",
+      "Необмежена кількість алертів",
       "Необмежені PulseAI-запити",
       "Історія алертів до 3 місяців",
       "Пріоритетна підтримка",
@@ -232,6 +238,37 @@ function SwitchToggle({ checked, onChange }: SwitchToggleProps) {
   );
 }
 
+/** Returns next billing date as a localised string (dd.mm.yyyy).
+ *  Adds 1 month (monthly) or 1 year (yearly) to the plan activation date.
+ *  Returns "—" when the activation date is unknown. */
+function fmtDate(iso: string | null): string {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "—";
+    return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
+  } catch { return "—"; }
+}
+
+function computeNextBillingDate(activatedAt: string | null, yearly: boolean): string {
+  if (!activatedAt) return "—";
+  try {
+    const base = new Date(activatedAt);
+    if (isNaN(base.getTime())) return "—";
+    const next = new Date(base);
+    if (yearly) {
+      next.setFullYear(next.getFullYear() + 1);
+    } else {
+      next.setMonth(next.getMonth() + 1);
+    }
+    return fmtDate(next.toISOString());
+  } catch {
+    return "—";
+  }
+}
+
+const PLAN_ACT_KEY = (uid: string) => `cpulse_plan_activated_${uid}`;
+
 export default function SettingsPage() {
   const cachedSettings = readCachedSettings();
   const [isYearly, setIsYearly] = useState(cachedSettings.isYearly);
@@ -247,7 +284,13 @@ export default function SettingsPage() {
 
   const [selectedPlan, setSelectedPlan] = useState<number>(cachedSettings.selectedPlan);
   const [savedCardLast4, setSavedCardLast4] = useState<string | null>(cachedSettings.savedCardLast4);
+  // ISO date when the current plan was last activated — used to compute next billing date
+  const [planActivatedAt, setPlanActivatedAt] = useState<string | null>(null);
+  // When user tries to switch to a paid plan without a card, hold the index here.
+  // After the card is saved we apply the plan automatically.
+  const [pendingPlanIndex, setPendingPlanIndex] = useState<number | null>(null);
   const [isEditingCard, setIsEditingCard] = useState(!cachedSettings.savedCardLast4);
+  const cardSectionRef = useRef<HTMLDivElement>(null);
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [showCVV, setShowCVV] = useState(false);
@@ -278,7 +321,7 @@ export default function SettingsPage() {
 
       const { data, error } = await supabase
         .from("users")
-        .select("active_plan, subscription, billing_cycle, card_last4")
+        .select("active_plan, subscription, billing_cycle, card_last4, updated_at")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -301,6 +344,10 @@ export default function SettingsPage() {
         setSelectedPlan(nextSettings.selectedPlan);
         setIsYearly(nextSettings.isYearly);
         setSavedCardLast4(nextSettings.savedCardLast4);
+        // updated_at може бути null — fallback до localStorage
+        const dbDate = (data.updated_at as string | null) ?? null;
+        const localDate = localStorage.getItem(PLAN_ACT_KEY(user.id));
+        setPlanActivatedAt(dbDate ?? localDate ?? null);
         writeCachedSettings(nextSettings);
       }
     };
@@ -357,21 +404,35 @@ export default function SettingsPage() {
       savedCardLast4,
     });
 
+    // Зберігаємо дату активації плану (для відображення у платіжній секції)
+    if (planIndex !== 0) {
+      const now = new Date().toISOString();
+      localStorage.setItem(PLAN_ACT_KEY(userId), now);
+      setPlanActivatedAt(now);
+    }
+
     return true;
   };
 
   const handleUpdatePlan = async (index: number) => {
+    // Paid plan selected but no card on file → gate: collect card first
+    if (index !== 0 && !savedCardLast4) {
+      setSelectedPlan(index);       // optimistic UI highlight
+      setPendingPlanIndex(index);   // remember we owe a subscription update
+      setIsEditingCard(true);
+      // Scroll to card section so user sees they must fill it in
+      setTimeout(() => {
+        cardSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 120);
+      return;
+    }
+
     const previousPlan = selectedPlan;
     setSelectedPlan(index);
 
     const updated = await updateSubscription(index, isYearly);
     if (!updated) {
       setSelectedPlan(previousPlan);
-      return;
-    }
-
-    if (index !== 0 && !savedCardLast4) {
-      setIsEditingCard(true);
     }
   };
 
@@ -461,15 +522,30 @@ export default function SettingsPage() {
     setCardCVV("");
     setCardName("");
     setCardErrors({});
-    writeCachedSettings({
-      userId,
-      selectedPlan,
-      isYearly,
-      savedCardLast4: last4,
-    });
+
+    // If we were waiting on a card to activate a paid plan — do it now
+    const planToActivate = pendingPlanIndex;
+    setPendingPlanIndex(null);
+
+    if (planToActivate !== null) {
+      const ok = await updateSubscription(planToActivate, isYearly);
+      if (!ok) setSelectedPlan(0); // revert to free if DB update failed
+    } else {
+      writeCachedSettings({
+        userId,
+        selectedPlan,
+        isYearly,
+        savedCardLast4: last4,
+      });
+    }
   };
 
   const handleCancelCardEdit = () => {
+    // If we were in the middle of a pending plan upgrade, revert selection
+    if (pendingPlanIndex !== null) {
+      setSelectedPlan(cachedSettings.selectedPlan); // restore original
+      setPendingPlanIndex(null);
+    }
     setIsEditingCard(false);
     setCardNumber("");
     setCardExpiry("");
@@ -559,10 +635,35 @@ export default function SettingsPage() {
             <section>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 34, width: 1116 }}>
                 <h2 style={{ fontSize: 24, fontWeight: 600, margin: 0, letterSpacing: 0 }}>Підписки</h2>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 16, lineHeight: "24px", fontWeight: 400, letterSpacing: 0, color: !isYearly ? "#fff" : "rgba(255,255,255,0.35)" }}>Місяць</span>
-                  <SwitchToggle checked={isYearly} onChange={handleToggleCycle} />
-                  <span style={{ fontSize: 16, lineHeight: "24px", fontWeight: 400, letterSpacing: 0, color: isYearly ? "#fff" : "rgba(255,255,255,0.35)" }}>Рік</span>
+                <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.06)", borderRadius: 999, padding: 4, gap: 4, border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleCycle(false)}
+                    style={{
+                      padding: "8px 20px", borderRadius: 999, fontSize: 14, fontWeight: 500,
+                      border: "none", cursor: "pointer", transition: "all 0.2s",
+                      background: !isYearly ? "linear-gradient(135deg,#2C1969,#8348C1)" : "transparent",
+                      color: !isYearly ? "#fff" : "rgba(255,255,255,0.5)",
+                      boxShadow: !isYearly ? "0 2px 12px rgba(131,72,193,0.4)" : "none",
+                    }}
+                  >
+                    Місяць
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleCycle(true)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      padding: "8px 20px", borderRadius: 999, fontSize: 14, fontWeight: 500,
+                      border: "none", cursor: "pointer", transition: "all 0.2s",
+                      background: isYearly ? "linear-gradient(135deg,#2C1969,#8348C1)" : "transparent",
+                      color: isYearly ? "#fff" : "rgba(255,255,255,0.5)",
+                      boxShadow: isYearly ? "0 2px 12px rgba(131,72,193,0.4)" : "none",
+                    }}
+                  >
+                    Рік
+                    <span style={{ background: "rgba(36,255,122,0.15)", color: "#24FF7A", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 999, border: "1px solid rgba(36,255,122,0.25)", lineHeight: 1.4 }}>−22%</span>
+                  </button>
                 </div>
               </div>
 
@@ -592,10 +693,27 @@ export default function SettingsPage() {
                     >
                       <p style={{ fontSize: 14, fontWeight: 500, letterSpacing: 0, color: "#fff", marginBottom: 12 }}>{plan.name}</p>
                       
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 24 }}>
-                        <span style={{ fontSize: 40, fontWeight: 400, letterSpacing: 0, color: "#fff" }}>€{isYearly ? plan.yearlyPrice : plan.monthlyPrice}</span>
-                        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: 400, letterSpacing: 0 }}>{isYearly ? "/рік" : "/місяць"}</span>
-                      </div>
+                      {/* Price */}
+                      {isYearly && plan.yearlyMonthEquiv !== null ? (
+                        <div style={{ marginBottom: 24 }}>
+                          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                            <span style={{ fontSize: 40, fontWeight: 400, color: "#fff" }}>€{plan.yearlyMonthEquiv.toFixed(2)}</span>
+                            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>/міс</span>
+                            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", textDecoration: "line-through" }}>€{plan.monthlyPrice}</span>
+                          </div>
+                          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", margin: "4px 0 0" }}>
+                            оплата €{plan.yearlyPrice}/рік
+                            {plan.yearlySaving && (
+                              <span style={{ marginLeft: 8, color: "#24FF7A", fontWeight: 600 }}>· економите €{plan.yearlySaving}</span>
+                            )}
+                          </p>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 24 }}>
+                          <span style={{ fontSize: 40, fontWeight: 400, letterSpacing: 0, color: "#fff" }}>€{plan.monthlyPrice}</span>
+                          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: 400, letterSpacing: 0 }}>/місяць</span>
+                        </div>
+                      )}
                       
                       <div style={{ width:308, height: 1, background: "linear-gradient(90deg, rgba(131, 72, 193, 0) 0%, #8348C1 50%, rgba(131, 72, 193, 0) 100%)", opacity: 0.4, marginLeft: "auto", marginRight: "auto", marginBottom: 20 }} />
                       
@@ -633,7 +751,7 @@ export default function SettingsPage() {
             </section>
 
             {/* PAYMENT SECTION */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 17 }}>
+            <div ref={cardSectionRef} style={{ display: "flex", flexDirection: "column", gap: 17 }}>
               <h2 style={{ fontSize: 22, fontWeight: 600, margin: 0, letterSpacing: 0 }}>Платіжні дані</h2>
              <section style={{
                   position: "relative",
@@ -711,8 +829,8 @@ export default function SettingsPage() {
                   <div>
                     <p style={{ fontSize: 14, fontWeight: 400, letterSpacing: 0, color: "#A3A4B0", marginBottom: 6 }}>Наступна оплата</p>
                     <p style={{ fontSize: 16, fontWeight: 400, letterSpacing: 0, marginBottom: 12 }}>
-                      {selectedPlan !== 0 && savedCardLast4 
-                        ? (isYearly ? "17 травня 2027 р." : "17 червня 2026 р.") 
+                      {selectedPlan !== 0 && savedCardLast4
+                        ? computeNextBillingDate(planActivatedAt, isYearly)
                         : "Не заплановано"}
                     </p>
                     <div style={{
@@ -740,6 +858,22 @@ export default function SettingsPage() {
                     marginTop: "10px",
                     marginBottom: "10px",
                   }} />
+
+                  {/* Pending plan banner — shown when card is required to activate a plan */}
+                  {pendingPlanIndex !== null && (
+                    <div style={{
+                      display: "flex", alignItems: "flex-start", gap: 10,
+                      borderRadius: 14, border: "1px solid rgba(131,72,193,0.35)",
+                      background: "rgba(131,72,193,0.10)", padding: "10px 14px",
+                      marginBottom: 16, maxWidth: 448,
+                    }}>
+                      <span style={{ fontSize: 15, lineHeight: 1, flexShrink: 0 }}>💳</span>
+                      <p style={{ fontSize: 12, color: "rgba(195,139,255,0.9)", lineHeight: "1.5", margin: 0 }}>
+                        Для активації плану <strong>{plansData[pendingPlanIndex].name}</strong> необхідно додати картку.
+                        Реального списання не відбудеться.
+                      </p>
+                    </div>
+                  )}
 
                   <div>
                     <label style={{ display: "block", fontSize: 12, fontWeight: 300, letterSpacing: 0, color: "white", marginBottom: 8 }}>Номер картки</label>
@@ -1098,8 +1232,8 @@ export default function SettingsPage() {
                               <span style={{ fontSize: 13, letterSpacing: 0, color: "rgba(255,255,255,0.55)" }}>**** **** **** {savedCardLast4}</span>
                             </div>
                           </td>
-                          <td style={{ padding: "20px 24px", fontSize: 14, letterSpacing: 0, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>17.05.2026</td>
-                          <td style={{ padding: "20px 24px", fontSize: 14, letterSpacing: 0, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{isYearly ? "17.05.2027" : "17.06.2026"}</td>
+                          <td style={{ padding: "20px 24px", fontSize: 14, letterSpacing: 0, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{fmtDate(planActivatedAt)}</td>
+                          <td style={{ padding: "20px 24px", fontSize: 14, letterSpacing: 0, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{computeNextBillingDate(planActivatedAt, isYearly)}</td>
                           <td style={{ padding: "20px 24px", textAlign: "center" }}>
                             <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
                               {["download", "link"].map((key) => (

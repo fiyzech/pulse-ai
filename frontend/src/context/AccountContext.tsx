@@ -29,20 +29,34 @@ const buildAccountFromRows = (
         : "free",
   );
 
+  // Extract Google/OAuth metadata as fallback for empty DB fields
+  const meta = authUser.user_metadata ?? {};
+  const oauthFullName =
+    typeof meta.full_name === "string" ? meta.full_name :
+    typeof meta.name === "string" ? meta.name : "";
+  const nameParts = oauthFullName.trim().split(/\s+/);
+  const oauthFirstName = nameParts[0] ?? "";
+  const oauthLastName = nameParts[1] ?? ""; // only second word, skip patronymic
+  const oauthAvatar =
+    typeof meta.avatar_url === "string" ? meta.avatar_url :
+    typeof meta.picture === "string" ? meta.picture : "";
+
+  const str = (v: unknown) => (typeof v === "string" && v.length > 0 ? v : null);
+
   return {
     userId: authUser.id,
-    email: typeof row?.email === "string" ? row.email : authUser.email || "",
-    firstName: typeof row?.first_name === "string" ? row.first_name : "",
-    lastName: typeof row?.last_name === "string" ? row.last_name : "",
-    username: typeof row?.username === "string" ? row.username : "",
-    phoneNumber: typeof row?.phone_number === "string" ? row.phone_number : "",
-    birthDate: typeof row?.birth_date === "string" ? row.birth_date : "",
-    region: typeof row?.region === "string" ? row.region : "",
-    avatarUrl: typeof row?.avatar_url === "string" ? row.avatar_url : "",
+    email: str(row?.email) ?? authUser.email ?? "",
+    firstName: str(row?.first_name) ?? oauthFirstName,
+    lastName: str(row?.last_name) ?? oauthLastName,
+    username: str(row?.username) ?? "",
+    phoneNumber: str(row?.phone_number) ?? "",
+    birthDate: str(row?.birth_date) ?? "",
+    region: str(row?.region) ?? "",
+    avatarUrl: str(row?.avatar_url) ?? oauthAvatar,
     planKey,
     billingCycle: normalizeBillingCycle(typeof row?.billing_cycle === "string" ? row.billing_cycle : "monthly"),
     cardLast4: typeof row?.card_last4 === "string" ? row.card_last4 : null,
-    passwordLastChanged: typeof row?.password_last_changed === "string" ? row.password_last_changed : "",
+    passwordLastChanged: str(row?.password_last_changed) ?? "",
     updatedAt: Date.now(),
   };
 };
@@ -74,6 +88,31 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       console.error("Account refresh error:", error);
       setLoading(false);
       return readAccountCache();
+    }
+
+    // Auto-create users row for new OAuth users (Google, Apple, etc.)
+    if (!data) {
+      const meta = user.user_metadata ?? {};
+      const oauthFullName =
+        typeof meta.full_name === "string" ? meta.full_name :
+        typeof meta.name === "string" ? meta.name : "";
+      const nameParts = oauthFullName.trim().split(/\s+/);
+      const oauthFirstName = nameParts[0] ?? "";
+      const oauthLastName = nameParts[1] ?? ""; // only second word, skip patronymic
+      const oauthAvatar =
+        typeof meta.avatar_url === "string" ? meta.avatar_url :
+        typeof meta.picture === "string" ? meta.picture : "";
+
+      await supabase.from("users").upsert({
+        id: user.id,
+        email: user.email ?? "",
+        first_name: oauthFirstName || null,
+        last_name: oauthLastName || null,
+        username: null,
+        avatar_url: oauthAvatar || null,
+        active_plan: "free",
+        billing_cycle: "monthly",
+      }, { onConflict: "id" });
     }
 
     const nextAccount = buildAccountFromRows(user, data);

@@ -126,7 +126,7 @@ const LoginPage: React.FC = () => {
     setGeneralSuccess("Посилання для відновлення пароля надіслано на email");
   };
 
-  const handleOAuth = async (provider: "google" | "facebook") => {
+  const handleOAuth = async (provider: "google" | "apple") => {
     setGeneralError("");
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
@@ -268,11 +268,11 @@ const LoginPage: React.FC = () => {
                 </div>
               </button>
 
-              <button type="button" onClick={() => handleOAuth("facebook")} className="relative w-[360px] h-[44px] p-[1px] rounded-full overflow-hidden group transition-all hover:scale-105 active:scale-95">
+              <button type="button" onClick={() => handleOAuth("apple")} className="relative w-[360px] h-[44px] p-[1px] rounded-full overflow-hidden group transition-all hover:scale-105 active:scale-95">
                 <div className="absolute inset-0 bg-[linear-gradient(90deg,#2C1969,#8348C1,#C38BFF)]" />
                 <div className="relative flex items-center justify-center w-full h-full bg-[#050506] rounded-full gap-3 text-[14px] text-white group-hover:bg-[#0a0a0c] transition-colors">
-                  <img src="https://www.svgrepo.com/show/475647/facebook-color.svg" alt="Facebook" className="w-5 h-5" />
-                  <span>Увійти з Facebook</span>
+                  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.7 9.05 7.4c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4zm-3.1-17.6c.06 2.3-1.7 4.17-3.9 4.05-.3-2.15 1.86-4.17 3.9-4.05z"/></svg>
+                  <span>Увійти з Apple</span>
                 </div>
               </button>
             </div>

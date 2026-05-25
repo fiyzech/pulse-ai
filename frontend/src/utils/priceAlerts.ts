@@ -47,6 +47,8 @@ export type PriceAlertRecord = {
   condition: PriceAlertCondition;
   target_price: number;
   is_active: boolean | null;
+  max_triggers: number | null;   // null = unlimited; 1 = once; 2 = twice; etc.
+  trigger_count: number;         // how many times it has already fired
 };
 
 const tableName = "alerts";
@@ -149,15 +151,34 @@ export const getAlertConditionDescription = (condition: string): string => {
   return desc[condition] ?? "";
 };
 
+const ALERT_SELECT     = "id, user_id, symbol, condition, target_price, is_active, max_triggers, trigger_count";
+const ALERT_SELECT_OLD = "id, user_id, symbol, condition, target_price, is_active";
+
+const normalizeRow = (r: Record<string, unknown>): PriceAlertRecord => ({
+  ...(r as PriceAlertRecord),
+  trigger_count: (r.trigger_count as number) ?? 0,
+  max_triggers:  (r.max_triggers  as number | null) ?? null,
+});
+
 export const listUserPriceAlerts = async (userId: string) => {
   const { data, error } = await supabase
     .from(tableName)
-    .select("id, user_id, symbol, condition, target_price, is_active")
+    .select(ALERT_SELECT)
     .eq("user_id", userId)
     .order("symbol", { ascending: true });
 
-  if (error) throw error;
-  return (data || []) as PriceAlertRecord[];
+  if (error) {
+    // Columns might not exist yet — fall back to old select so alerts still show
+    const { data: fallback, error: fbErr } = await supabase
+      .from(tableName)
+      .select(ALERT_SELECT_OLD)
+      .eq("user_id", userId)
+      .order("symbol", { ascending: true });
+    if (fbErr) throw fbErr;
+    return (fallback || []).map(r => normalizeRow(r as Record<string, unknown>));
+  }
+
+  return (data || []).map(r => normalizeRow(r as Record<string, unknown>));
 };
 
 export const createPriceAlert = async ({
@@ -165,27 +186,42 @@ export const createPriceAlert = async ({
   symbol,
   condition,
   targetPrice,
+  maxTriggers = null,
 }: {
   userId: string;
   symbol: string;
   condition: PriceAlertCondition;
   targetPrice: number;
+  maxTriggers?: number | null;
 }) => {
+  const baseRow = {
+    id: crypto.randomUUID(),
+    user_id: userId,
+    symbol: normalizeAlertSymbol(symbol),
+    condition,
+    target_price: targetPrice,
+    is_active: true,
+  };
+
+  // Try insert with new columns
   const { data, error } = await supabase
     .from(tableName)
-    .insert({
-      id: crypto.randomUUID(),
-      user_id: userId,
-      symbol: normalizeAlertSymbol(symbol),
-      condition,
-      target_price: targetPrice,
-      is_active: true,
-    })
-    .select("id, user_id, symbol, condition, target_price, is_active")
+    .insert({ ...baseRow, max_triggers: maxTriggers, trigger_count: 0 })
+    .select(ALERT_SELECT)
     .single();
 
-  if (error) throw error;
-  return data as PriceAlertRecord;
+  if (error) {
+    // Fallback: columns don't exist yet — insert without them
+    const { data: fb, error: fbErr } = await supabase
+      .from(tableName)
+      .insert(baseRow)
+      .select(ALERT_SELECT_OLD)
+      .single();
+    if (fbErr) throw fbErr;
+    return normalizeRow(fb as Record<string, unknown>);
+  }
+
+  return normalizeRow(data as Record<string, unknown>);
 };
 
 export const updatePriceAlert = async ({
@@ -193,25 +229,43 @@ export const updatePriceAlert = async ({
   id,
   condition,
   targetPrice,
+  maxTriggers,
 }: {
   userId: string;
   id: string;
   condition: PriceAlertCondition;
   targetPrice: number;
+  maxTriggers?: number | null;
 }) => {
+  const patch: Record<string, unknown> = { condition, target_price: targetPrice };
+  if (maxTriggers !== undefined) patch.max_triggers = maxTriggers;
+
   const { data, error } = await supabase
     .from(tableName)
-    .update({
-      condition,
-      target_price: targetPrice,
-    })
+    .update(patch)
     .eq("id", id)
     .eq("user_id", userId)
-    .select("id, user_id, symbol, condition, target_price, is_active")
+    .select(ALERT_SELECT)
     .single();
 
   if (error) throw error;
-  return data as PriceAlertRecord;
+  return normalizeRow(data as Record<string, unknown>);
+};
+
+/** Called each time an alert fires — increments counter and deactivates when limit reached. */
+export const recordAlertTrigger = async (userId: string, alert: PriceAlertRecord) => {
+  const newCount = (alert.trigger_count ?? 0) + 1;
+  const shouldDeactivate = alert.max_triggers != null && newCount >= alert.max_triggers;
+  const { error } = await supabase
+    .from(tableName)
+    .update({
+      trigger_count: newCount,
+      ...(shouldDeactivate ? { is_active: false } : {}),
+    })
+    .eq("id", alert.id)
+    .eq("user_id", userId);
+  if (error) throw error;
+  return { newCount, shouldDeactivate };
 };
 
 export const removePriceAlert = async (userId: string, id: string) => {

@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import bookmarkPlusIcon from '../../assets/icons/bookmark-plus.svg';
-import trashIcon from '../../assets/icons/trash.svg';
 import eyeIcon from '../../assets/icons/eye.svg';
 import trashIconRed from '../../assets/icons/trash-red.svg';
 import {
@@ -10,6 +9,10 @@ import {
   listFavoriteAssets,
   removeFavoriteAsset,
 } from '../../utils/favoriteAssets';
+import { formatPrice } from '../../utils/format';
+import { useAccount } from '../../context/accountContextValue';
+import { getPlanLimits } from '../../utils/planLimits';
+import UpgradeModal from '../../components/common/UpgradeModal';
 
 // === ДАНІ ДЛЯ ВЕРХНІХ КАРТОК ===
 interface MarketItem {
@@ -111,22 +114,18 @@ const parseJsonCache = <T,>(value: string | null): T | null => {
 
 export default function MarketsPage() {
   const navigate = useNavigate();
+  const { account } = useAccount();
 
   const [liveTopData, setLiveTopData] = useState<Record<string, { price: number; change: number }>>({});
   const [allTableMarkets, setAllTableMarkets] = useState<TableMarketItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [visibleCount, setVisibleCount] = useState<number>(30);
   const [apiError, setApiError] = useState<string | null>(null);
   const [favoriteUserId, setFavoriteUserId] = useState<string | null>(null);
   const [favoriteSymbols, setFavoriteSymbols] = useState<Set<string>>(new Set());
   const [pendingFavorites, setPendingFavorites] = useState<Set<string>>(new Set());
   const [favoriteError, setFavoriteError] = useState<string | null>(null);
-  const [hoveredTrash, setHoveredTrash] = useState<string | null>(null);
-
-  const formatPrice = (price: number | null) => {
-    if (!price) return "$0.00";
-    if (price < 0.01) return `$${price}`;
-    return `$${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
+  const [upgradeModal, setUpgradeModal] = useState(false);
 
   const formatChange = (change: number | null) => {
     if (change === null || change === undefined) return "0.0%";
@@ -306,6 +305,8 @@ export default function MarketsPage() {
         }
       } catch (error) {
         console.error('Помилка завантаження таблиці:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -373,6 +374,15 @@ export default function MarketsPage() {
     }
 
     if (!favoriteUserId) setFavoriteUserId(userId);
+
+    // Plan limit check when adding
+    if (!wasFavorite) {
+      const limits = getPlanLimits(account?.planKey);
+      if (limits.watchlistMax !== null && favoriteSymbols.size >= limits.watchlistMax) {
+        setUpgradeModal(true);
+        return;
+      }
+    }
 
     setFavoriteError(null);
     setPendingFavorites((prev) => new Set(prev).add(symbol));
@@ -542,13 +552,19 @@ export default function MarketsPage() {
           </div>
 
           <div className="flex flex-col">
-            {apiError && allTableMarkets.length === 0 ? (
+            {loading ? (
+              Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="py-1">
+                  <div className="mx-4 my-2 h-[52px] rounded-[14px] animate-pulse bg-white/[0.05]" />
+                </div>
+              ))
+            ) : apiError && allTableMarkets.length === 0 ? (
               <div className="flex items-center justify-center py-10 text-[#FF4B4B] text-[15px]">
                 {apiError}
               </div>
             ) : allTableMarkets.length === 0 ? (
               <div className="flex items-center justify-center py-10 text-[#A3A4B0] text-[15px]">
-                Завантаження криптовалют...
+                Немає даних
               </div>
             ) : (
               visibleTableMarkets.map((coin) => {
@@ -639,6 +655,14 @@ export default function MarketsPage() {
           </div>
         </div>
       </div>
+
+      <UpgradeModal
+        isOpen={upgradeModal}
+        onClose={() => setUpgradeModal(false)}
+        title="Ліміт Watchlist"
+        description={`Ваш план дозволяє додавати до ${getPlanLimits(account?.planKey).watchlistMax} активів у Watchlist. Оновіть план, щоб розширити список.`}
+        currentPlanKey={account?.planKey ?? "free"}
+      />
     </section>
   );
 }

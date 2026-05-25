@@ -12,15 +12,67 @@ interface Plan {
   key: "free" | "pro" | "business";
   monthlyPrice: number;
   yearlyPrice: number;
+  yearlyMonthEquiv: number | null; // ціна/місяць при річній оплаті
+  yearlySaving: number | null;     // скільки економить за рік
   features: string[];
 }
 
-const FEATURE_LINES_WITHOUT_BULLET = new Set(["Все з Free +", "Все з Pro, +:"]);
+const FEATURE_LINES_WITHOUT_BULLET = new Set(["Все з Free, плюс:", "Все з Pro, плюс:"]);
 
 const plansData: Plan[] = [
-  { name: "Безкоштовно", key: "free", monthlyPrice: 0, yearlyPrice: 0, features: ["Відстеження до 60 криптовалют", "Оновлення даних кожних 60 секунд", "До 3 активних алертів", "Telegram сповіщення", "Історія сповіщень до 7 днів", "Базовий Dashboard"] },
-  { name: "Pro", key: "pro", monthlyPrice: 7, yearlyPrice: 70, features: ["Все з Free +", "Відстеження до 100 криптовалют", "Оновлення даних кожні 15 секунд", "Повна інтеграція з Telegram", "Розширені типи алертів", "Історія сповіщень до 90 днів", "До 5 Watchlist", "Експорт даних у CSV", "Портфоліо трекер (прибуток/збиток)", "Швидка підтримка"] },
-  { name: "Бізнес", key: "business", monthlyPrice: 19, yearlyPrice: 190, features: ["Все з Pro, +:", "Необмежена кількість активів", "Необмежена кількість алертів", "Real-Time оновлення даних", "AI помічник", "Розширена аналітика", "API доступ для власних інтеграцій", "Необмежена історія даних", "Пріоритетна підтримка"] },
+  {
+    name: "Безкоштовно",
+    key: "free",
+    monthlyPrice: 0,
+    yearlyPrice: 0,
+    yearlyMonthEquiv: null,
+    yearlySaving: null,
+    features: [
+      "Доступ до 125 активів",
+      "Demo Trading ($25,000 стартовий баланс)",
+      "Бектестинг стратегій",
+      "До 5 активів у Watchlist",
+      "Алерти для 1 криптовалюти",
+      "До 3 активних алертів",
+      "Telegram-сповіщення",
+      "До 5 PulseAI-запитів на місяць",
+      "Історія алертів до 7 днів",
+    ],
+  },
+  {
+    name: "Pro",
+    key: "pro",
+    monthlyPrice: 9,
+    yearlyPrice: 84,
+    yearlyMonthEquiv: 7,
+    yearlySaving: 24,
+    features: [
+      "Все з Free, плюс:",
+      "До 15 активів у Watchlist",
+      "Алерти для 5 криптовалют",
+      "До 5 активних алертів для кожної",
+      "До 100 PulseAI-запитів на місяць",
+      "Історія алертів до 30 днів",
+      "Швидка підтримка",
+    ],
+  },
+  {
+    name: "Преміум",
+    key: "business",
+    monthlyPrice: 19,
+    yearlyPrice: 180,
+    yearlyMonthEquiv: 15,
+    yearlySaving: 48,
+    features: [
+      "Все з Pro, плюс:",
+      "Необмежений Watchlist",
+      "Алерти для 15 криптовалют",
+      "Необмежена кількість алертів",
+      "Необмежені PulseAI-запити",
+      "Історія алертів до 3 місяців",
+      "Пріоритетна підтримка",
+    ],
+  },
 ];
 
 function SwitchToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -33,7 +85,7 @@ function SwitchToggle({ checked, onChange }: { checked: boolean; onChange: (v: b
 
 export default function SelectPlanPage() {
   const navigate = useNavigate();
-  const [isYearly, setIsYearly] = useState(false);
+  const [isYearly, setIsYearly] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<number | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -148,10 +200,24 @@ export default function SelectPlanPage() {
       <div className="z-10 w-full max-w-[1116px] text-center mb-[40px]">
         <h1 className="text-white text-[32px] font-bold">Оберіть свій план</h1>
         <p className="font-light text-[16px] text-[#A3A4B0] mt-[4px]">Цей крок обов'язковий для завершення реєстрації</p>
-        <div className="flex items-center justify-center gap-10 mt-8">
-          <span style={{ fontSize: 16, color: !isYearly ? "#fff" : "rgba(255,255,255,0.35)" }}>Місяць</span>
-          <SwitchToggle checked={isYearly} onChange={setIsYearly} />
-          <span style={{ fontSize: 16, color: isYearly ? "#fff" : "rgba(255,255,255,0.35)" }}>Рік</span>
+        <div className="flex items-center justify-center mt-8">
+          <div className="flex items-center bg-white/[0.06] rounded-full p-1 gap-1 border border-white/[0.08]">
+            <button
+              type="button"
+              onClick={() => setIsYearly(false)}
+              className={`px-6 py-2 rounded-full text-[14px] font-medium transition-all duration-200 ${!isYearly ? "bg-[#8348C1] text-white shadow-[0_2px_12px_rgba(131,72,193,0.4)]" : "text-white/50 hover:text-white/80"}`}
+            >
+              Місяць
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsYearly(true)}
+              className={`flex items-center gap-2 px-6 py-2 rounded-full text-[14px] font-medium transition-all duration-200 ${isYearly ? "bg-[#8348C1] text-white shadow-[0_2px_12px_rgba(131,72,193,0.4)]" : "text-white/50 hover:text-white/80"}`}
+            >
+              Рік
+              <span className="bg-[#24FF7A]/15 text-[#24FF7A] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#24FF7A]/25 leading-none">−22%</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -161,10 +227,27 @@ export default function SelectPlanPage() {
           return (
             <div key={plan.name} onClick={() => handlePlanSelect(index)} className={`relative flex flex-col w-full md:w-[356px] h-[644px] rounded-2xl bg-[#050508] p-7 cursor-pointer transition-all border ${isSelected ? "border-[#8348C1] scale-[1.04] shadow-[0_0_32px_rgba(131,72,193,0.28)]" : "border-white/10"}`}>
               <p className="text-[13px] uppercase tracking-[0.25em] text-white mb-4">{plan.name}</p>
-              <div className="flex items-baseline gap-1 mb-4">
-                <span className="text-4xl font-light text-white">€{isYearly ? plan.yearlyPrice : plan.monthlyPrice}</span>
-                <span className="text-[13px] text-white/40">{isYearly ? "/рік" : "/місяць"}</span>
-              </div>
+              {/* Price block */}
+              {isYearly && plan.yearlyMonthEquiv !== null ? (
+                <div className="mb-4">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-light text-white">€{plan.yearlyMonthEquiv.toFixed(2)}</span>
+                    <span className="text-[13px] text-white/40">/міс</span>
+                    <span className="text-[13px] text-white/25 line-through">€{plan.monthlyPrice}</span>
+                  </div>
+                  <p className="text-[11px] text-white/35 mt-1">
+                    оплата €{plan.yearlyPrice}/рік
+                    {plan.yearlySaving && (
+                      <span className="ml-2 text-[#24FF7A] font-semibold">· економите €{plan.yearlySaving}</span>
+                    )}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-baseline gap-1 mb-4">
+                  <span className="text-4xl font-light text-white">€{plan.monthlyPrice}</span>
+                  <span className="text-[13px] text-white/40">/місяць</span>
+                </div>
+              )}
               <div className="h-[1px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] opacity-40 mb-6" />
               <ul className="flex-1 flex flex-col gap-3 text-[13px] text-white list-none p-0">
                 {plan.features.map((f) => (
@@ -185,7 +268,17 @@ export default function SelectPlanPage() {
       {showPaymentModal && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <form onSubmit={handlePaymentSubmit} className="w-full max-w-[500px] rounded-[20px] bg-[#0a0a0a] border border-white/10 p-8 shadow-[0_20px_70px_rgba(0,0,0,0.5)]">
-            <h2 className="text-[22px] text-white font-medium mb-6">Додати платіжні дані</h2>
+            <h2 className="text-[22px] text-white font-medium mb-4">Додати платіжні дані</h2>
+
+            {/* ⚠️ Payment gateway not yet connected — demo only */}
+            <div className="mb-5 flex items-start gap-3 rounded-[14px] border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+              <span className="mt-px text-amber-400 text-[16px] leading-none shrink-0">⚠️</span>
+              <p className="text-[12px] text-amber-300/90 leading-relaxed">
+                <strong>Платіжна система в розробці.</strong> Реального списання коштів не відбудеться.
+                Підписка буде активована без оплати для демонстрації.
+              </p>
+            </div>
+
             <div className="flex flex-col gap-5">
               <div>
                 <label className="block text-[11px] text-white/35 uppercase tracking-widest mb-2">Номер картки</label>
@@ -203,7 +296,7 @@ export default function SelectPlanPage() {
             <div className="flex gap-4 mt-8">
               <button type="button" onClick={() => setShowPaymentModal(false)} className="flex-1 h-[44px] rounded-full border border-[#A3A4B0]/30 text-[#A3A4B0] hover:text-white transition-colors text-[13px] font-medium cursor-pointer">Скасувати</button>
               <button type="submit" disabled={loading} className="flex-1 h-[44px] rounded-full text-white text-[13px] font-medium disabled:opacity-50 cursor-pointer bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF]">
-                {loading ? "Обробка..." : "Оплатити та продовжити"}
+                {loading ? "Обробка..." : "Активувати план (ДЕМО)"}
               </button>
             </div>
           </form>

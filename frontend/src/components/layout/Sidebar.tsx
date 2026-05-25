@@ -14,8 +14,8 @@ import pulseAiIcon from "../../assets/images/activate-pulse-ai.svg";
 export default function Sidebar() {
   const sidebarItems = [
     { label: "Головна", icon: dashboardIcon, path: "/dashboard", iconSize: "16px" },
-    { label: "Обране", icon: watchlistIcon, path: "/assets", iconSize: "24px" }, 
-    { label: "Ринки", icon: marketsIcon, path: "/markets", iconSize: "22px" }, 
+    { label: "Обране", icon: watchlistIcon, path: "/assets", iconSize: "24px" },
+    { label: "Ринки", icon: marketsIcon, path: "/markets", iconSize: "22px" },
     { label: "Торгівля", icon: tradingIcon, path: "/trading", iconSize: "22px" },
     { label: "Алерти", icon: alertsIcon, path: "/alerts", iconSize: "20px" },
     { label: "Профіль", icon: profileIcon, path: "/profile", iconSize: "20px" },
@@ -64,11 +64,11 @@ export default function Sidebar() {
               {({ isActive }) => (
                 <>
                   <span className="flex w-[24px] h-[24px] justify-center items-center shrink-0">
-                    <img 
-                      src={item.icon} 
-                      alt={item.label} 
+                    <img
+                      src={item.icon}
+                      alt={item.label}
                       style={{ width: item.iconSize, height: item.iconSize }}
-                      className={`object-contain transition-all duration-300 ${isActive ? 'scale-[1.15] brightness-0 invert opacity-100' : 'opacity-50 group-hover:opacity-100 scale-100'}`} 
+                      className={`object-contain transition-all duration-300 ${isActive ? 'scale-[1.15] brightness-0 invert opacity-100' : 'opacity-50 group-hover:opacity-100 scale-100'}`}
                     />
                   </span>
                   <span className={`transition-all duration-300 ${isActive ? 'font-medium text-white' : ''}`}>{item.label}</span>

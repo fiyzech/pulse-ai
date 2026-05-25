@@ -10,6 +10,9 @@ import {
 } from '../../utils/favoriteAssets';
 import { fetchCryptoNews, formatNewsTime } from '../../utils/news';
 import type { CryptoNewsItem } from '../../utils/news';
+import { useAccount } from '../../context/accountContextValue';
+import { getPlanLimits } from '../../utils/planLimits';
+import UpgradeModal from '../../components/common/UpgradeModal';
 
 const COINGECKO_IDS: Record<string, string> = {
   'BTC': 'bitcoin', 'ETH': 'ethereum', 'SOL': 'solana', 'BNB': 'binancecoin',
@@ -287,6 +290,8 @@ interface AssetPageProps {
 export default function AssetPage(props: AssetPageProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { account } = useAccount();
+  const [upgradeModal, setUpgradeModal] = useState(false);
   const { symbol: routeAsset } = useParams<{ symbol: string }>();
   const passedCoin = location.state?.coin;
   const routeAssetValue = (routeAsset || '').toLowerCase();
@@ -503,6 +508,18 @@ const handleFavoriteToggle = async () => {
         setIsFavorite(false);
         setFavoriteNotice('Актив видалено з обраного.');
       } else {
+        // Plan limit check
+        const limits = getPlanLimits(account?.planKey);
+        if (limits.watchlistMax !== null) {
+          const cached = sessionStorage.getItem("pulse_user_favorites");
+          const currentCount = cached ? (JSON.parse(cached) as unknown[]).length : 0;
+          if (currentCount >= limits.watchlistMax) {
+            setUpgradeModal(true);
+            setFavoriteLoading(false);
+            return;
+          }
+        }
+
         await addFavoriteAsset(userId, {
           coinId: cgId,
           symbol: coinShort,
@@ -871,6 +888,7 @@ const handleFavoriteToggle = async () => {
   };
 
   return (
+    <>
     <section className="w-full max-w-[1600px] mx-auto px-10 pt-7 pb-12 font-montserrat">
       {/* ГРАФІК — повна ширина */}
       <div className="w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
@@ -1332,5 +1350,14 @@ const handleFavoriteToggle = async () => {
         </div>
       </div>
     </section>
+
+    <UpgradeModal
+      isOpen={upgradeModal}
+      onClose={() => setUpgradeModal(false)}
+      title="Ліміт Watchlist"
+      description={`Ваш план дозволяє додавати до ${getPlanLimits(account?.planKey).watchlistMax} активів у Watchlist. Оновіть план, щоб розширити список.`}
+      currentPlanKey={account?.planKey ?? "free"}
+    />
+    </>
   );
 }

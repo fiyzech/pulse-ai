@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import editIcon from "../../assets/icons/pencil-edit.svg";
 import trashIcon from "../../assets/icons/trash.svg";
@@ -12,9 +13,10 @@ import {
   updatePriceAlert,
 } from "../../utils/priceAlerts";
 import type { PriceAlertCondition, PriceAlertRecord } from "../../utils/priceAlerts";
+import { BOT_URL, fetchTelegramStatus, openTelegramBot } from "../../utils/telegram";
 
 const tableGrid =
-  "grid grid-cols-[1.05fr_1.12fr_0.95fr_0.78fr_0.82fr_178px]";
+  "grid grid-cols-[1fr_1.1fr_0.9fr_0.75fr_0.7fr_0.75fr_160px]";
 
 const conditionOptions: Array<{ value: PriceAlertCondition; label: string }> = [
   { value: "price_gt",           label: "↑ Ціна перетне вгору" },
@@ -72,6 +74,7 @@ const parseTargetPrice = (value: string) =>
   Number(value.replace(",", ".").replace(/[^0-9.]/g, ""));
 
 export default function AlertsPage() {
+  const navigate = useNavigate();
   const [alerts, setAlerts] = useState<PriceAlertRecord[]>([]);
   const [currentPrices, setCurrentPrices] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -81,6 +84,7 @@ export default function AlertsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCondition, setEditCondition] = useState<PriceAlertCondition>("price_gte");
   const [editPrice, setEditPrice] = useState("");
+  const [telegramConnected, setTelegramConnected] = useState<boolean | null>(null);
 
   const loadAlerts = useCallback(async () => {
     setError("");
@@ -98,6 +102,8 @@ export default function AlertsPage() {
 
       const rows = await listUserPriceAlerts(userId);
       setAlerts(rows);
+      // Check Telegram connection status
+      fetchTelegramStatus(userId).then(setTelegramConnected).catch(() => setTelegramConnected(false));
     } catch (loadError) {
       console.error("Помилка завантаження алертів:", loadError);
       setError("Не вдалося завантажити алерти. Перевірте таблицю alerts.");
@@ -152,14 +158,16 @@ export default function AlertsPage() {
 
   const stats = useMemo(() => {
     const activeAlerts = alerts.filter((item) => item.is_active !== false).length;
+    const firedTotal   = alerts.reduce((s, a) => s + (a.trigger_count ?? 0), 0);
+    const tgStatus = telegramConnected === null ? "..." : telegramConnected ? " Підключено" : " Не підключено";
 
     return [
-      { title: "Активні алерти", value: String(activeAlerts), icon: alarm },
-      { title: "Спрацювали сьогодні", value: "0" },
-      { title: "Telegram підключено", value: "Так" },
+      { title: "Активні алерти",     value: String(activeAlerts), icon: alarm },
+      { title: "Разів спрацювало",   value: String(firedTotal) },
+      { title: "Telegram",           value: tgStatus },
       { title: "Останнє сповіщення", value: activeAlerts > 0 ? "Очікується" : "---" },
     ];
-  }, [alerts]);
+  }, [alerts, telegramConnected]);
 
   const startEdit = (alert: PriceAlertRecord) => {
     setEditingId(alert.id);
@@ -285,6 +293,7 @@ export default function AlertsPage() {
             <span>Умова</span>
             <span>Поточна ціна</span>
             <span>Статус</span>
+            <span>Спрацювань</span>
             <span>Telegram</span>
             <span className="text-center">Дії</span>
           </div>
@@ -302,7 +311,11 @@ export default function AlertsPage() {
               return (
                 <React.Fragment key={alert.id}>
                   <div className={`${tableGrid} items-center px-[20px] h-[76px] transition-all duration-300 ease-out`}>
-                    <div className="flex min-w-0 items-center gap-3">
+                    <div
+                      className="flex min-w-0 items-center gap-3 cursor-pointer group"
+                      onClick={() => navigate(`/trading/${symbol}`)}
+                      title="Відкрити в терміналі"
+                    >
                       <div className={`w-8 h-8 rounded-full ${meta?.color || "bg-[#8348C1]"} flex items-center justify-center overflow-hidden`}>
                         {meta?.icon ? (
                           <img src={meta.icon} alt={symbol} className="w-6 h-6 object-contain" />
@@ -310,7 +323,10 @@ export default function AlertsPage() {
                           <span className="text-[11px] font-bold text-white">{symbol.slice(0, 2)}</span>
                         )}
                       </div>
-                      <p className="truncate text-[14px] font-medium text-white">{symbol}/USDT</p>
+                      <div className="min-w-0">
+                        <p className="truncate text-[14px] font-medium text-white group-hover:text-[#C38BFF] transition-colors">{symbol}/USDT</p>
+                        <p className="text-[9px] text-white/20 group-hover:text-[#8348C1] transition-colors">↗ Відкрити</p>
+                      </div>
                     </div>
 
                     {isEditing ? (
@@ -353,7 +369,26 @@ export default function AlertsPage() {
                       </span>
                     </div>
 
-                    <p className="text-[14px] font-normal text-white">Підключено</p>
+                    {/* Trigger count */}
+                    <div className="text-[13px] text-white/70 font-mono">
+                      {alert.max_triggers != null
+                        ? <span>{alert.trigger_count ?? 0}<span className="text-white/30">/{alert.max_triggers}</span></span>
+                        : <span>{alert.trigger_count ?? 0}<span className="text-white/30">×</span></span>
+                      }
+                    </div>
+
+                    {/* Telegram status */}
+                    {telegramConnected ? (
+                      <span className="text-[12px] text-[#25DE28] font-medium">✅ Активно</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={openTelegramBot}
+                        className="text-[11px] text-[#8348C1] hover:text-[#C38BFF] underline transition-colors text-left"
+                      >
+                        📱 Підключити
+                      </button>
+                    )}
 
                     <div className="flex items-center justify-center gap-3">
                       {isEditing ? (
@@ -376,6 +411,16 @@ export default function AlertsPage() {
                         </>
                       ) : (
                         <>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); navigate(`/trading/${symbol}`); }}
+                            title="Відкрити графік"
+                            className="group relative inline-flex w-8 h-8 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_12px_rgba(131,72,193,0.28)] active:scale-95 cursor-pointer"
+                          >
+                            <div className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover:bg-[#0B0B0D]">
+                              <span className="text-[12px]">📈</span>
+                            </div>
+                          </button>
                           <button
                             type="button"
                             onClick={() => startEdit(alert)}
@@ -413,9 +458,32 @@ export default function AlertsPage() {
         </div>
       </div>
 
-      <p className="text-center text-[#A3A4B0] text-[14px] font-normal leading-[18px] mt-[24px]">
-        Сповіщення про спрацювання алертів надсилаються в Telegram
-      </p>
+      <div className="flex flex-col items-center gap-3 mt-[24px]">
+        {telegramConnected === false && (
+          <div className="flex items-center gap-3 rounded-2xl border border-[#8348C1]/30 bg-[#8348C1]/5 px-5 py-3">
+            <span className="text-xl">📱</span>
+            <div>
+              <p className="text-[13px] font-semibold text-white">Підключіть Telegram для сповіщень</p>
+              <p className="text-[11px] text-[#A3A4B0]">Отримуйте миттєві сповіщення про спрацювання алертів у боті</p>
+            </div>
+            <button
+              type="button"
+              onClick={openTelegramBot}
+              className="ml-2 shrink-0 rounded-xl bg-[#8348C1] px-4 py-2 text-[12px] font-bold text-white hover:bg-[#9B5FD4] transition-colors"
+            >
+              Відкрити бот →
+            </button>
+          </div>
+        )}
+        {telegramConnected === true && (
+          <p className="text-[13px] text-[#A3A4B0]">
+            ✅ Telegram підключено · Сповіщення надходять до{" "}
+            <a href={BOT_URL} target="_blank" rel="noopener noreferrer" className="text-[#8348C1] hover:text-[#C38BFF] underline">
+              @Crypto_Pulse_Official_Bot
+            </a>
+          </p>
+        )}
+      </div>
     </div>
   );
 }
