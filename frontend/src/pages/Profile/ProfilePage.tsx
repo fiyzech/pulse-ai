@@ -1,10 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import PhoneInput from 'react-phone-input-2';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const Phone = (PhoneInput as any).default ?? PhoneInput;
-import 'react-phone-input-2/lib/style.css';
 import { supabase } from "../../supabaseClient";
 import { getPlanLabel, mergeAccountCache, readAccountCache } from "../../utils/accountCache";
 import userAvatar from "../../assets/images/user_avatar.png";
@@ -432,12 +428,6 @@ export default function ProfilePage() {
   const [phoneDropdownOpen, setPhoneDropdownOpen] = useState(false);
   const [phoneSearch, setPhoneSearch] = useState("");
   const [selectedPhoneCountry, setSelectedPhoneCountry] = useState<PhoneCountryOption | null>(null);
-  
-  const filteredPhoneCountries = phoneCountries.filter((c) =>
-  c.name.toLowerCase().includes(phoneSearch.toLowerCase().trim()) ||
-  c.code.toLowerCase().includes(phoneSearch.toLowerCase().trim()) ||
-  c.dialCode.includes(phoneSearch.trim())
-);
 
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [securityModalOpen, setSecurityModalOpen] = useState(false);
