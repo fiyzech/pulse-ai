@@ -2280,7 +2280,10 @@ export default function TradingPage() {
       void recordAlertTrigger(userId, alert).catch(() => {});
 
       // Send Telegram notification if user is connected via bot
-      void fetch("/api/notify", {
+      // In production VITE_BOT_HTTP_URL points to the Render bot service
+      const botBase = (import.meta.env.VITE_BOT_HTTP_URL as string | undefined)?.replace(/\/$/, "") ?? "";
+      const notifyUrl = botBase ? `${botBase}/notify` : "/api/notify";
+      void fetch(notifyUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: userId, message: msg }),

@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/coingecko/:path*",
+      "destination": "https://api.coingecko.com/api/v3/:path*"
+    },
+    {
+      "source": "/api/binance/:path*",
+      "destination": "https://api.binance.com/api/v3/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
