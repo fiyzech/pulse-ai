@@ -16,7 +16,7 @@ import type { PriceAlertCondition, PriceAlertRecord } from "../../utils/priceAle
 import { BOT_URL, fetchTelegramStatus, openTelegramBot } from "../../utils/telegram";
 
 const tableGrid =
-  "grid grid-cols-[1fr_1.1fr_0.9fr_0.75fr_0.7fr_0.75fr_160px]";
+  "grid grid-cols-[minmax(140px,1.05fr)_minmax(170px,1.45fr)_minmax(108px,0.8fr)_108px_92px_108px_76px] gap-x-3";
 
 const conditionOptions: Array<{ value: PriceAlertCondition; label: string }> = [
   { value: "price_gt",           label: "↑ Ціна перетне вгору" },
@@ -295,181 +295,179 @@ export default function AlertsPage() {
         ))}
       </div>
 
-      <div className="w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
-        <div className="rounded-[28px] bg-[#050506] overflow-hidden">
-          <div className={`relative ${tableGrid} items-center px-[20px] h-[57px] text-[#A3A4B0] text-[14px] font-normal bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)]`}>
-            <div className="absolute bottom-0 left-0 w-full h-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))]" />
-            <span>Актив</span>
-            <span>Умова</span>
-            <span>Поточна ціна</span>
-            <span>Статус</span>
-            <span>Спрацювань</span>
-            <span>Telegram</span>
-            <span className="text-center">Дії</span>
-          </div>
+      <div className="w-full overflow-hidden rounded-[28px] border border-[#8348C1]/20 bg-[#050506] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
+        <div className="w-full">
+            <div className={`relative ${tableGrid} h-[58px] items-center px-6 text-[13px] font-semibold text-[#A3A4B0] bg-[linear-gradient(90deg,rgba(96,67,164,0.18)_0%,rgba(1,3,21,0.18)_100%)]`}>
+              <div className="absolute bottom-0 left-6 right-6 h-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.20),rgba(82,46,139,0.22))]" />
+              <span className="leading-none">Актив</span>
+              <span className="leading-none">Умова</span>
+              <span className="leading-none">Поточна ціна</span>
+              <span className="leading-none">Статус</span>
+              <span className="leading-none">Спрацювань</span>
+              <span className="leading-none">Telegram</span>
+              <span className="justify-self-center leading-none">Дії</span>
+            </div>
 
-          {loading ? (
-            <div className="px-[24px] py-12 text-center text-[14px] text-[#A3A4B0]">Завантаження алертів...</div>
-          ) : alerts.length === 0 ? (
-            <div className="px-[24px] py-12 text-center text-[14px] text-[#A3A4B0]">Поки немає створених алертів</div>
-          ) : (
-            alerts.map((alert, index) => {
-              const symbol = alert.symbol.toUpperCase();
-              const meta = knownAssetMeta[symbol];
-              const isEditing = editingId === alert.id;
+            {loading ? (
+              <div className="px-6 py-12 text-center text-[14px] text-[#A3A4B0]">Завантаження алертів...</div>
+            ) : alerts.length === 0 ? (
+              <div className="px-6 py-12 text-center text-[14px] text-[#A3A4B0]">Поки немає створених алертів</div>
+            ) : (
+              alerts.map((alert, index) => {
+                const symbol = alert.symbol.toUpperCase();
+                const meta = knownAssetMeta[symbol];
+                const isEditing = editingId === alert.id;
 
-              return (
-                <React.Fragment key={alert.id}>
-                  <div className={`${tableGrid} items-center px-[20px] h-[76px] transition-all duration-300 ease-out`}>
+                return (
+                  <React.Fragment key={alert.id}>
                     <div
-                      className="flex min-w-0 items-center gap-3 cursor-pointer group"
+                      className={`group/alert-row ${tableGrid} h-[84px] cursor-pointer items-center px-6 transition-all duration-300 ease-out hover:bg-[#8348C1]/[0.035]`}
                       onClick={() => navigate(`/trading/${symbol}`)}
                       title="Відкрити в терміналі"
                     >
-                      <div className={`w-8 h-8 rounded-full ${meta?.color || "bg-[#8348C1]"} flex items-center justify-center overflow-hidden`}>
-                        {meta?.icon ? (
-                          <img src={meta.icon} alt={symbol} className="w-6 h-6 object-contain" />
+                      <div className="flex min-w-0 items-center gap-4">
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full ${meta?.color || "bg-[#8348C1]"}`}>
+                          {meta?.icon ? (
+                            <img src={meta.icon} alt={symbol} className="h-7 w-7 object-contain" />
+                          ) : (
+                            <span className="text-[11px] font-bold text-white">{symbol.slice(0, 2)}</span>
+                          )}
+                        </div>
+                        <div className="min-w-0 space-y-1">
+                          <p className="truncate text-[15px] font-medium leading-none text-white transition-colors group-hover/alert-row:text-[#C38BFF]">{symbol}/USDT</p>
+                          <p className="text-[11px] font-normal leading-none text-white/25 transition-colors group-hover/alert-row:text-[#8348C1]">↗ Відкрити</p>
+                        </div>
+                      </div>
+
+                      {isEditing ? (
+                        <div className="min-w-0" onClick={(event) => event.stopPropagation()}>
+                          <select
+                            value={editCondition}
+                            onChange={(event) => setEditCondition(event.target.value as PriceAlertCondition)}
+                            className="h-[38px] w-full min-w-0 rounded-full border border-[#8348C1]/40 bg-[#050506] px-3 text-[12px] text-white outline-none"
+                          >
+                            {conditionOptions.map((option) => (
+                              <option key={option.value} value={option.value} className="bg-[#050506]">
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <p className="truncate text-[14px] font-normal leading-none text-white/90">
+                          {getAlertConditionShortLabel(alert.condition)} {formatMoney(alert.target_price)}
+                        </p>
+                      )}
+
+                      {isEditing ? (
+                        <div className="min-w-0" onClick={(event) => event.stopPropagation()}>
+                          <input
+                            value={editPrice}
+                            inputMode="decimal"
+                            min="0"
+                            onChange={(event) => setEditPrice(sanitizePositiveDecimal(event.target.value))}
+                            className="h-[38px] w-full min-w-0 rounded-full border border-[#8348C1]/40 bg-[#050506] px-4 text-[13px] text-white outline-none"
+                          />
+                        </div>
+                      ) : (
+                        <p className="truncate text-[14px] font-normal leading-none text-white/90">{formatMoney(currentPrices[symbol])}</p>
+                      )}
+
+                      <div className="flex items-center">
+                        <span className={`inline-flex h-7 w-[112px] items-center justify-center gap-2 rounded-full text-[12px] font-medium leading-none ${alert.is_active === false ? "bg-white/[0.08] text-[#A3A4B0]" : "bg-[#25DE28]/10 text-[#25DE28]"}`}>
+                          <span className={`h-2 w-2 shrink-0 rounded-full ${alert.is_active === false ? "bg-[#A3A4B0]" : "bg-[#25DE28]"}`} />
+                          {alert.is_active === false ? "Вимкнений" : "Активний"}
+                        </span>
+                      </div>
+
+                      {/* Trigger count */}
+                      <div className="font-mono text-[14px] leading-none text-white/65">
+                        {alert.max_triggers != null
+                          ? <span>{alert.trigger_count ?? 0}<span className="text-white/30">/{alert.max_triggers}</span></span>
+                          : <span>{alert.trigger_count ?? 0}<span className="text-white/30">×</span></span>
+                        }
+                      </div>
+
+                      {/* Telegram status */}
+                      {telegramConnected ? (
+                        <span className="inline-flex h-7 items-center text-[13px] font-medium leading-none text-[#25DE28]/90">✅ Активно</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={openTelegramBot}
+                          className="inline-flex h-7 items-center text-left text-[13px] leading-none text-[#8348C1] underline transition-colors hover:text-[#C38BFF]"
+                        >
+                          📱 Підключити
+                        </button>
+                      )}
+
+                      <div className="flex items-center justify-end gap-2">
+                        {isEditing ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={pendingId === alert.id}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                saveEdit(alert);
+                              }}
+                              className="h-9 w-[84px] rounded-full border border-[#8348C1]/45 text-[12px] text-white transition-all hover:bg-[#8348C1]/10 disabled:opacity-60"
+                            >
+                              Зберегти
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                cancelEdit();
+                              }}
+                              className="h-9 w-[64px] rounded-full border border-white/10 text-[12px] text-[#A3A4B0] transition-all hover:text-white"
+                            >
+                              Скас.
+                            </button>
+                          </>
                         ) : (
-                          <span className="text-[11px] font-bold text-white">{symbol.slice(0, 2)}</span>
+                          <>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                startEdit(alert);
+                              }}
+                              className="group relative inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-[#8348C1]/25 bg-[#050506] transition-all duration-300 hover:scale-105 hover:border-[#8348C1]/50 hover:bg-[#0B0B0D] hover:shadow-[0_0_12px_rgba(131,72,193,0.24)] active:scale-95"
+                            >
+                              <img src={editIcon} alt="" className="h-4 w-4 transition-all duration-300 group-hover:scale-105 group-hover:brightness-125" />
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={pendingId === alert.id}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                deleteAlert(alert);
+                              }}
+                              className="group relative inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-[#8348C1]/25 bg-[#050506] transition-all duration-300 hover:scale-105 hover:border-red-400/50 hover:bg-[#140707] hover:shadow-[0_0_14px_rgba(255,68,68,0.26)] active:scale-95 disabled:opacity-60"
+                            >
+                              <img src={trashIcon} alt="" className="h-4 w-4 transition-all duration-300 group-hover:scale-105 group-hover:brightness-125" />
+                            </button>
+                          </>
                         )}
                       </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-[14px] font-medium text-white group-hover:text-[#C38BFF] transition-colors">{symbol}/USDT</p>
-                        <p className="text-[9px] text-white/20 group-hover:text-[#8348C1] transition-colors">↗ Відкрити</p>
+                    </div>
+
+                    {index !== alerts.length - 1 && (
+                      <div className="px-6">
+                        <div className="h-[1px] bg-[linear-gradient(90deg,rgba(82,46,139,0.26)_0%,rgba(179,179,179,0.05)_100%)]" />
                       </div>
-                    </div>
-
-                    {isEditing ? (
-                      <div className="min-w-0 pr-3">
-                        <select
-                          value={editCondition}
-                          onChange={(event) => setEditCondition(event.target.value as PriceAlertCondition)}
-                          className="h-[38px] w-full min-w-0 rounded-full border border-[#8348C1]/40 bg-[#050506] px-3 text-[12px] text-white outline-none"
-                        >
-                          {conditionOptions.map((option) => (
-                            <option key={option.value} value={option.value} className="bg-[#050506]">
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    ) : (
-                      <p className="truncate pr-3 text-[14px] font-normal text-white">
-                        {getAlertConditionShortLabel(alert.condition)} {formatMoney(alert.target_price)}
-                      </p>
                     )}
-
-                    {isEditing ? (
-                      <div className="min-w-0 pr-3">
-                        <input
-                          value={editPrice}
-                          inputMode="decimal"
-                          min="0"
-                          onChange={(event) => setEditPrice(sanitizePositiveDecimal(event.target.value))}
-                          className="h-[38px] w-full min-w-0 rounded-full border border-[#8348C1]/40 bg-[#050506] px-4 text-[13px] text-white outline-none"
-                        />
-                      </div>
-                    ) : (
-                      <p className="text-[14px] font-normal text-white">{formatMoney(currentPrices[symbol])}</p>
-                    )}
-
-                    <div>
-                      <span className={`inline-flex items-center gap-2 rounded-full px-4 py-[6px] text-[12px] font-medium ${alert.is_active === false ? "bg-white/10 text-[#A3A4B0]" : "bg-[#25DE28]/10 text-[#25DE28]"}`}>
-                        <span className={`h-2 w-2 rounded-full ${alert.is_active === false ? "bg-[#A3A4B0]" : "bg-[#25DE28]"}`} />
-                        {alert.is_active === false ? "Вимкнений" : "Активний"}
-                      </span>
-                    </div>
-
-                    {/* Trigger count */}
-                    <div className="text-[13px] text-white/70 font-mono">
-                      {alert.max_triggers != null
-                        ? <span>{alert.trigger_count ?? 0}<span className="text-white/30">/{alert.max_triggers}</span></span>
-                        : <span>{alert.trigger_count ?? 0}<span className="text-white/30">×</span></span>
-                      }
-                    </div>
-
-                    {/* Telegram status */}
-                    {telegramConnected ? (
-                      <span className="text-[12px] text-[#25DE28] font-medium">✅ Активно</span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={openTelegramBot}
-                        className="text-[11px] text-[#8348C1] hover:text-[#C38BFF] underline transition-colors text-left"
-                      >
-                        📱 Підключити
-                      </button>
-                    )}
-
-                    <div className="flex items-center justify-center gap-3">
-                      {isEditing ? (
-                        <>
-                          <button
-                            type="button"
-                            disabled={pendingId === alert.id}
-                            onClick={() => saveEdit(alert)}
-                            className="h-8 w-[88px] rounded-full border border-[#8348C1]/50 text-[12px] text-white transition-all hover:bg-[#8348C1]/10 disabled:opacity-60"
-                          >
-                            Зберегти
-                          </button>
-                          <button
-                            type="button"
-                            onClick={cancelEdit}
-                            className="h-8 w-[72px] rounded-full border border-white/10 text-[12px] text-[#A3A4B0] transition-all hover:text-white"
-                          >
-                            Скас.
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); navigate(`/trading/${symbol}`); }}
-                            title="Відкрити графік"
-                            className="group relative inline-flex w-8 h-8 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_12px_rgba(131,72,193,0.28)] active:scale-95 cursor-pointer"
-                          >
-                            <div className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover:bg-[#0B0B0D]">
-                              <span className="text-[12px]">📈</span>
-                            </div>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => startEdit(alert)}
-                            className="group relative inline-flex w-8 h-8 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_12px_rgba(131,72,193,0.28)] active:scale-95 cursor-pointer"
-                          >
-                            <div className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover:bg-[#0B0B0D]">
-                              <img src={editIcon} alt="" className="w-4 h-4 transition-all duration-300 group-hover:scale-110 group-hover:brightness-125" />
-                            </div>
-                          </button>
-
-                          <button
-                            type="button"
-                            disabled={pendingId === alert.id}
-                            onClick={() => deleteAlert(alert)}
-                            className="group relative inline-flex w-8 h-8 items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] hover:bg-[linear-gradient(90deg,#1C102F_0%,#FF4444_100%)] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_15px_rgba(255,68,68,0.35)] active:scale-95 disabled:opacity-60 cursor-pointer"
-                          >
-                            <div className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover:bg-[#140707]">
-                              <img src={trashIcon} alt="" className="w-4 h-4 transition-all duration-300 group-hover:scale-110 group-hover:brightness-125" />
-                            </div>
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {index !== alerts.length - 1 && (
-                    <div className="px-[24px]">
-                      <div className="h-[1px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32)_0%,rgba(179,179,179,0.032)_100%)]" />
-                    </div>
-                  )}
-                </React.Fragment>
-              );
-            })
-          )}
+                  </React.Fragment>
+                );
+              })
+            )}
         </div>
       </div>
 
-      <div className="flex flex-col items-center gap-3 mt-[24px]">
+      <div className="mt-5 flex flex-col items-start gap-3 px-6">
         {telegramConnected === false && (
           <div className="flex items-center gap-3 rounded-2xl border border-[#8348C1]/30 bg-[#8348C1]/5 px-5 py-3">
             <span className="text-xl">📱</span>
@@ -487,7 +485,7 @@ export default function AlertsPage() {
           </div>
         )}
         {telegramConnected === true && (
-          <p className="text-[13px] text-[#A3A4B0]">
+          <p className="text-[13px] leading-5 text-[#A3A4B0]">
             ✅ Telegram підключено · Сповіщення надходять до{" "}
             <a href={BOT_URL} target="_blank" rel="noopener noreferrer" className="text-[#8348C1] hover:text-[#C38BFF] underline">
               @Crypto_Pulse_Official_Bot

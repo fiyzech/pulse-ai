@@ -1343,7 +1343,11 @@ const handleFavoriteToggle = async () => {
 
             <div className="flex flex-col gap-3 mt-auto relative z-0">
               <button 
-                onClick={() => window.open(`https://cryptomisha-ai-agent-c2fa3q367soa93m2cjyfrw.streamlit.app/`, '_blank', 'noopener,noreferrer')}
+                onClick={() => {
+                  const base = "https://cryptomisha-ai-agent-c2fa3q367soa93m2cjyfrw.streamlit.app/";
+                  const params = account ? `?userId=${encodeURIComponent(account.userId)}&plan=${encodeURIComponent(account.planKey)}` : "";
+                  window.open(base + params, '_blank', 'noopener,noreferrer');
+                }}
                 className="w-full h-[44px] rounded-[28px] font-montserrat font-medium text-[14px] text-[#FFF9F9] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] shadow-[0_4px_15px_rgba(131,72,193,0.3)] hover:scale-[1.02] transition-transform"
               >
                 Запитати AI

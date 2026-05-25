@@ -1,12 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import PhoneInput from 'react-phone-input-2';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const Phone = (PhoneInput as any).default ?? PhoneInput;
-import 'react-phone-input-2/lib/style.css';
 import { supabase } from '../../supabaseClient';
 import { mergeAccountCache } from '../../utils/accountCache';
-
 
 import thirdGradPic from '../../assets/images/third-grad-pic.svg?url';
 import seventhGridPic from '../../assets/images/seventh-grid-pic.svg?url';
@@ -46,14 +41,21 @@ type CountryOption = {
   region: string;
 };
 
+type PhoneCountryOption = {
+  name: string;
+  code: string;
+  region: string;
+  dialCode: string;
+};
+
 interface ApiCountry {
   name: { common: string };
   cca2: string;
   region?: string;
-}
-
-interface PhoneInputData {
-  countryCode?: string;
+  idd?: {
+    root?: string;
+    suffixes?: string[];
+  };
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -85,6 +87,16 @@ const CheckIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
     <circle cx="8" cy="8" r="7" stroke="#22C55E" strokeWidth="1.2" />
     <path d="M5 8L7 10L11 6" stroke="#22C55E" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const ChevronIcon = ({ open }: { open: boolean }) => (
+  <svg
+    className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+    width="16" height="16" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+  >
+    <polyline points="6 9 12 15 18 9" />
   </svg>
 );
 
@@ -123,6 +135,14 @@ const formatBirthDateForDatabase = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+const formatPhoneNumber = (value: string) => {
+  const digits = value.replace(/\D/g, '').slice(0, 10);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+  if (digits.length <= 8) return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+  return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 8)} ${digits.slice(8, 10)}`;
+};
+
 const useCountries = () => {
   const [countries, setCountries] = useState<CountryOption[]>([]);
   const [loadingCountries, setLoadingCountries] = useState(true);
@@ -146,6 +166,31 @@ const useCountries = () => {
   }, []);
 
   return { countries, loadingCountries };
+};
+
+const usePhoneCountries = () => {
+  const [phoneCountries, setPhoneCountries] = useState<PhoneCountryOption[]>([]);
+
+  useEffect(() => {
+    fetch('https://restcountries.com/v3.1/all?fields=cca2,region,idd')
+      .then(r => r.json())
+      .then((data: ApiCountry[]) => {
+        const mapped = data
+          .filter(c => c.cca2)
+          .filter(c => !BANNED_COUNTRIES.includes(c.cca2.toLowerCase()))
+          .map(c => ({
+            name: ukrainianCountryNames.of(c.cca2) || c.cca2,
+            code: c.cca2,
+            region: c.region || 'Інше',
+            dialCode: `${c.idd?.root || ''}${c.idd?.suffixes?.[0] || ''}`,
+          }))
+          .filter(c => c.dialCode)
+          .sort((a, b) => a.name.localeCompare(b.name, 'uk'));
+        setPhoneCountries(mapped);
+      });
+  }, []);
+
+  return phoneCountries;
 };
 
 const inputStyle = (hasError?: boolean): React.CSSProperties => ({
@@ -257,8 +302,13 @@ const UsernameIndicator = ({
 const RegisterPage = () => {
   const navigate = useNavigate();
   const { countries, loadingCountries } = useCountries();
+  const phoneCountries = usePhoneCountries();
   const [step, setStep] = useState(1);
   const [oauthError, setOauthError] = useState('');
+
+  // Refs for dropdown close-on-outside
+  const phoneDropdownRef = useRef<HTMLDivElement>(null);
+  const countryDropdownRef = useRef<HTMLDivElement>(null);
 
   const handleOAuth = async (provider: 'google' | 'apple') => {
     setOauthError('');
@@ -285,8 +335,12 @@ const RegisterPage = () => {
   const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [selectedPhoneCountry, setSelectedPhoneCountry] = useState<PhoneCountryOption | null>(null);
+  const [phoneDropdownOpen, setPhoneDropdownOpen] = useState(false);
+  const [phoneSearch, setPhoneSearch] = useState('');
   const [selectedCountry, setSelectedCountry] = useState('');
   const [countryOpen, setCountryOpen] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [s2Errors, setS2Errors] = useState<Step2Fields>({});
   const [s2GenErr, setS2GenErr] = useState('');
@@ -294,16 +348,9 @@ const RegisterPage = () => {
   const [loading, setLoading] = useState(false);
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [usernameAvail, setUsernameAvail] = useState<boolean | null>(null);
-  const [isBanned, setIsBanned] = useState(false);
 
-  const handlePhoneChange = (value: string, data: PhoneInputData) => {
-    setPhoneNumber(value);
-    if (data.countryCode && BANNED_COUNTRIES.includes(data.countryCode)) {
-      setIsBanned(true);
-    } else {
-      setIsBanned(false);
-    }
-  };
+  // Computed: is the selected phone country banned?
+  const isBanned = selectedPhoneCountry !== null && BANNED_COUNTRIES.includes(selectedPhoneCountry.code.toLowerCase());
 
   const getPwdStrength = (v: string): PasswordStrength => {
     let s = 0;
@@ -321,7 +368,7 @@ const RegisterPage = () => {
   useEffect(() => {
     const v = email.trim();
     if (!v || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return;
-    
+
     const t = setTimeout(async () => {
       try {
         setCheckingEmail(true);
@@ -333,9 +380,9 @@ const RegisterPage = () => {
           },
           body: JSON.stringify({ lookup_email: v.toLowerCase() })
         });
-        
+
         const isExists = await r.json();
-        
+
         if (isExists === true) {
           setEmailAvail(false);
           setS1Errors(p => ({ ...p, email: 'Цей email вже зареєстровано' }));
@@ -343,13 +390,13 @@ const RegisterPage = () => {
           setEmailAvail(true);
           setS1Errors(p => p.email === 'Цей email вже зареєстровано' ? { ...p, email: undefined } : p);
         }
-      } catch { 
-        setEmailAvail(null); 
-      } finally { 
-        setCheckingEmail(false); 
+      } catch {
+        setEmailAvail(null);
+      } finally {
+        setCheckingEmail(false);
       }
     }, 600);
-    
+
     return () => clearTimeout(t);
   }, [email]);
 
@@ -367,12 +414,19 @@ const RegisterPage = () => {
     return () => clearTimeout(t);
   }, [username, step]);
 
+  // Close dropdowns on outside click
   useEffect(() => {
-    if (!countryOpen) return;
-    const h = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest('[data-country]')) setCountryOpen(false); };
+    const h = (e: MouseEvent) => {
+      if (phoneDropdownRef.current && !phoneDropdownRef.current.contains(e.target as Node)) {
+        setPhoneDropdownOpen(false);
+      }
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(e.target as Node)) {
+        setCountryOpen(false);
+      }
+    };
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
-  }, [countryOpen]);
+  }, []);
 
   const validateS1 = () => {
     const e: Step1Fields = {};
@@ -380,7 +434,7 @@ const RegisterPage = () => {
     if (!v) e.email = 'Введіть електронну пошту';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) e.email = 'Введіть коректну електронну пошту';
     else if (emailAvail === false) e.email = 'Цей email вже зареєстровано';
-    
+
     if (!password.trim()) e.password = 'Введіть пароль';
     else if (password.length < 8) e.password = 'Мінімум 8 символів';
     else if (password.length > 20) e.password = 'Максимум 20 символів';
@@ -434,7 +488,7 @@ const RegisterPage = () => {
     const errs = validateS2();
     setS2Errors(errs);
     if (Object.keys(errs).length) { setS2GenErr('Заповніть усі поля коректно'); return; }
-    
+
     try {
       setLoading(true);
 
@@ -442,103 +496,160 @@ const RegisterPage = () => {
       const formattedDate = parsedBirthDate ? formatBirthDateForDatabase(parsedBirthDate) : null;
 
       const profileData = {
-  username: username.trim(),
-  first_name: firstName.trim(),
-  last_name: lastName.trim(),
-  phone_number: phoneNumber ? `+${phoneNumber.replace(/\D/g, '')}` : null,
-  region: selectedCountry || null,
-  birth_date: formattedDate,
-};
+        username: username.trim(),
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        phone_number: phoneNumber ? `+${phoneNumber.replace(/\D/g, '')}` : null,
+        region: selectedCountry || null,
+        birth_date: formattedDate,
+      };
 
-const { data, error } = await supabase.auth.signUp({
-  email: email.trim().toLowerCase(),
-  password,
-  options: {
-    data: profileData,
-  },
-});
-	
-if (error) {
-  const message = error.message || '';
-  setS2GenErr(
-    message.includes('Database error saving new user')
-      ? 'Supabase не зміг створити профіль користувача. Оновіть SQL trigger handle_new_user у базі.'
-      : message || 'Помилка реєстрації. Перевірте дані.'
-  );
-  return;
-}
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: {
+          data: profileData,
+        },
+      });
 
-if (!data.user) {
-  setS2GenErr('Не вдалося створити акаунт.');
-  return;
-}
+      if (error) {
+        const message = error.message || '';
+        setS2GenErr(
+          message.includes('Database error saving new user')
+            ? 'Supabase не зміг створити профіль користувача. Оновіть SQL trigger handle_new_user у базі.'
+            : message || 'Помилка реєстрації. Перевірте дані.'
+        );
+        return;
+      }
 
-if (!data.session) {
-  setS2GenErr('Акаунт створено, але сесія не активна. Вимкніть Confirm email у Supabase або увійдіть після підтвердження пошти.');
-  return;
-}
+      if (!data.user) {
+        setS2GenErr('Не вдалося створити акаунт.');
+        return;
+      }
 
-const profilePayload = {
-  email: data.user.email || email.trim().toLowerCase(),
-  username: profileData.username,
-  first_name: profileData.first_name,
-  last_name: profileData.last_name,
-  phone_number: profileData.phone_number,
-  birth_date: profileData.birth_date,
-  region: profileData.region,
-  active_plan: 'free',
-  subscription: 'free',
-  billing_cycle: 'monthly',
-};
+      if (!data.session) {
+        setS2GenErr('Акаунт створено, але сесія не активна. Вимкніть Confirm email у Supabase або увійдіть після підтвердження пошти.');
+        return;
+      }
 
-const { data: updatedProfile, error: updateProfileError } = await supabase
-  .from('users')
-  .update(profilePayload)
-  .eq('id', data.user.id)
-  .select('id')
-  .maybeSingle();
+      const profilePayload = {
+        email: data.user.email || email.trim().toLowerCase(),
+        username: profileData.username,
+        first_name: profileData.first_name,
+        last_name: profileData.last_name,
+        phone_number: profileData.phone_number,
+        birth_date: profileData.birth_date,
+        region: profileData.region,
+        active_plan: 'free',
+        subscription: 'free',
+        billing_cycle: 'monthly',
+      };
 
-let profileError = updateProfileError;
+      const { data: updatedProfile, error: updateProfileError } = await supabase
+        .from('users')
+        .update(profilePayload)
+        .eq('id', data.user.id)
+        .select('id')
+        .maybeSingle();
 
-if (!profileError && !updatedProfile) {
-  const { error: insertProfileError } = await supabase.from('users').insert({
-    id: data.user.id,
-    hashed_password: 'managed_by_supabase',
-    is_active: true,
-    ...profilePayload,
-  });
+      let profileError = updateProfileError;
 
-  profileError = insertProfileError;
-}
-	
-if (profileError) {
-  console.error('Profile upsert error:', profileError);
-  setS2GenErr('Акаунт створено, але профіль не записався в таблицю users.');
-  return;
-}
+      if (!profileError && !updatedProfile) {
+        const { error: insertProfileError } = await supabase.from('users').insert({
+          id: data.user.id,
+          hashed_password: 'managed_by_supabase',
+          is_active: true,
+          ...profilePayload,
+        });
 
-mergeAccountCache({
-  userId: data.user.id,
-  email: data.user.email || email.trim(),
-  firstName: profileData.first_name,
-  lastName: profileData.last_name,
-  username: profileData.username,
-  phoneNumber: profileData.phone_number || '',
-  birthDate: profileData.birth_date || '',
-  region: profileData.region || '',
-  planKey: 'free',
-  billingCycle: 'monthly',
-  cardLast4: null,
-});
+        profileError = insertProfileError;
+      }
 
-setSuccess('Акаунт успішно створено. Оберіть план підписки...');
-setTimeout(() => navigate('/select-plan'), 1500);
+      if (profileError) {
+        console.error('Profile upsert error:', profileError);
+        setS2GenErr('Акаунт створено, але профіль не записався в таблицю users.');
+        return;
+      }
 
-    } catch { 
-      setS2GenErr('Не вдалося підключитися до бази даних Supabase'); 
-    } finally { 
-      setLoading(false); 
+      mergeAccountCache({
+        userId: data.user.id,
+        email: data.user.email || email.trim(),
+        firstName: profileData.first_name,
+        lastName: profileData.last_name,
+        username: profileData.username,
+        phoneNumber: profileData.phone_number || '',
+        birthDate: profileData.birth_date || '',
+        region: profileData.region || '',
+        planKey: 'free',
+        billingCycle: 'monthly',
+        cardLast4: null,
+      });
+
+      setSuccess('Акаунт успішно створено! Вас вітає безплатний план 🎉');
+      setTimeout(() => navigate('/dashboard'), 1500);
+
+    } catch {
+      setS2GenErr('Не вдалося підключитися до бази даних Supabase');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  // ── Country dropdown rendering helper ────────────────────────────────────────
+  const renderCountryDropdown = () => {
+    const search = countrySearch.toLowerCase().trim();
+    const filtered = countries.filter(c =>
+      c.name.toLowerCase().includes(search) || c.code.toLowerCase().includes(search)
+    );
+    const grouped = filtered.reduce<Record<string, CountryOption[]>>((acc, c) => {
+      if (!acc[c.region]) acc[c.region] = [];
+      acc[c.region].push(c);
+      return acc;
+    }, {});
+    const regionOrder = ['Europe', 'Asia', 'Americas', 'Africa', 'Oceania', 'Antarctic', 'Інше'];
+    const sorted = Object.entries(grouped).sort(
+      ([a], [b]) => regionOrder.indexOf(a) - regionOrder.indexOf(b)
+    );
+    const regionLabels: Record<string, string> = {
+      Europe: 'Європа', Asia: 'Азія', Americas: 'Америка',
+      Africa: 'Африка', Oceania: 'Океанія', Antarctic: 'Антарктика', Інше: 'Інше',
+    };
+
+    if (loadingCountries) {
+      return (
+        <div className="flex items-center justify-center py-6 gap-2 text-[13px] text-[#A3A4B0]">
+          <div className="w-4 h-4 rounded-full border-2 border-[#8348C1] border-t-transparent animate-spin" />
+          Завантаження...
+        </div>
+      );
+    }
+    if (sorted.length === 0) {
+      return <div className="py-4 text-center text-[13px] text-[#A3A4B0]/60">Країну не знайдено</div>;
+    }
+    return sorted.map(([region, items]) => (
+      <div key={region}>
+        <div className="px-4 py-[6px] text-[10px] font-semibold uppercase tracking-wider bg-[rgba(82,46,139,0.08)]">
+          <span className="bg-[linear-gradient(90deg,#AA65F4_0%,#C38BFF_70%)] bg-clip-text text-transparent">
+            {regionLabels[region] ?? region}
+          </span>
+        </div>
+        {items.map(c => (
+          <button
+            key={c.code}
+            type="button"
+            onClick={() => {
+              setSelectedCountry(c.name);
+              setCountryOpen(false);
+              setCountrySearch('');
+              if (s2Errors.country) setS2Errors(p => ({ ...p, country: undefined }));
+            }}
+            className={`w-full px-5 py-[9px] text-left text-[13px] transition-colors hover:bg-[#8348C1]/20 flex items-center gap-2 ${selectedCountry === c.name ? 'text-[#C38BFF]' : 'text-[#A3A4B0]'}`}
+          >
+            <span className="block w-full min-w-0 truncate">{c.name}</span>
+          </button>
+        ))}
+      </div>
+    ));
   };
 
   return (
@@ -551,7 +662,7 @@ setTimeout(() => navigate('/select-plan'), 1500);
         </div>
       </div>
 
-     <img src={eighthGridPic} alt="" className="absolute top-[-10%] -left-[10%] w-[600px] opacity-60 pointer-events-none mix-blend-screen z-0" />
+      <img src={eighthGridPic} alt="" className="absolute top-[-10%] -left-[10%] w-[600px] opacity-60 pointer-events-none mix-blend-screen z-0" />
       <img src={seventhGridPic} alt="" className="absolute bottom-0 -right-[5%] w-[500px] opacity-50 pointer-events-none mix-blend-screen z-0" />
       <div className="flex-1 flex flex-col items-center justify-center z-10 p-4 py-12">
 
@@ -571,7 +682,6 @@ setTimeout(() => navigate('/select-plan'), 1500);
               alt=""
               className="absolute bottom-0 right-0 w-[240px] h-[240px] object-cover object-right-bottom pointer-events-none z-0 select-none transform rotate-180 mix-blend-screen opacity-80"
             />
-            {/* ============================================================== */}
             <p className="font-light text-[16px] text-[#A3A4B0] mt-[4px] mb-[48px]">Створіть свій акаунт</p>
 
             <div className="px-[60px] pb-[60px]">
@@ -713,6 +823,7 @@ setTimeout(() => navigate('/select-plan'), 1500);
 
               <form onSubmit={handleS2Submit} noValidate className="flex flex-col items-center gap-[20px]">
 
+                {/* ── First + Last name ── */}
                 <div className="w-[360px] flex gap-[12px]">
                   <div className="flex-1 text-left">
                     <Lbl>Ім'я</Lbl>
@@ -750,6 +861,7 @@ setTimeout(() => navigate('/select-plan'), 1500);
                   </div>
                 </div>
 
+                {/* ── Username ── */}
                 <div className="w-[360px] text-left">
                   <Lbl>Ім'я користувача</Lbl>
                   <div className="relative h-[44px]">
@@ -782,98 +894,94 @@ setTimeout(() => navigate('/select-plan'), 1500);
                   )}
                 </div>
 
-                <div className="w-[360px] text-left phone-register-wrapper">
+                {/* ── Phone number (custom dark input) ── */}
+                <div className="w-[360px] text-left" ref={phoneDropdownRef}>
                   <Lbl>Номер телефону</Lbl>
-                  <style>{`
-                    .phone-register-wrapper .react-tel-input .form-control {
-                      width: 100% !important;
-                      height: 44px !important;
-                      background: #050506 !important;
-                      border-radius: 28px !important;
-                      border: 1px solid transparent !important;
-                      color: white !important;
-                      font-family: 'Montserrat', sans-serif !important;
-                      font-size: 14px !important;
-                      padding-left: 58px !important;
-                      background-image: linear-gradient(#050506,#050506), linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32)) !important;
-                      background-origin: padding-box, border-box !important;
-                      background-clip: padding-box, border-box !important;
-                      outline: none !important;
-                      box-shadow: none !important;
-                    }
-                    .phone-register-wrapper .react-tel-input .form-control:focus {
-                      box-shadow: 0 0 15px rgba(131,72,193,0.15) !important;
-                    }
-                    .phone-register-wrapper .react-tel-input .flag-dropdown {
-                      background: transparent !important;
-                      border: none !important;
-                      border-radius: 28px 0 0 28px !important;
-                    }
-                    .phone-register-wrapper .react-tel-input .selected-flag {
-                      background: transparent !important;
-                      padding-left: 15px !important;
-                      border-radius: 28px 0 0 28px !important;
-                    }
-                    .phone-register-wrapper .react-tel-input .selected-flag:hover,
-                    .phone-register-wrapper .react-tel-input .selected-flag:focus {
-                      background: transparent !important;
-                    }
-                    .phone-register-wrapper .react-tel-input .country-list {
-                      background: #0d0d10 !important;
-                      color: #A3A4B0 !important;
-                      border: 1px solid rgba(82,46,139,0.4) !important;
-                      border-radius: 16px !important;
-                      margin-top: 4px !important;
-                      box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
-                    }
-                    .phone-register-wrapper .react-tel-input .country-list .country {
-                      padding: 10px 16px !important;
-                    }
-                    .phone-register-wrapper .react-tel-input .country-list .country:hover {
-                      background: rgba(131,72,193,0.2) !important;
-                    }
-                    .phone-register-wrapper .react-tel-input .country-list .country.highlight {
-                      background: rgba(131,72,193,0.15) !important;
-                    }
-                    .phone-register-wrapper .react-tel-input .country-list .country-name {
-                      color: #A3A4B0 !important;
-                    }
-                    .phone-register-wrapper .react-tel-input .country-list .dial-code {
-                      color: #8348C1 !important;
-                    }
-                    .phone-register-wrapper .react-tel-input .search-box {
-                      background: #0d0d10 !important;
-                      border: 1px solid rgba(82,46,139,0.4) !important;
-                      color: white !important;
-                      border-radius: 8px !important;
-                      padding: 6px 10px !important;
-                      margin: 8px !important;
-                      width: calc(100% - 16px) !important;
-                    }
-                    .phone-register-wrapper .react-tel-input .search-box:focus {
-                      outline: none !important;
-                      border-color: rgba(131,72,193,0.6) !important;
-                    }
-                  `}</style>
 
-                  <div style={{
-                    padding: '1px',
-                    borderRadius: '28px',
-                    background: isBanned
-                      ? 'linear-gradient(90deg, #ef4444, #b91c1c)'
-                      : s2Errors.phone
-                        ? 'linear-gradient(90deg,rgba(248,113,113,0.6),rgba(239,68,68,0.4))'
-                        : 'transparent',
-                  }}>
-                    <Phone
-                      country={'ua'}
-                      value={phoneNumber}
-                      onChange={handlePhoneChange}
-                      enableSearch={true}
-                      placeholder="Введіть номер"
-                      searchPlaceholder="Пошук країни..."
-                      excludeCountries={['ru', 'by']}
-                    />
+                  <div
+                    className="w-full h-[44px] rounded-full relative"
+                    style={inputStyle(Boolean(s2Errors.phone) || isBanned)}
+                  >
+                    <div className="relative w-full h-full rounded-full bg-[#050506] flex items-center overflow-visible">
+                      {/* Country code button */}
+                      <button
+                        type="button"
+                        onClick={() => { setPhoneDropdownOpen(p => !p); setPhoneSearch(''); }}
+                        className="h-full flex items-center gap-[6px] pl-[14px] pr-[10px] text-[14px] text-white cursor-pointer shrink-0"
+                      >
+                        <span className="text-[#A3A4B0]">{selectedPhoneCountry?.code ?? 'UA'}</span>
+                        <span className="text-white">{selectedPhoneCountry?.dialCode ?? '+380'}</span>
+                        <span className="text-[#A3A4B0]"><ChevronIcon open={phoneDropdownOpen} /></span>
+                      </button>
+
+                      {/* Divider */}
+                      <div className="w-px h-[22px] bg-white/10 shrink-0" />
+
+                      {/* Local number input */}
+                      <input
+                        type="tel"
+                        value={formatPhoneNumber(
+                          phoneNumber.replace(selectedPhoneCountry?.dialCode ?? '+380', '')
+                        )}
+                        onChange={e => {
+                          const dial = selectedPhoneCountry?.dialCode ?? '+380';
+                          const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                          setPhoneNumber(`${dial}${digits}`);
+                          if (s2Errors.phone) setS2Errors(p => ({ ...p, phone: undefined }));
+                        }}
+                        placeholder="Введіть номер"
+                        className="flex-1 h-full bg-transparent px-3 pr-5 text-[14px] text-white placeholder:text-[#A3A4B0]/50 outline-none"
+                      />
+                    </div>
+
+                    {/* Phone country dropdown */}
+                    {phoneDropdownOpen && (
+                      <div className="absolute left-[-10px] bottom-[calc(100%+10px)] z-[200] w-[374px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-lg">
+                        <div className="bg-[#050506] rounded-[28px] flex flex-col overflow-hidden">
+                          {/* Search */}
+                          <div className="px-[12px] py-[12px] border-b border-[rgba(82,46,139,0.3)]">
+                            <div className="w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
+                              <input
+                                type="text"
+                                value={phoneSearch}
+                                onChange={e => setPhoneSearch(e.target.value)}
+                                placeholder="Пошук країни..."
+                                autoFocus
+                                autoComplete="off"
+                                className="w-full h-[44px] bg-[#050506] rounded-[27px] px-4 text-[14px] text-white placeholder:text-[#A3A4B0]/50 outline-none border-none"
+                              />
+                            </div>
+                          </div>
+                          {/* List */}
+                          <div className="max-h-[140px] overflow-y-auto overflow-x-hidden overscroll-contain">
+                            {phoneCountries
+                              .filter(c =>
+                                c.name.toLowerCase().includes(phoneSearch.toLowerCase().trim()) ||
+                                c.code.toLowerCase().includes(phoneSearch.toLowerCase().trim()) ||
+                                c.dialCode.includes(phoneSearch.trim())
+                              )
+                              .map(c => (
+                                <button
+                                  key={c.code}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedPhoneCountry(c);
+                                    setPhoneNumber(c.dialCode);
+                                    setPhoneDropdownOpen(false);
+                                    setPhoneSearch('');
+                                    if (s2Errors.phone) setS2Errors(p => ({ ...p, phone: undefined }));
+                                  }}
+                                  className="w-full px-5 py-[9px] text-left text-[13px] transition-colors hover:bg-[#8348C1]/20 flex items-center justify-between gap-2 text-[#A3A4B0]"
+                                >
+                                  <span className="block min-w-0 truncate">{c.name}</span>
+                                  <span className="shrink-0 text-[#8348C1]">{c.dialCode}</span>
+                                </button>
+                              ))
+                            }
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {isBanned ? (
@@ -885,71 +993,60 @@ setTimeout(() => navigate('/select-plan'), 1500);
                   )}
                 </div>
 
-              <div className="w-[360px] text-left">
-                <Lbl>Країна проживання</Lbl>
-                <div className="relative" data-country>
-                  <input
-                    type="text"
-                    value={selectedCountry}
-                    onChange={e => {
-                      setSelectedCountry(e.target.value);
-                      setCountryOpen(true);
-                      if (s2Errors.country) setS2Errors(p => ({ ...p, country: undefined }));
-                    }}
-                    onFocus={() => setCountryOpen(true)}
-                    placeholder="Введіть країну"
-                    autoComplete="country-name"
-                    className="w-full h-[44px] px-5 rounded-full text-[14px] text-white outline-none placeholder:text-[#A3A4B0]/50 transition-all focus:shadow-[0_0_15px_rgba(131,72,193,0.15)]"
-                    style={inputStyle(Boolean(s2Errors.country))}
-                  />
+                {/* ── Country of residence (Profile-style dropdown) ── */}
+                <div className="w-[360px] text-left" ref={countryDropdownRef}>
+                  <Lbl>Країна проживання</Lbl>
 
-                  {countryOpen && selectedCountry.trim() && (
-                    <div
-                      className="absolute top-[calc(100%+6px)] left-0 right-0 z-50 rounded-[16px] overflow-hidden"
-                      style={{ background: '#0d0d10', border: '1px solid rgba(82,46,139,0.4)', boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}
+                  <div className="relative">
+                    {/* Trigger button */}
+                    <button
+                      type="button"
+                      onClick={() => { setCountryOpen(p => !p); if (!countryOpen) setCountrySearch(''); }}
+                      className="w-full h-[44px] px-5 rounded-full text-[14px] text-white flex items-center justify-between transition-all"
+                      style={inputStyle(Boolean(s2Errors.country))}
                     >
-                      <div className="max-h-[220px] overflow-y-auto">
-                        {loadingCountries ? (
-                          <div className="flex items-center justify-center py-6 gap-2 text-[13px] text-[#A3A4B0]">
-                            <div className="w-4 h-4 rounded-full border-2 border-[#8348C1] border-t-transparent animate-spin" />
-                            Завантаження...
+                      <span className={selectedCountry ? 'text-white' : 'text-[#A3A4B0]/50'}>
+                        {selectedCountry || 'Оберіть країну'}
+                      </span>
+                      <span className="text-[#A3A4B0]"><ChevronIcon open={countryOpen} /></span>
+                    </button>
+
+                    {/* Dropdown */}
+                    {countryOpen && (
+                      <div
+                        className="absolute left-[-10px] bottom-[calc(100%+10px)] z-[200] w-[374px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-lg"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <div className="bg-[#050506] rounded-[28px] flex flex-col overflow-hidden">
+                          {/* Search */}
+                          <div className="px-[12px] pt-[12px] pb-[12px] border-b border-[rgba(82,46,139,0.3)]">
+                            <div className="w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]">
+                              <input
+                                type="text"
+                                value={countrySearch}
+                                onChange={e => setCountrySearch(e.target.value)}
+                                placeholder="Пошук країни..."
+                                autoFocus
+                                autoComplete="off"
+                                autoCorrect="off"
+                                autoCapitalize="off"
+                                spellCheck={false}
+                                className="w-full h-[44px] bg-[#050506] rounded-[27px] px-4 text-[14px] text-white placeholder:text-[#A3A4B0]/50 outline-none border-none"
+                              />
+                            </div>
                           </div>
-                        ) : (() => {
-                          const query = selectedCountry.trim().toLowerCase();
-                          const filtered = countries.filter(c =>
-                            c.name.toLowerCase().includes(query)
-                          ).slice(0, 10);
-
-                          if (filtered.length === 0) {
-                            return (
-                              <div className="py-4 text-center text-[13px] text-[#A3A4B0]/60">
-                                Країну не знайдено
-                              </div>
-                            );
-                          }
-                          return filtered.map(c => (
-                            <button
-                              key={c.code}
-                              type="button"
-                              onMouseDown={e => e.preventDefault()}
-                              onClick={() => {
-                                setSelectedCountry(c.name);
-                                setCountryOpen(false);
-                                if (s2Errors.country) setS2Errors(p => ({ ...p, country: undefined }));
-                              }}
-                              className={`w-full px-5 py-[10px] text-left text-[13px] transition-colors hover:bg-[#8348C1]/20 ${selectedCountry === c.name ? 'text-[#C38BFF]' : 'text-[#A3A4B0]'}`}
-                            >
-                              {c.name}
-                            </button>
-                          ));
-                        })()}
+                          {/* List */}
+                          <div className="max-h-[140px] overflow-y-auto overflow-x-hidden overscroll-contain">
+                            {renderCountryDropdown()}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                  <ErrorMsg msg={s2Errors.country} />
                 </div>
-                <ErrorMsg msg={s2Errors.country} />
-              </div>
 
+                {/* ── Birth date ── */}
                 <div className="w-[360px] text-left">
                   <Lbl>Дата народження</Lbl>
                   <div className="relative h-[44px]">
@@ -976,6 +1073,7 @@ setTimeout(() => navigate('/select-plan'), 1500);
                   <ErrorMsg msg={s2Errors.birthDate} />
                 </div>
 
+                {/* ── Actions ── */}
                 <div className="w-[360px] mt-[4px] flex flex-col gap-[16px]">
                   <button
                     type="submit"
