@@ -19,6 +19,8 @@ import {
   removeFavoriteAsset,
 } from "../../utils/favoriteAssets";
 import type { FavoriteAssetRecord } from "../../utils/favoriteAssets";
+import { fetchSharedMarketSnapshot } from "../../utils/marketData";
+import type { SharedMarketCoin } from "../../utils/marketData";
 
 type FavoriteAssetView = {
   id: number;
@@ -46,20 +48,9 @@ type BinanceTicker24h = {
   quoteVolume: string;
 };
 
-type CoinGeckoMarketCoin = {
-  id: string;
-  symbol: string;
-  name: string;
-  image: string;
-  current_price: number | null;
-  price_change_percentage_24h: number | null;
-  market_cap: number | null;
-  total_volume: number | null;
-  ath: number | null;
-  circulating_supply: number | null;
-  total_supply: number | null;
-  max_supply: number | null;
-};
+// CoinGeckoMarketCoin is now replaced by SharedMarketCoin from marketData.ts
+// which has CoinCap fallback — kept as alias for backward compat
+type CoinGeckoMarketCoin = SharedMarketCoin;
 
 const tableGrid =
   "grid grid-cols-[1.2fr_0.9fr_0.85fr_1fr_0.75fr_88px]";
@@ -159,17 +150,18 @@ export default function FavoritesContent() {
         return;
       }
 
-      const ids = Array.from(new Set(favorites.map((asset) => asset.coin_id).filter(Boolean))).join(",");
-
-      const [binanceRes, cgRes] = await Promise.all([
+      // Fetch Binance prices + shared market snapshot (CoinGecko → CoinCap fallback)
+      const [binanceRes, snapshot] = await Promise.all([
         fetch("/api/binance/ticker/24hr"),
-        ids
-          ? fetch(`/api/coingecko/coins/markets?vs_currency=usd&ids=${encodeURIComponent(ids)}&sparkline=false`)
-          : Promise.resolve(null),
+        fetchSharedMarketSnapshot({ perPage: 200 }).catch(() => [] as CoinGeckoMarketCoin[]),
       ]);
 
       const binanceData = binanceRes.ok ? ((await binanceRes.json()) as BinanceTicker24h[]) : [];
-      const cgData = cgRes && cgRes.ok ? ((await cgRes.json()) as CoinGeckoMarketCoin[]) : [];
+      // Filter snapshot to only coins in the user's favorites for the cgData map
+      const favoriteSymbols = new Set(favorites.map((f) => f.symbol.toUpperCase()));
+      const cgData = (snapshot ?? []).filter(
+        (c) => favoriteSymbols.has(c.symbol.toUpperCase())
+      ) as CoinGeckoMarketCoin[];
 
       setFavoriteAssets(mapFavoritesToRows(favorites, binanceData, cgData));
       sessionStorage.setItem("pulse_user_favorites", JSON.stringify(favorites));

@@ -2469,9 +2469,8 @@ export default function TradingPage() {
    */
   const requestFreshPrediction = useCallback(async (source: "manual"|"auto" = "manual") => {
     // Prefer the HTTP bot URL (pulse-ai-kzkm.onrender.com) which has /predict endpoint.
-    // Fall back to the old VITE_BOT_URL for legacy deployments.
-    const BOT_URL = (import.meta.env.VITE_BOT_HTTP_URL as string | undefined)?.replace(/\/$/, "")
-                 || (import.meta.env.VITE_BOT_URL as string | undefined);
+    // VITE_BOT_URL points to crypto-assistant-misha ML service (cryptomisha-ai-agent.onrender.com)
+    const BOT_URL = (import.meta.env.VITE_BOT_URL as string | undefined);
     const requestKey = `${asset.sym}:${source}`;
     const nowMs = Date.now();
 

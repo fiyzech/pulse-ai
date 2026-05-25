@@ -1513,13 +1513,10 @@ async def handle_link_bot(request: web.Request) -> web.Response:
 
     return web.json_response({"code": code}, headers=CORS_HEADERS)
 
-# ── /predict endpoint — AI predictions via Groq ────────────────────────────
-
-async def _groq_generate_predictions(symbol: str, snapshot: dict) -> list[dict]:
-    """Call Groq to generate trading predictions; return list of dicts or []."""
+async def _groq_generate_predictions_UNUSED(symbol: str, snapshot: dict) -> list[dict]:
+    """UNUSED — predictions come from crypto-assistant-misha ML service, not Groq."""
     groq_key = os.environ.get("GROQ_API_KEY", "")
     if not groq_key:
-        logging.warning("GROQ_API_KEY not set — skipping AI prediction generation")
         return []
 
     price      = snapshot.get("price") or 0
@@ -1529,20 +1526,31 @@ async def _groq_generate_predictions(symbol: str, snapshot: dict) -> list[dict]:
     volume     = snapshot.get("volume") or 0
 
     prompt = (
-        f"You are a professional cryptocurrency analyst. "
-        f"Based on the following 24-hour market data for {symbol.upper()}USDT:\n"
-        f"- Current price: ${price:.6g}\n"
+        f"You are a professional cryptocurrency quant analyst. "
+        f"Analyze the following 24-hour market data for {symbol.upper()}USDT and generate "
+        f"trading signal predictions for 4 time frames.\n\n"
+        f"Market data:\n"
+        f"- Price: ${price:.6g}\n"
         f"- 24h change: {change_pct:+.2f}%\n"
-        f"- 24h high: ${high:.6g}\n"
-        f"- 24h low: ${low:.6g}\n"
+        f"- 24h high: ${high:.6g}, low: ${low:.6g}\n"
         f"- 24h volume (USDT): ${volume:,.0f}\n\n"
-        f"Generate realistic trading predictions for these four time intervals: 4h, 1d, 1w, 1M.\n"
-        f"For each interval output ONE JSON object with these exact keys:\n"
-        f"  interval (string), signal (\"BUY\"|\"SELL\"|\"HOLD\"), "
-        f"confidence (integer 50-95), accuracy (integer 50-90), "
-        f"stop_loss (number), take_profit (number)\n\n"
-        f"Respond with ONLY a valid JSON array containing exactly 4 objects. "
-        f"No explanation, no markdown, no extra text."
+        f"Rules:\n"
+        f"1. signal must be exactly one of: \"LONG\", \"SHORT\", \"NO TRADE\"\n"
+        f"   - Use LONG when trend looks bullish for that timeframe\n"
+        f"   - Use SHORT when trend looks bearish\n"
+        f"   - Use NO TRADE when signal is unclear or conflicting\n"
+        f"2. confidence: integer between 52 and 94 (NOT round numbers like 70 or 80)\n"
+        f"3. accuracy: integer between 48 and 88 (NOT round numbers)\n"
+        f"4. stop_loss and take_profit: exact price levels based on the current price\n"
+        f"   - For LONG: stop_loss < current price < take_profit\n"
+        f"   - For SHORT: take_profit < current price < stop_loss\n"
+        f"   - For NO TRADE: both can be 0\n"
+        f"5. Signals should vary across timeframes (not all the same)\n"
+        f"6. Use precise decimal values for prices (match the asset's typical precision)\n\n"
+        f"Respond with ONLY a valid JSON array of exactly 4 objects. "
+        f"Each object: {{\"interval\": string, \"signal\": string, \"confidence\": int, "
+        f"\"accuracy\": int, \"stop_loss\": number, \"take_profit\": number}}\n"
+        f"No markdown, no explanation, no extra text."
     )
 
     url = "https://api.groq.com/openai/v1/chat/completions"
@@ -1553,8 +1561,8 @@ async def _groq_generate_predictions(symbol: str, snapshot: dict) -> list[dict]:
     body = {
         "model": "llama-3.3-70b-versatile",
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.3,
-        "max_tokens": 400,
+        "temperature": 0.7,
+        "max_tokens": 500,
     }
 
     try:
@@ -1667,7 +1675,6 @@ async def main():
     port = int(os.environ.get("PORT", 8080))
     app = web.Application()
     app.router.add_get("/health", handle_health)
-    app.router.add_get("/predict", handle_predict)
     app.router.add_post("/notify", handle_notify)
     app.router.add_post("/link-bot", handle_link_bot)
     app.router.add_route("OPTIONS", "/link-bot", handle_link_bot)  # CORS preflight
