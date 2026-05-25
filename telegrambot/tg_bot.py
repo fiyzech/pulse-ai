@@ -624,6 +624,9 @@ async def cmd_start(message: Message, state: FSMContext):
     """Entry point — show restricted UI if not logged in yet."""
     await state.clear()
     user = await get_user_by_telegram(message.from_user.id)
+    # Auto-restore session marker after bot restart when service key is available
+    if user and os.environ.get("SUPABASE_SERVICE_KEY") and not _get_token(message.from_user.id):
+        _user_tokens[str(message.from_user.id)] = f"linked:{user['id']}"
     has_token = bool(_get_token(message.from_user.id))
 
     if user and has_token:
@@ -827,7 +830,12 @@ def _is_authenticated(telegram_id: int) -> bool:
     return True
 
 async def require_auth(message: Message) -> dict | None:
-    """Returns user dict if authenticated, otherwise sends error and returns None."""
+    """Returns user dict if authenticated, otherwise sends error and returns None.
+
+    When SUPABASE_SERVICE_KEY is set the bot can act for any linked user without
+    their personal JWT — session markers are restored automatically after a restart
+    so users never see 'Сесія закінчилась' just because the bot redeployed.
+    """
     user = await get_user_by_telegram(message.from_user.id)
     if not user:
         await message.answer(
@@ -839,6 +847,13 @@ async def require_auth(message: Message) -> dict | None:
             reply_markup=get_guest_keyboard(),
         )
         return None
+
+    # When the service key is available we can query Supabase on behalf of any
+    # linked user without their personal JWT. Restore the in-memory marker
+    # automatically so deploys / restarts don't log everyone out.
+    if os.environ.get("SUPABASE_SERVICE_KEY") and not _get_token(message.from_user.id):
+        _user_tokens[str(message.from_user.id)] = f"linked:{user['id']}"
+
     if not _is_authenticated(message.from_user.id):
         await message.answer(
             "🔄 <b>Сесія закінчилась</b>\n\n"
@@ -1389,6 +1404,9 @@ async def catch_all(message: Message, state: FSMContext):
         return
 
     user = await get_user_by_telegram(message.from_user.id)
+    # Auto-restore session after bot restart when service key is set
+    if user and os.environ.get("SUPABASE_SERVICE_KEY") and not _get_token(message.from_user.id):
+        _user_tokens[str(message.from_user.id)] = f"linked:{user['id']}"
     if not user or not _get_token(message.from_user.id):
         await message.answer(
             "🔒 Для доступу до функцій спочатку увійдіть у свій акаунт:",
