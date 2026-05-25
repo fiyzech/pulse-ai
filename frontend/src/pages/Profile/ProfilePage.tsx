@@ -1,10 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import PhoneInput from 'react-phone-input-2';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const Phone = (PhoneInput as any).default ?? PhoneInput;
-import 'react-phone-input-2/lib/style.css';
 import { supabase } from "../../supabaseClient";
 import { getPlanLabel, mergeAccountCache, readAccountCache } from "../../utils/accountCache";
 import userAvatar from "../../assets/images/user_avatar.png";
@@ -146,6 +142,44 @@ const emptyUser: ProfileUser = {
 };
 
 const profileCacheKey = "cryptopulse_profile_cache";
+
+// ── Device & location detection ───────────────────────────────────────────────
+function detectDeviceName(): string {
+  const ua = navigator.userAgent;
+  if (/iPad/i.test(ua))                         return "iPad";
+  if (/iPhone/i.test(ua))                       return "iPhone";
+  if (/Android/i.test(ua) && /Mobile/i.test(ua))return "Android телефон";
+  if (/Android/i.test(ua))                      return "Android планшет";
+  if (/Mac OS X/i.test(ua)) {
+    if (/Chrome/i.test(ua) && !/Chromium/i.test(ua)) return "Mac — Chrome";
+    if (/Firefox/i.test(ua))  return "Mac — Firefox";
+    if (/Safari/i.test(ua))   return "Mac — Safari";
+    return "MacBook";
+  }
+  if (/Windows/i.test(ua)) {
+    if (/Chrome/i.test(ua) && !/Chromium/i.test(ua)) return "Windows — Chrome";
+    if (/Firefox/i.test(ua))  return "Windows — Firefox";
+    if (/Edg/i.test(ua))      return "Windows — Edge";
+    return "Windows PC";
+  }
+  if (/Linux/i.test(ua)) return "Linux PC";
+  return "Невідомий пристрій";
+}
+
+async function fetchLocation(): Promise<string> {
+  try {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch("https://ipwho.is/", { signal: controller.signal });
+    clearTimeout(tid);
+    if (!res.ok) return "в мережі";
+    const json = (await res.json()) as { city?: string; country?: string };
+    const parts = [json.city, json.country].filter(Boolean);
+    return parts.length ? parts.join(", ") + ", в мережі" : "в мережі";
+  } catch {
+    return "в мережі";
+  }
+}
 
 const readCachedProfile = (): ProfileUser => {
   const account = readAccountCache();
@@ -432,12 +466,6 @@ export default function ProfilePage() {
   const [phoneDropdownOpen, setPhoneDropdownOpen] = useState(false);
   const [phoneSearch, setPhoneSearch] = useState("");
   const [selectedPhoneCountry, setSelectedPhoneCountry] = useState<PhoneCountryOption | null>(null);
-  
-  const filteredPhoneCountries = phoneCountries.filter((c) =>
-  c.name.toLowerCase().includes(phoneSearch.toLowerCase().trim()) ||
-  c.code.toLowerCase().includes(phoneSearch.toLowerCase().trim()) ||
-  c.dialCode.includes(phoneSearch.trim())
-);
 
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [securityModalOpen, setSecurityModalOpen] = useState(false);
@@ -447,6 +475,15 @@ export default function ProfilePage() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [tgLinked, setTgLinked] = useState<boolean | null>(null);
+  const [linkCode, setLinkCode] = useState<string | null>(null);
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [linkError, setLinkError] = useState("");
+
+  // Device name (static — derived once from userAgent) & location (async from IP)
+  const deviceName = detectDeviceName();
+  const [deviceLocation, setDeviceLocation] = useState("в мережі");
 
   const formatPhoneNumber = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 10);
@@ -468,6 +505,52 @@ export default function ProfilePage() {
       document.body.style.overflow = 'unset';
     };
   }, [profileModalOpen, securityModalOpen]);
+
+  // Fetch real city/country from IP on mount (once)
+  useEffect(() => {
+    fetchLocation().then(setDeviceLocation).catch(() => { /* ignore */ });
+  }, []);
+
+  // Check if Telegram is already linked
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) return;
+      supabase
+        .from("users")
+        .select("telegram_id")
+        .eq("id", data.user.id)
+        .maybeSingle()
+        .then(({ data: row }) => {
+          setTgLinked(!!row?.telegram_id);
+        }, () => setTgLinked(false));
+    });
+  }, []);
+
+  const handleLinkBot = useCallback(async () => {
+    setLinkLoading(true);
+    setLinkError("");
+    setLinkCode(null);
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) { setLinkError("Потрібно увійти."); return; }
+
+      // Generate 6-digit code + 10-min expiry — stored in Supabase users table
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const exp  = Date.now() + 10 * 60 * 1000; // ms timestamp
+
+      const { error } = await supabase
+        .from("users")
+        .update({ bot_link_code: code, bot_link_exp: exp })
+        .eq("id", authUser.id);
+
+      if (error) throw new Error(error.message);
+      setLinkCode(code);
+    } catch (e) {
+      setLinkError(`Помилка: ${String(e)}`);
+    } finally {
+      setLinkLoading(false);
+    }
+  }, []);
 
   const openProfileModal = () => {
     const savedPhone = user.phone === "-" ? "" : user.phone;
@@ -517,17 +600,43 @@ useEffect(() => {
 
     const currentPlan = data?.active_plan || data?.subscription || "free";
 
+    // Extract Google/OAuth metadata as fallback for empty DB fields
+    const meta = authUser.user_metadata ?? {};
+    const oauthFullName =
+      typeof meta.full_name === "string" ? meta.full_name :
+      typeof meta.name === "string" ? meta.name : "";
+    const oauthParts = oauthFullName.trim().split(/\s+/);
+    const oauthFirst = oauthParts[0] || "";
+    const oauthLast = oauthParts[1] || ""; // only second word, skip patronymic
+    const oauthAvatar =
+      typeof meta.avatar_url === "string" ? meta.avatar_url :
+      typeof meta.picture === "string" ? meta.picture : "";
+
+    // Backfill DB row if OAuth data exists but DB fields are empty
+    const needsBackfill = oauthFirst && (!data?.first_name || !data?.avatar_url);
+    if (needsBackfill) {
+      void supabase.from("users").upsert({
+        id: authUser.id,
+        email: authUser.email ?? data?.email ?? "",
+        first_name: data?.first_name || oauthFirst || null,
+        last_name: data?.last_name || oauthLast || null,
+        avatar_url: data?.avatar_url || oauthAvatar || null,
+        active_plan: data?.active_plan || "free",
+        billing_cycle: "monthly",
+      }, { onConflict: "id" });
+    }
+
     const loadedUser = {
       id: authUser.id,
-      firstName: data?.first_name || "Ім'я",
-      lastName: data?.last_name || "Прізвище",
+      firstName: (data?.first_name && data.first_name.trim()) ? data.first_name : oauthFirst || "Ім'я",
+      lastName: (data?.last_name && data.last_name.trim()) ? data.last_name : oauthLast || "Прізвище",
       email: data?.email || authUser.email || "-",
       username: data?.username ? `@${data.username}` : "@username",
       phone: data?.phone_number || "-",
       birthDate: data?.birth_date || "-",
       region: data?.region || "Не вказано",
       plan: getPlanLabel(currentPlan),
-      avatarUrl: data?.avatar_url || "",
+      avatarUrl: data?.avatar_url || oauthAvatar || "",
       passwordLastChanged: data?.password_last_changed
         ? new Date(data.password_last_changed).toLocaleDateString("uk-UA")
         : "Щойно",
@@ -724,10 +833,9 @@ useEffect(() => {
   };
 
   const handleDeleteAccount = async () => {
-    if (!window.confirm("Ви точно хочете видалити акаунт? Цю дію неможливо скасувати.")) return;
-
     try {
       setSaving(true);
+      setShowDeleteConfirm(false);
       const { error: rpcError } = await supabase.rpc("delete_current_user");
       if (rpcError) throw rpcError;
       window.localStorage.removeItem(profileCacheKey);
@@ -817,10 +925,95 @@ useEffect(() => {
           </div>
         </section>
 
+        {/* ── Telegram Bot linking ── */}
+        <section className="flex flex-col gap-6">
+          <h2 className="text-2xl font-semibold">Telegram Бот</h2>
+          <div className={cardWrapper}>
+            <div className="relative p-6 rounded-[28px] bg-[#050506] overflow-hidden flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                {/* Telegram icon */}
+                <div className="w-10 h-10 rounded-full bg-[#229ED9]/15 flex items-center justify-center shrink-0">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                    <path d="M21.5 4.5L2.5 11.5L9.5 13.5M21.5 4.5L14.5 20.5L9.5 13.5M21.5 4.5L9.5 13.5" stroke="#229ED9" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-white text-sm font-medium">@Crypto_Pulse_Official_Bot</p>
+                  <p className="text-[#A3A4B0] text-xs mt-0.5">
+                    {tgLinked === null ? "Перевірка..." : tgLinked ? "✅ Підключено" : "❌ Не підключено"}
+                  </p>
+                </div>
+              </div>
+
+              {tgLinked ? (
+                <p className="text-[#A3A4B0] text-[13px] leading-[20px]">
+                  Ваш Telegram акаунт підключено. Алерти, обрані та сигнали доступні в боті.
+                </p>
+              ) : (
+                <>
+                  <p className="text-[#A3A4B0] text-[13px] leading-[20px]">
+                    Підключіть бот щоб отримувати алерти, переглядати обрані та AI-сигнали прямо в Telegram.
+                    {" "}<strong className="text-white">Якщо реєстрація через Google — використовуйте цей спосіб</strong> (без пароля).
+                  </p>
+
+                  {!linkCode ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleLinkBot()}
+                      disabled={linkLoading}
+                      className="self-start rounded-full px-5 py-2.5 bg-[#229ED9]/90 hover:bg-[#229ED9] text-white text-[13px] font-medium transition-colors disabled:opacity-60"
+                    >
+                      {linkLoading ? "Генерую код..." : "Підключити бот"}
+                    </button>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      <p className="text-[#A3A4B0] text-[13px]">
+                        Надішліть цю команду боту (код дійсний 10 хвилин):
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <code className="flex-1 rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-[#C38BFF] text-[15px] font-mono tracking-widest select-all">
+                          /link {linkCode}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => void navigator.clipboard.writeText(`/link ${linkCode}`)}
+                          className="rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-3 text-white/60 hover:text-white transition-colors text-xs"
+                          title="Скопіювати"
+                        >
+                          📋
+                        </button>
+                      </div>
+                      <a
+                        href="https://t.me/Crypto_Pulse_Official_Bot"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="self-start text-[13px] text-[#229ED9] hover:underline"
+                      >
+                        Відкрити бот →
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => { setLinkCode(null); void handleLinkBot(); }}
+                        className="self-start text-[12px] text-white/30 hover:text-white/60 transition-colors"
+                      >
+                        Згенерувати новий код
+                      </button>
+                    </div>
+                  )}
+
+                  {linkError && (
+                    <p className="text-red-400 text-[12px]">{linkError}</p>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </section>
+
         <div className="pt-4 pb-12">
           <button
             type="button"
-            onClick={handleDeleteAccount}
+            onClick={() => setShowDeleteConfirm(true)}
             disabled={saving}
             className="group relative inline-flex w-[210px] h-[44px] items-center justify-center rounded-full p-[1.5px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-95 cursor-pointer disabled:opacity-60">
 
@@ -1238,10 +1431,10 @@ useEffect(() => {
                   {/* Текст зліва */}
                   <div className="flex flex-col gap-[8px]">
                     <span className="text-[18px] font-medium text-white leading-none m-0 p-0 block">
-                      MacBook Air M1
+                      {deviceName}
                     </span>
                     <span className="text-[14px] font-normal text-[#A3A4B0] leading-none m-0 p-0 block">
-                      Україна, Київ, в мережі
+                      {deviceLocation}
                     </span>
                   </div>
 
@@ -1298,6 +1491,47 @@ useEffect(() => {
             
           </form>
         </Modal>
+      )}
+
+      {/* Delete account confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div
+            className="relative w-full max-w-[400px] p-[1px] rounded-[24px]"
+            style={{ background: "linear-gradient(135deg, rgba(220,38,38,0.5) 0%, rgba(179,179,179,0.15) 100%)" }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="rounded-[23px] bg-[#07030F] px-7 py-7 flex flex-col items-center text-center">
+              <div className="mb-4 w-[52px] h-[52px] rounded-full bg-red-500/15 flex items-center justify-center">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#F87171" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h2 className="font-montserrat text-[18px] font-semibold text-white mb-2">Видалити акаунт?</h2>
+              <p className="font-montserrat text-[13px] text-white/50 leading-[20px] mb-6">
+                Всі ваші дані, підписка та налаштування будуть видалені назавжди. Цю дію неможливо скасувати.
+              </p>
+              <div className="flex gap-3 w-full">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 h-[44px] rounded-full border border-white/10 font-montserrat text-[13px] text-white/60 hover:text-white hover:border-white/20 transition-colors cursor-pointer"
+                >
+                  Скасувати
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteAccount}
+                  disabled={saving}
+                  className="flex-1 h-[44px] rounded-full bg-red-600 hover:bg-red-500 font-montserrat text-[13px] font-medium text-white transition-colors cursor-pointer disabled:opacity-60"
+                >
+                  {saving ? "Видалення..." : "Так, видалити"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   </div>

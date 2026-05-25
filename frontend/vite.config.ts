@@ -16,6 +16,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/binance/, '/api/v3'),
       },
+      '/api/notify': {
+        target: 'http://bot:8080',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/notify/, '/notify'),
+      },
     },
   },
 })

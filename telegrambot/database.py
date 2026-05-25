@@ -5,7 +5,7 @@ from supabase import acreate_client, AsyncClient
 load_dotenv()
 
 url: str = os.environ.get("SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_KEY")
+key: str = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_KEY")
 #supabase: Client = create_client(url, key)
 supabase: AsyncClient = None
 
