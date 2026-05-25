@@ -3,8 +3,6 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import LandingPage from "../pages/Landing/LandingPage";
 import LoginPage from "../pages/Login/LoginPage";
 import RegisterPage from "../pages/Register/RegisterPage";
-import SelectPlanPage from "../pages/Select/SelectPlanPage";
-
 import MainLayout from "../layouts/MainLayout";
 import DashboardPage from "../pages/Dashboard/DashboardPage";
 import AssetsPage from "../pages/Assets/AssetsPage";
@@ -20,10 +18,10 @@ export const router = createBrowserRouter([
   { path: "/", element: <LandingPage /> },
   { path: "/login", element: <LoginPage /> },
   { path: "/register", element: <RegisterPage /> },
-  { path: "/select-plan", element: <SelectPlanPage /> },
   // Dead stubs → redirect to real pages
   { path: "/auth", element: <Navigate to="/register" replace /> },
-  { path: "/pricing", element: <Navigate to="/select-plan" replace /> },
+  { path: "/select-plan", element: <Navigate to="/settings" replace /> },
+  { path: "/pricing", element: <Navigate to="/settings" replace /> },
   // Trading is a standalone fullscreen page — no layout wrapper
   { path: "/trading", element: <TradingPage /> },
   { path: "/trading/:symbol", element: <TradingPage /> },

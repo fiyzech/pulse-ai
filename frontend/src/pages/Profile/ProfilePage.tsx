@@ -3,7 +3,7 @@ import type { ChangeEvent, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import { getPlanLabel, mergeAccountCache, readAccountCache } from "../../utils/accountCache";
-import userAvatar from "../../assets/images/user_avatar.png";
+import userAvatar from "../../assets/images/default_avatar.svg";
 import editIcon from "../../assets/icons/pencil-edit.svg";
 import shareUploadIcon from "../../assets/icons/share-upload.svg";
 import logOutWhiteIcon from "../../assets/icons/log-out-white.svg";

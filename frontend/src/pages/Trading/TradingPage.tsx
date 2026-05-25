@@ -70,7 +70,11 @@ import UpgradeModal from "../../components/common/UpgradeModal";
 // ─────────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────────
-const AI_ASSISTANT_URL  = "https://cryptomisha-ai-agent-c2fa3q367soa93m2cjyfrw.streamlit.app/";
+const AI_ASSISTANT_BASE = "https://cryptomisha-ai-agent-c2fa3q367soa93m2cjyfrw.streamlit.app/";
+const buildAiUrl = (userId?: string | null, planKey?: string | null) => {
+  if (!userId) return AI_ASSISTANT_BASE;
+  return `${AI_ASSISTANT_BASE}?userId=${encodeURIComponent(userId)}&plan=${encodeURIComponent(planKey ?? "free")}`;
+};
 const DEMO_KEY_PREFIX   = "cryptopulse_demo_trading_account";
 const MARKET_CACHE_KEY  = "cryptopulse_trading_markets_v2";
 // Нормалізована схема: 4 окремих таблиці
@@ -708,7 +712,7 @@ function TradingLWChart({
       const pl: PosLines = {};
       try {
         pl.entry = seriesRef.current.createPriceLine({
-          price: pos.avgPrice, color: isLong ? "#26a69a" : "#ef5350",
+          price: pos.avgPrice, color: isLong ? "#25DE28" : "#F40000",
           lineWidth: 2, lineStyle: LineStyle.Solid,
           axisLabelVisible: true,
           title: isLong ? `L ${pos.leverage}x` : `S ${pos.leverage}x`,
@@ -722,14 +726,14 @@ function TradingLWChart({
         }
         if (pos.sl && pos.sl > 0) {
           pl.sl = seriesRef.current.createPriceLine({
-            price: pos.sl, color: "#ef5350",
+            price: pos.sl, color: "#F40000",
             lineWidth: 1, lineStyle: LineStyle.SparseDotted,
             axisLabelVisible: true, title: "SL",
           });
         }
         if (pos.tp && pos.tp > 0) {
           pl.tp = seriesRef.current.createPriceLine({
-            price: pos.tp, color: "#26a69a",
+            price: pos.tp, color: "#25DE28",
             lineWidth: 1, lineStyle: LineStyle.SparseDotted,
             axisLabelVisible: true, title: "TP",
           });
@@ -745,7 +749,7 @@ function TradingLWChart({
         if (!seriesRef.current) return;
         const isUp = al.condition === "price_gt" || al.condition === "price_gte";
         const isEq = al.condition === "price_eq";
-        const color = isUp ? "#26a69a" : isEq ? "#C38BFF" : "#ef5350";
+        const color = isUp ? "#25DE28" : isEq ? "#C38BFF" : "#F40000";
         try {
           const line = seriesRef.current.createPriceLine({
             price: al.target_price, color, lineWidth: 1, lineStyle: LineStyle.Dashed,
@@ -913,7 +917,7 @@ function TradingLWChart({
       const vis = replayCandles.slice(0, idx + 1);
       rawKlinesRef.current = vis.map(c => [c.time, String(c.open), String(c.high), String(c.low), String(c.close), String(c.volume), 0,"0",0,"0","0","0"]) as unknown as (string|number)[][];
       if (ctype === "candle") {
-        const s = chart.addSeries(CandlestickSeries, { upColor:"#26a69a", downColor:"#ef5350", borderVisible:false, wickUpColor:"#26a69a", wickDownColor:"#ef5350" });
+        const s = chart.addSeries(CandlestickSeries, { upColor:"#25DE28", downColor:"#F40000", borderVisible:false, wickUpColor:"#25DE28", wickDownColor:"#F40000" });
         seriesRef.current = s;
         s.setData(vis.map(c => ({ time:Math.floor(c.time/1000) as Time, open:c.open, high:c.high, low:c.low, close:c.close })));
         const last = vis[vis.length-1];
@@ -969,8 +973,8 @@ function TradingLWChart({
 
         if (ctype === "candle") {
           const s = chartRef.current.addSeries(CandlestickSeries, {
-            upColor:"#26a69a", downColor:"#ef5350", borderVisible:false,
-            wickUpColor:"#26a69a", wickDownColor:"#ef5350",
+            upColor:"#25DE28", downColor:"#F40000", borderVisible:false,
+            wickUpColor:"#25DE28", wickDownColor:"#F40000",
           });
           seriesRef.current = s;
           s.setData(raw.map(k => ({
@@ -1122,7 +1126,7 @@ function TradingLWChart({
         <div className="w-px h-4 bg-white/10 mx-1 shrink-0"/>
         {/* Indicators */}
         {([
-          { key:"vol",   label:"Vol",   color:"text-[#26a69a]" },
+          { key:"vol",   label:"Vol",   color:"text-[#25DE28]" },
           { key:"ema20", label:"EMA20", color:"text-[#F7931A]" },
           { key:"ema50", label:"EMA50", color:"text-[#9945FF]" },
           { key:"ema200",label:"EMA200",color:"text-[#14F195]" },
@@ -1252,7 +1256,7 @@ function PosEditModal({ pos, currentPrice, onClose, onSave, onClosePos }: {
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${isLong?"bg-[#26a69a]/20 text-[#26a69a]":"bg-[#ef5350]/20 text-[#ef5350]"}`}>
+            <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${isLong?"bg-[#25DE28]/20 text-[#25DE28]":"bg-[#F40000]/20 text-[#F40000]"}`}>
               {pos.side}
             </span>
             <span className="text-[13px] font-bold">{pos.sym}/USDT</span>
@@ -1262,8 +1266,8 @@ function PosEditModal({ pos, currentPrice, onClose, onSave, onClosePos }: {
         </div>
 
         {/* PnL summary */}
-        <div className={`rounded-xl px-3 py-2.5 mb-3 border text-center ${pnl>=0?"bg-[#26a69a]/10 border-[#26a69a]/20":"bg-[#ef5350]/10 border-[#ef5350]/20"}`}>
-          <div className={`text-[15px] font-bold ${pnl>=0?"text-[#26a69a]":"text-[#ef5350]"}`}>
+        <div className={`rounded-xl px-3 py-2.5 mb-3 border text-center ${pnl>=0?"bg-[#25DE28]/10 border-[#25DE28]/20":"bg-[#F40000]/10 border-[#F40000]/20"}`}>
+          <div className={`text-[15px] font-bold ${pnl>=0?"text-[#25DE28]":"text-[#F40000]"}`}>
             {pnl>=0?"+":""}{pnl.toLocaleString("en-US",{style:"currency",currency:"USD",minimumFractionDigits:2})}
             <span className="text-[11px] ml-2 opacity-70">{roe>=0?"+":""}{roe.toFixed(2)}%</span>
           </div>
@@ -1282,7 +1286,7 @@ function PosEditModal({ pos, currentPrice, onClose, onSave, onClosePos }: {
                 {[1,2,3].map(p => (
                   <button key={p} type="button"
                     onClick={() => setSl((isLong ? pos.avgPrice*(1-p/100) : pos.avgPrice*(1+p/100)).toFixed(dec))}
-                    className="text-[8px] px-1.5 py-0.5 rounded bg-[#ef5350]/10 text-[#ef5350]/70 hover:text-[#ef5350] transition-colors">
+                    className="text-[8px] px-1.5 py-0.5 rounded bg-[#F40000]/10 text-[#F40000]/70 hover:text-[#F40000] transition-colors">
                     -{p}%
                   </button>
                 ))}
@@ -1290,7 +1294,7 @@ function PosEditModal({ pos, currentPrice, onClose, onSave, onClosePos }: {
             )}
           </div>
           <input value={sl} onChange={e => setSl(e.target.value)}
-            className="w-full bg-[#050506] border border-[#ef5350]/20 rounded-xl px-3 py-2 text-[12px] text-white outline-none focus:border-[#ef5350]/50 transition-colors"
+            className="w-full bg-[#050506] border border-[#F40000]/20 rounded-xl px-3 py-2 text-[12px] text-white outline-none focus:border-[#F40000]/50 transition-colors"
             placeholder={isLong ? `< ${fUsd(pos.avgPrice)}` : `> ${fUsd(pos.avgPrice)}`}/>
         </div>
 
@@ -1303,7 +1307,7 @@ function PosEditModal({ pos, currentPrice, onClose, onSave, onClosePos }: {
                 {[2,3,5].map(p => (
                   <button key={p} type="button"
                     onClick={() => setTp((isLong ? pos.avgPrice*(1+p/100) : pos.avgPrice*(1-p/100)).toFixed(dec))}
-                    className="text-[8px] px-1.5 py-0.5 rounded bg-[#26a69a]/10 text-[#26a69a]/70 hover:text-[#26a69a] transition-colors">
+                    className="text-[8px] px-1.5 py-0.5 rounded bg-[#25DE28]/10 text-[#25DE28]/70 hover:text-[#25DE28] transition-colors">
                     +{p}%
                   </button>
                 ))}
@@ -1311,7 +1315,7 @@ function PosEditModal({ pos, currentPrice, onClose, onSave, onClosePos }: {
             )}
           </div>
           <input value={tp} onChange={e => setTp(e.target.value)}
-            className="w-full bg-[#050506] border border-[#26a69a]/20 rounded-xl px-3 py-2 text-[12px] text-white outline-none focus:border-[#26a69a]/50 transition-colors"
+            className="w-full bg-[#050506] border border-[#25DE28]/20 rounded-xl px-3 py-2 text-[12px] text-white outline-none focus:border-[#25DE28]/50 transition-colors"
             placeholder={isLong ? `> ${fUsd(pos.avgPrice)}` : `< ${fUsd(pos.avgPrice)}`}/>
         </div>
 
@@ -1322,7 +1326,7 @@ function PosEditModal({ pos, currentPrice, onClose, onSave, onClosePos }: {
             Зберегти SL / TP
           </button>
           <button type="button" onClick={() => { onClosePos(pos); onClose(); }}
-            className="flex-1 py-2 rounded-xl bg-[#ef5350]/10 text-[#ef5350] text-[12px] font-semibold hover:bg-[#ef5350]/20 transition-colors">
+            className="flex-1 py-2 rounded-xl bg-[#F40000]/10 text-[#F40000] text-[12px] font-semibold hover:bg-[#F40000]/20 transition-colors">
             Закрити позицію
           </button>
         </div>
@@ -1359,9 +1363,28 @@ function ToastNotifications({ items, onDismiss }: { items: ToastItem[]; onDismis
 // ─────────────────────────────────────────────
 // SESSION SUMMARY MODAL
 // ─────────────────────────────────────────────
-function SessionSummaryModal({ demo, snapshot, onContinue, onNewSession, onClose }: {
+async function fetchGroqReview(prompt: string): Promise<string> {
+  const key = import.meta.env.VITE_GROQ_API_KEY as string | undefined;
+  if (!key) return "Ключ AI не знайдено.";
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.4,
+      max_tokens: 400,
+    }),
+  });
+  if (!res.ok) return "Не вдалося отримати AI-відповідь.";
+  const data = await res.json() as { choices: { message: { content: string } }[] };
+  return data.choices[0]?.message?.content?.trim() ?? "Порожня відповідь.";
+}
+
+function SessionSummaryModal({ demo, snapshot, planKey, onContinue, onNewSession, onClose }: {
   demo: DemoAcc;
   snapshot: DemoAcc;
+  planKey: string;
   onContinue: () => void;
   onNewSession: () => void;
   onClose: () => void;
@@ -1375,14 +1398,40 @@ function SessionSummaryModal({ demo, snapshot, onContinue, onNewSession, onClose
   const bestTrade  = sessionTrades.reduce<DemoTrade|null>((b,t) => !b||t.pnl>b.pnl?t:b, null);
   const worstTrade = sessionTrades.reduce<DemoTrade|null>((w,t) => !w||t.pnl<w.pnl?t:w, null);
   const sessionPnlVsStart = demo.cash - snapshot.cash;
+  const isPro = planKey === "pro" || planKey === "business";
 
-  const feedback = useMemo(() => {
-    if (sessionTrades.length === 0) return "Ти не відкрив жодної угоди під час цієї сесії. Спробуй знайти точку входу та потренуватись в наступний раз!";
-    if (winRate >= 70) return "Чудова сесія! Ти добре читав ринок. Зверни увагу на свої найкращі угоди і спробуй знайти схожі сетапи в майбутньому.";
-    if (winRate >= 50) return "Непогано! Більше половини угод прибуткові. Спробуй дотримуватись правила R:R ≥ 2:1, щоб навіть з 50% WR мати стабільний дохід.";
-    if (losses.length > wins.length * 2) return "PulseAI помітив, що ти часто входив у позиції без підтвердження від індикаторів. Спробуй чекати, поки RSI або EMA підтвердять напрямок.";
-    return "Є над чим попрацювати. Зверни увагу на управління ризиками: встанови SL перед кожним входом і дотримуйся його.";
-  }, [sessionTrades.length, winRate, losses.length, wins.length]); // eslint-disable-line react-hooks/preserve-manual-memoization
+  const [aiReview, setAiReview] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isPro || sessionTrades.length === 0) return;
+    setAiLoading(true);
+    const avgPnl = (totalPnl / sessionTrades.length).toFixed(2);
+    const best = bestTrade ? `+$${bestTrade.pnl.toFixed(2)} (${bestTrade.sym})` : "—";
+    const worst = worstTrade ? `$${worstTrade.pnl.toFixed(2)} (${worstTrade.sym})` : "—";
+    const prompt = `Ти — Pulse-AI, крипто-наставник і ментор трейдера. Проаналізуй результати торгової сесії учня та дай чесний, корисний розбір українською мовою.
+
+Дані сесії:
+- Кількість угод: ${sessionTrades.length}
+- Win Rate: ${winRate.toFixed(1)}%
+- Прибуткових: ${wins.length}, Збиткових: ${losses.length}
+- Загальний PnL: ${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(2)}
+- Середній PnL/угоду: $${avgPnl}
+- Краща угода: ${best}
+- Найгірша угода: ${worst}
+
+Напиши структурований розбір у 3 частинах (без заголовків, суцільним текстом):
+1. Коротка оцінка сесії (1-2 речення)
+2. Що зроблено добре або що пішло не так — конкретно, по цифрах
+3. Одна практична порада на наступну сесію
+
+Стиль: як досвідчений трейдер говорить з учнем — чесно, по справі, без води. До 120 слів.`;
+
+    fetchGroqReview(prompt)
+      .then(text => setAiReview(text))
+      .catch(() => setAiReview("Не вдалося завантажити AI-розбір."))
+      .finally(() => setAiLoading(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const h = (e:KeyboardEvent) => { if(e.key==="Escape") onClose(); };
@@ -1409,8 +1458,8 @@ function SessionSummaryModal({ demo, snapshot, onContinue, onNewSession, onClose
         </div>
 
         {/* PnL Banner */}
-        <div className={`rounded-xl px-4 py-3 mb-4 border text-center ${totalPnl>=0?"bg-[#26a69a]/10 border-[#26a69a]/25":"bg-[#ef5350]/10 border-[#ef5350]/25"}`}>
-          <div className={`text-[22px] font-bold ${totalPnl>=0?"text-[#26a69a]":"text-[#ef5350]"}`}>
+        <div className={`rounded-xl px-4 py-3 mb-4 border text-center ${totalPnl>=0?"bg-[#25DE28]/10 border-[#25DE28]/25":"bg-[#F40000]/10 border-[#F40000]/25"}`}>
+          <div className={`text-[22px] font-bold ${totalPnl>=0?"text-[#25DE28]":"text-[#F40000]"}`}>
             {totalPnl>=0?"+":""}{fUsd(totalPnl)}
           </div>
           <div className="text-[10px] text-white/40 mt-0.5">
@@ -1422,11 +1471,11 @@ function SessionSummaryModal({ demo, snapshot, onContinue, onNewSession, onClose
         <div className="grid grid-cols-3 gap-2 mb-4">
           {[
             { label:"Угод", value: sessionTrades.length.toString() },
-            { label:"Win Rate", value: sessionTrades.length ? `${winRate.toFixed(0)}%` : "—", color: winRate>=50?"text-[#26a69a]":"text-[#ef5350]" },
-            { label:"Прибуткових", value: wins.length.toString(), color:"text-[#26a69a]" },
-            { label:"Збиткових",   value: losses.length.toString(), color:"text-[#ef5350]" },
-            { label:"Краща угода", value: bestTrade ? (bestTrade.pnl>=0?"+":"")+fUsd(bestTrade.pnl) : "—", color:"text-[#26a69a]" },
-            { label:"Гірша угода", value: worstTrade ? (worstTrade.pnl>=0?"+":"")+fUsd(worstTrade.pnl) : "—", color:"text-[#ef5350]" },
+            { label:"Win Rate", value: sessionTrades.length ? `${winRate.toFixed(0)}%` : "—", color: winRate>=50?"text-[#25DE28]":"text-[#F40000]" },
+            { label:"Прибуткових", value: wins.length.toString(), color:"text-[#25DE28]" },
+            { label:"Збиткових",   value: losses.length.toString(), color:"text-[#F40000]" },
+            { label:"Краща угода", value: bestTrade ? (bestTrade.pnl>=0?"+":"")+fUsd(bestTrade.pnl) : "—", color:"text-[#25DE28]" },
+            { label:"Гірша угода", value: worstTrade ? (worstTrade.pnl>=0?"+":"")+fUsd(worstTrade.pnl) : "—", color:"text-[#F40000]" },
           ].map(({label,value,color}) => (
             <div key={label} className="rounded-xl bg-[#050506] border border-white/5 p-2.5 text-center">
               <div className="text-[9px] text-white/35 font-semibold uppercase tracking-wider mb-1">{label}</div>
@@ -1441,8 +1490,8 @@ function SessionSummaryModal({ demo, snapshot, onContinue, onNewSession, onClose
             <div className="flex justify-between text-[9px] text-white/40 mb-1">
               <span>Win {wins.length}</span><span>Loss {losses.length}</span>
             </div>
-            <div className="h-2 rounded-full bg-[#ef5350]/20 overflow-hidden">
-              <div className="h-full bg-[#26a69a] rounded-full transition-all" style={{width:`${clamp(winRate,0,100)}%`}}/>
+            <div className="h-2 rounded-full bg-[#F40000]/20 overflow-hidden">
+              <div className="h-full bg-[#25DE28] rounded-full transition-all" style={{width:`${clamp(winRate,0,100)}%`}}/>
             </div>
           </div>
         )}
@@ -1453,12 +1502,34 @@ function SessionSummaryModal({ demo, snapshot, onContinue, onNewSession, onClose
             <Bot size={11} className="text-[#C38BFF]"/>
             <span className="text-[9px] font-bold text-[#C38BFF] uppercase tracking-wider">PulseAI Review</span>
           </div>
-          <p className="text-[11px] text-white/70 leading-relaxed">{feedback}</p>
-          {sessionTrades.length > 0 && (
-            <div className="mt-2 grid grid-cols-2 gap-1.5 text-[9px] text-white/40">
-              <div>📊 Avg PnL/угода: <span className={totalPnl>=0?"text-[#26a69a]":"text-[#ef5350]"}>{(totalPnl/(sessionTrades.length||1)).toFixed(2)}$</span></div>
-              <div>🎯 Точність: <span className="text-white">{winRate.toFixed(0)}%</span></div>
+
+          {!isPro ? (
+            /* FREE PLAN — upsell */
+            <div className="flex flex-col items-center gap-2 py-2">
+              <div className="text-[11px] text-white/50 text-center leading-relaxed">
+                🔒 Персональний AI-розбір твоєї сесії доступний лише на плані <span className="text-[#C38BFF] font-semibold">Pro</span> та вище.
+              </div>
+              <div className="text-[10px] text-white/30 text-center">
+                Отримай детальний аналіз угод, помилок і порад від AI-наставника.
+              </div>
             </div>
+          ) : sessionTrades.length === 0 ? (
+            <p className="text-[11px] text-white/70 leading-relaxed">
+              Ти не відкрив жодної угоди під час цієї сесії. Спробуй знайти точку входу та потренуватись в наступний раз!
+            </p>
+          ) : aiLoading ? (
+            <div className="flex items-center gap-2 py-1">
+              <div className="w-3 h-3 rounded-full border-2 border-[#C38BFF] border-t-transparent animate-spin"/>
+              <span className="text-[11px] text-white/40 italic">Pulse-AI аналізує сесію...</span>
+            </div>
+          ) : (
+            <>
+              <p className="text-[11px] text-white/80 leading-relaxed">{aiReview}</p>
+              <div className="mt-2 grid grid-cols-2 gap-1.5 text-[9px] text-white/40">
+                <div>📊 Avg PnL/угода: <span className={totalPnl>=0?"text-[#25DE28]":"text-[#F40000]"}>{(totalPnl/(sessionTrades.length||1)).toFixed(2)}$</span></div>
+                <div>🎯 Точність: <span className="text-white">{winRate.toFixed(0)}%</span></div>
+              </div>
+            </>
           )}
         </div>
 
@@ -1469,7 +1540,7 @@ function SessionSummaryModal({ demo, snapshot, onContinue, onNewSession, onClose
             Продовжити
           </button>
           <button type="button" onClick={onNewSession}
-            className="py-2 rounded-xl bg-[#26a69a]/15 text-[#26a69a] text-[11px] font-semibold hover:bg-[#26a69a]/25 transition-colors border border-[#26a69a]/20">
+            className="py-2 rounded-xl bg-[#25DE28]/15 text-[#25DE28] text-[11px] font-semibold hover:bg-[#25DE28]/25 transition-colors border border-[#25DE28]/20">
             Нова сесія
           </button>
           <button type="button" onClick={onClose}
@@ -1497,6 +1568,7 @@ export default function TradingPage() {
   const [replayStartDate, setReplayStartDate] = useState<string>(() => {
     const d = new Date(); d.setMonth(d.getMonth() - 3); return d.toISOString().split("T")[0];
   });
+  const [replayEndDate, setReplayEndDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
   const [replayCandles, setReplayCandles]     = useState<Candle[]>([]);
   const [replayIndex, setReplayIndex]         = useState(0);
   const [replayPlaying, setReplayPlaying]     = useState(false);
@@ -1864,17 +1936,45 @@ export default function TradingPage() {
   const applyAtrTp = (mult:number)=>setTp((side==="LONG"?effectivePrice+ind.atr*mult:effectivePrice-ind.atr*mult).toFixed(effectivePrice<1?6:2));
 
   // ── Replay actions ──
+  const REPLAY_CONTEXT = 60; // context candles shown before the selected start date
+
   const loadReplayCandles = useCallback(async () => {
     if(!replayStartDate) return;
     setReplayLoading(true); setReplayPlaying(false);
     try {
       const startMs = new Date(replayStartDate).getTime();
-      const res = await fetch(`/api/binance/klines?symbol=${pair}&interval=${TF_BINANCE[replayTf]}&startTime=${startMs}&limit=500`);
+      const endMs   = replayEndDate
+        ? new Date(replayEndDate).getTime() + 86_400_000 - 1  // inclusive end-of-day
+        : Date.now();
+
+      // Calculate candle duration for this timeframe
+      const tfMinutes: Record<ChartTf, number> = {
+        "1m":1, "3m":3, "5m":5, "15m":15, "30m":30,
+        "1h":60, "2h":120, "4h":240, "6h":360, "8h":480, "12h":720,
+        "1d":1440, "3d":4320, "1w":10080, "1M":43200,
+      };
+      const candleMs = (tfMinutes[replayTf] ?? 60) * 60_000;
+
+      // Load context candles before the start date so the chart isn't empty
+      const contextStartMs = startMs - REPLAY_CONTEXT * candleMs;
+
+      // How many candles fit from contextStart to endMs (cap at 1000)
+      const calcLimit = Math.min(Math.ceil((endMs - contextStartMs) / candleMs), 1000);
+      const limit     = Math.max(calcLimit, REPLAY_CONTEXT + 10);
+
+      const res = await fetch(
+        `/api/binance/klines?symbol=${pair}&interval=${TF_BINANCE[replayTf]}&startTime=${contextStartMs}&endTime=${endMs}&limit=${limit}`
+      );
       if(!res.ok) return;
       const raw = await res.json() as BinKline[];
       const candles2 = raw.map(mapK);
+
+      // Find the index of the first candle at or after the user's selected start date
+      const startIdx = candles2.findIndex(c => c.time * 1000 >= startMs);
+      const contextIdx = startIdx > 0 ? startIdx : Math.min(REPLAY_CONTEXT, candles2.length - 1);
+
       setReplayCandles(candles2);
-      setReplayIndex(Math.min(INITIAL_VISIBLE - 1, candles2.length - 1));
+      setReplayIndex(contextIdx); // context visible, replay cursor at selected start date
       // Reset replay account to $25k fresh — completely isolated from live demo
       const freshAcc = makeAcc();
       setReplayDemo(freshAcc);
@@ -1882,7 +1982,7 @@ export default function TradingPage() {
       prevReplayPriceRef.current = 0;
     } catch {/* ignore */}
     finally { setReplayLoading(false); }
-  }, [replayStartDate, pair, replayTf]); // no `demo` dep — replay is independent
+  }, [replayStartDate, replayEndDate, pair, replayTf]); // no `demo` dep — replay is independent
 
   const handleReplayRestart = useCallback(() => {
     setReplayIndex(Math.min(INITIAL_VISIBLE - 1, replayCandles.length - 1));
@@ -2156,6 +2256,9 @@ export default function TradingPage() {
   }, [assetAlerts, openAlertEdit]);
 
   const handleAlertTriggered = useCallback(async (alert: PriceAlertRecord, triggerPrice: number) => { // eslint-disable-line react-hooks/preserve-manual-memoization
+    // Never fire real alerts during replay/backtesting (use ref to avoid stale closure)
+    if (modeRef.current === "replay") return;
+
     const condLabel = getAlertConditionShortLabel(alert.condition);
     const priceStr  = fUsd(triggerPrice);
     const targetStr = alert.target_price > 0 ? ` @ ${fUsd(alert.target_price)}` : "";
@@ -2558,7 +2661,7 @@ export default function TradingPage() {
                       </div>
                       <div className="text-right shrink-0">
                         <div className="text-[11px]">{fUsd(a.price)}</div>
-                        <div className={`text-[10px] font-medium ${a.pct24h>=0?"text-[#00E676]":"text-[#F40000]"}`}>{fPct(a.pct24h)}</div>
+                        <div className={`text-[10px] font-medium ${a.pct24h>=0?"text-[#25DE28]":"text-[#F40000]"}`}>{fPct(a.pct24h)}</div>
                       </div>
                     </button>
                   ))}
@@ -2580,8 +2683,8 @@ export default function TradingPage() {
           {/* Live dot (live mode only) */}
           {mode === "live" && (
             <span className="relative flex h-2 w-2 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00E676] opacity-60"/>
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#00E676]"/>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#25DE28] opacity-60"/>
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#25DE28]"/>
             </span>
           )}
           {/* Replay indicator */}
@@ -2594,11 +2697,11 @@ export default function TradingPage() {
             </span>
           )}
           {/* Price */}
-          <span className={`text-[15px] font-bold shrink-0 ${isGreen?"text-[#00E676]":"text-[#F40000]"}`}>
+          <span className={`text-[15px] font-bold shrink-0 ${isGreen?"text-[#25DE28]":"text-[#F40000]"}`}>
             {loading&&!effectivePrice?<Loader2 size={13} className="animate-spin inline"/>:fUsd(effectivePrice)}
           </span>
           {mode === "live" && (
-          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${isGreen?"bg-[#00E676]/10 text-[#00E676]":"bg-[#F40000]/10 text-[#F40000]"}`}>
+          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${isGreen?"bg-[#25DE28]/10 text-[#25DE28]":"bg-[#F40000]/10 text-[#F40000]"}`}>
             {fPct(pct24h)}
           </span>
           )}
@@ -2614,7 +2717,7 @@ export default function TradingPage() {
         {/* Right */}
         <div className="flex items-center gap-1.5 shrink-0">
           {dataErr&&<span title={dataErr}><AlertTriangle size={14} className="text-red-400"/></span>}
-          <a href={AI_ASSISTANT_URL} target="_blank" rel="noopener noreferrer"
+          <a href={buildAiUrl(account?.userId, account?.planKey)} target="_blank" rel="noopener noreferrer"
             className="hidden sm:flex h-7 items-center gap-1 rounded-lg bg-gradient-to-r from-[#2C1969] to-[#8348C1] px-2.5 text-[11px] font-semibold hover:opacity-80 transition-opacity">
             <Bot size={12}/> PulseAI
           </a>
@@ -2644,11 +2747,45 @@ export default function TradingPage() {
 
           <div className="w-px h-5 bg-white/10 shrink-0"/>
 
-          {/* Date selector */}
-          <label className="text-[9px] text-white/40 shrink-0">Старт:</label>
-          <input type="date" value={replayStartDate} onChange={e=>setReplayStartDate(e.target.value)}
-            className="bg-[#0B0B12] border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white outline-none focus:border-[#F7931A]/50 transition-colors shrink-0"
-            max={new Date().toISOString().split("T")[0]}/>
+          {/* Quick date presets */}
+          {([
+            { label:"1Т",  months:0, days:7  },
+            { label:"1М",  months:1, days:0  },
+            { label:"3М",  months:3, days:0  },
+            { label:"6М",  months:6, days:0  },
+          ] as const).map(({ label, months, days }) => {
+            const today = new Date();
+            const from  = new Date(today);
+            if (months) from.setMonth(from.getMonth() - months);
+            else        from.setDate(from.getDate() - days);
+            const fromStr = from.toISOString().split("T")[0];
+            const toStr   = today.toISOString().split("T")[0];
+            const active  = replayStartDate === fromStr && replayEndDate === toStr;
+            return (
+              <button key={label} type="button"
+                onClick={() => { setReplayStartDate(fromStr); setReplayEndDate(toStr); }}
+                className={`px-2 py-0.5 rounded text-[9px] font-bold transition-colors shrink-0 ${
+                  active
+                    ? "bg-[#F7931A] text-[#0B0B12]"
+                    : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white"
+                }`}>
+                {label}
+              </button>
+            );
+          })}
+
+          <div className="w-px h-5 bg-white/10 shrink-0"/>
+
+          {/* Date inputs */}
+          <input type="date" value={replayStartDate}
+            onChange={e => { setReplayStartDate(e.target.value); if(replayEndDate && e.target.value > replayEndDate) setReplayEndDate(e.target.value); }}
+            className="bg-[#0B0B12] border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white outline-none focus:border-[#F7931A]/50 transition-colors shrink-0 w-[110px]"
+            max={replayEndDate || new Date().toISOString().split("T")[0]}/>
+          <span className="text-[9px] text-white/30 shrink-0">—</span>
+          <input type="date" value={replayEndDate}
+            onChange={e => setReplayEndDate(e.target.value)}
+            className="bg-[#0B0B12] border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white outline-none focus:border-[#F7931A]/50 transition-colors shrink-0 w-[110px]"
+            min={replayStartDate} max={new Date().toISOString().split("T")[0]}/>
 
           {/* TF selector */}
           <select value={replayTf} onChange={e=>setReplayTf(e.target.value as ChartTf)}
@@ -2796,7 +2933,7 @@ export default function TradingPage() {
                   );
                 })}
                 {totalPnl!==0&&bottomOpen&&(
-                  <span className={`ml-4 text-[11px] font-semibold ${totalPnl>=0?"text-[#00E676]":"text-[#F40000]"}`}>
+                  <span className={`ml-4 text-[11px] font-semibold ${totalPnl>=0?"text-[#25DE28]":"text-[#F40000]"}`}>
                     PnL: {totalPnl>=0?"+":""}{fUsd(totalPnl)}
                   </span>
                 )}
@@ -2842,7 +2979,7 @@ export default function TradingPage() {
                                     <span className="font-semibold">{pos.sym}</span>
                                   </div>
                                 </td>
-                                <td className={`px-2.5 py-2 font-bold ${pos.side==="LONG"?"text-[#26a69a]":"text-[#ef5350]"}`}>{pos.side}</td>
+                                <td className={`px-2.5 py-2 font-bold ${pos.side==="LONG"?"text-[#25DE28]":"text-[#F40000]"}`}>{pos.side}</td>
                                 <td className="px-2.5 py-2"><span className="bg-[#8348C1]/20 text-[#C38BFF] rounded px-1.5 py-0.5 text-[9px] font-bold">{pos.leverage}x</span></td>
                                 <td className="px-2.5 py-2 text-white/80">{fQty(pos.qty)}</td>
                                 <td className="px-2.5 py-2 text-white/80">{fUsd(pos.avgPrice)}</td>
@@ -2852,15 +2989,15 @@ export default function TradingPage() {
                                     : <span className="text-white/20 text-[9px] animate-pulse">завант...</span>}
                                 </td>
                                 <td className="px-2.5 py-2 text-white/80">{fUsd(pos.margin)}</td>
-                                <td className={`px-2.5 py-2 font-semibold ${pnl>=0?"text-[#26a69a]":"text-[#ef5350]"}`}>
+                                <td className={`px-2.5 py-2 font-semibold ${pnl>=0?"text-[#25DE28]":"text-[#F40000]"}`}>
                                   {priceReady ? <>{pnl>=0?"+":""}{fUsd(pnl)}</> : <span className="text-white/20">---</span>}
                                 </td>
-                                <td className={`px-2.5 py-2 font-semibold ${roe>=0?"text-[#26a69a]":"text-[#ef5350]"}`}>
+                                <td className={`px-2.5 py-2 font-semibold ${roe>=0?"text-[#25DE28]":"text-[#F40000]"}`}>
                                   {priceReady ? fRoe(roe) : <span className="text-white/20">---</span>}
                                 </td>
                                 <td className="px-2.5 py-2 text-amber-400/80 text-[10px]">{pos.liqPrice>0?fUsd(pos.liqPrice):"—"}</td>
-                                <td className="px-2.5 py-2 text-[#ef5350]/80">{pos.sl&&pos.sl>0?fUsd(pos.sl):"—"}</td>
-                                <td className="px-2.5 py-2 text-[#26a69a]/80">{pos.tp&&pos.tp>0?fUsd(pos.tp):"—"}</td>
+                                <td className="px-2.5 py-2 text-[#F40000]/80">{pos.sl&&pos.sl>0?fUsd(pos.sl):"—"}</td>
+                                <td className="px-2.5 py-2 text-[#25DE28]/80">{pos.tp&&pos.tp>0?fUsd(pos.tp):"—"}</td>
                                 <td className="px-2.5 py-2 text-right">
                                   <div className="flex items-center justify-end gap-1">
                                     <button type="button"
@@ -2899,7 +3036,7 @@ export default function TradingPage() {
                           {activeDemo.orders.map(o=>(
                             <tr key={o.id} className="border-b border-white/[0.04] hover:bg-white/[0.02]">
                               <td className="px-2.5 py-2"><div className="flex items-center gap-1.5"><img src={o.img} alt={o.sym} className="h-4 w-4 rounded-full" onError={e=>{(e.currentTarget as HTMLImageElement).style.display="none"}}/><span className="font-semibold">{o.sym}</span></div></td>
-                              <td className={`px-2.5 py-2 font-bold ${o.side==="LONG"?"text-[#00E676]":"text-[#F40000]"}`}>{o.side}</td>
+                              <td className={`px-2.5 py-2 font-bold ${o.side==="LONG"?"text-[#25DE28]":"text-[#F40000]"}`}>{o.side}</td>
                               <td className="px-2.5 py-2"><span className="bg-[#8348C1]/20 text-[#C38BFF] rounded px-1.5 py-0.5 text-[9px] font-bold">{o.leverage}x</span></td>
                               <td className="px-2.5 py-2 text-white/60">{o.type}</td>
                               <td className="px-2.5 py-2 text-white/80">{fUsd(o.notional)}</td>
@@ -2935,11 +3072,11 @@ export default function TradingPage() {
                             return (
                             <tr key={t.id} className="border-b border-white/[0.04] hover:bg-white/[0.02]">
                               <td className="px-2.5 py-2 font-semibold">{t.sym}</td>
-                              <td className={`px-2.5 py-2 font-bold ${t.side==="LONG"?"text-[#00E676]":"text-[#F40000]"}`}>{t.side}</td>
+                              <td className={`px-2.5 py-2 font-bold ${t.side==="LONG"?"text-[#25DE28]":"text-[#F40000]"}`}>{t.side}</td>
                               <td className="px-2.5 py-2"><span className="bg-[#8348C1]/20 text-[#C38BFF] rounded px-1.5 py-0.5 text-[9px] font-bold">{t.leverage}x</span></td>
                               <td className="px-2.5 py-2">
                                 {t.action==="CLOSE"?(
-                                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${isWin?"bg-[#00E676]/15 text-[#00E676]":isLoss?"bg-[#F40000]/15 text-[#F40000]":"bg-white/10 text-white/40"}`}>
+                                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${isWin?"bg-[#25DE28]/15 text-[#25DE28]":isLoss?"bg-[#F40000]/15 text-[#F40000]":"bg-white/10 text-white/40"}`}>
                                     {isWin?"WIN":isLoss?"LOSS":"0"}
                                   </span>
                                 ):<span className="text-white/20 text-[9px]">—</span>}
@@ -2951,10 +3088,10 @@ export default function TradingPage() {
                               </td>
                               <td className="px-2.5 py-2 text-white/80">{fQty(t.qty)}</td>
                               <td className="px-2.5 py-2 text-white/80">{fUsd(t.price)}</td>
-                              <td className={`px-2.5 py-2 font-semibold ${t.pnl>0?"text-[#00E676]":t.pnl<0?"text-[#F40000]":"text-white/40"}`}>
+                              <td className={`px-2.5 py-2 font-semibold ${t.pnl>0?"text-[#25DE28]":t.pnl<0?"text-[#F40000]":"text-white/40"}`}>
                                 {t.action==="CLOSE"?(t.pnl>=0?"+":"")+fUsd(t.pnl):"—"}
                               </td>
-                              <td className={`px-2.5 py-2 font-semibold ${t.roe>0?"text-[#00E676]":t.roe<0?"text-[#F40000]":"text-white/40"}`}>
+                              <td className={`px-2.5 py-2 font-semibold ${t.roe>0?"text-[#25DE28]":t.roe<0?"text-[#F40000]":"text-white/40"}`}>
                                 {t.action==="CLOSE"?fRoe(t.roe):"—"}
                               </td>
                               <td className="px-2.5 py-2 text-white/30 whitespace-nowrap">{t.createdAt}</td>
@@ -3000,12 +3137,12 @@ export default function TradingPage() {
                   </div>
                   <div className="flex justify-between text-[11px]">
                     <span className="text-white/40">Equity</span>
-                    <span className={`font-bold ${equity>=DEMO_START?"text-[#00E676]":"text-[#F40000]"}`}>{fUsd(equity)}</span>
+                    <span className={`font-bold ${equity>=DEMO_START?"text-[#25DE28]":"text-[#F40000]"}`}>{fUsd(equity)}</span>
                   </div>
                   {totalPnl!==0&&(
                     <div className="flex justify-between text-[11px]">
                       <span className="text-white/40">Open PnL</span>
-                      <span className={`font-semibold ${totalPnl>=0?"text-[#00E676]":"text-[#F40000]"}`}>{totalPnl>=0?"+":""}{fUsd(totalPnl)}</span>
+                      <span className={`font-semibold ${totalPnl>=0?"text-[#25DE28]":"text-[#F40000]"}`}>{totalPnl>=0?"+":""}{fUsd(totalPnl)}</span>
                     </div>
                   )}
                   {/* Поповнення */}
@@ -3028,7 +3165,7 @@ export default function TradingPage() {
                 <div className="flex rounded-xl bg-[#08080A] p-0.5 border border-white/10">
                   {(["LONG","SHORT"] as const).map(s=>(
                     <button key={s} type="button" onClick={()=>setSide(s)}
-                      className={`h-8 flex-1 rounded-lg text-[12px] font-bold transition-all ${side===s?(s==="LONG"?"bg-[#00E676] text-black":"bg-[#F40000] text-white"):"text-white/40 hover:text-white hover:bg-white/5"}`}>
+                      className={`h-8 flex-1 rounded-lg text-[12px] font-bold transition-all ${side===s?(s==="LONG"?"bg-[#25DE28] text-black":"bg-[#F40000] text-white"):"text-white/40 hover:text-white hover:bg-white/5"}`}>
                       {s==="LONG"?<span className="flex items-center justify-center gap-1"><TrendingUp size={13}/>LONG</span>:<span className="flex items-center justify-center gap-1"><TrendingDown size={13}/>SHORT</span>}
                     </button>
                   ))}
@@ -3108,7 +3245,7 @@ export default function TradingPage() {
                       <div className="flex gap-1">
                         {[2,3,5].map(m=>(
                           <button key={m} type="button" onClick={()=>applyAtrTp(m)}
-                            className="text-[8px] px-1.5 py-0.5 rounded bg-[#00E676]/10 text-[#00E676]/70 hover:text-[#00E676] transition-colors">
+                            className="text-[8px] px-1.5 py-0.5 rounded bg-[#25DE28]/10 text-[#25DE28]/70 hover:text-[#25DE28] transition-colors">
                             {m}ATR
                           </button>
                         ))}
@@ -3121,9 +3258,9 @@ export default function TradingPage() {
                   {/* Risk / Reward + Liquidation */}
                   <div className="grid grid-cols-2 gap-1.5">
                     {rrRatio>0&&(
-                      <div className={`rounded-lg px-2.5 py-1.5 text-[10px] ${rrRatio>=2?"bg-[#00E676]/10 border border-[#00E676]/20":"bg-amber-500/10 border border-amber-500/20"}`}>
+                      <div className={`rounded-lg px-2.5 py-1.5 text-[10px] ${rrRatio>=2?"bg-[#25DE28]/10 border border-[#25DE28]/20":"bg-amber-500/10 border border-amber-500/20"}`}>
                         <div className="text-white/40 mb-0.5">Risk / Reward</div>
-                        <div className={`font-bold ${rrRatio>=2?"text-[#00E676]":"text-amber-400"}`}>1 : {rrRatio.toFixed(2)}</div>
+                        <div className={`font-bold ${rrRatio>=2?"text-[#25DE28]":"text-amber-400"}`}>1 : {rrRatio.toFixed(2)}</div>
                       </div>
                     )}
                     {liqPreview>0&&(
@@ -3141,7 +3278,7 @@ export default function TradingPage() {
                   )}
 
                   <button type="button" onClick={submitOrder}
-                    className={`h-[40px] w-full rounded-xl text-[13px] font-bold tracking-wide transition-opacity hover:opacity-90 ${side==="LONG"?"bg-[#00E676] text-black":"bg-[#F40000] text-white"}`}>
+                    className={`h-[40px] w-full rounded-xl text-[13px] font-bold tracking-wide transition-opacity hover:opacity-90 ${side==="LONG"?"bg-[#25DE28] text-black":"bg-[#F40000] text-white"}`}>
                     {side==="LONG"?"▲ Buy / LONG":"▼ Sell / SHORT"} {asset.sym}
                     {leverage>1&&<span className="ml-1 opacity-70 text-[11px]">{leverage}x</span>}
                   </button>
@@ -3193,11 +3330,11 @@ export default function TradingPage() {
                         {/* Blurred fake signal cards */}
                         <div className="blur-sm pointer-events-none select-none space-y-2" aria-hidden>
                           {(["4h","1d","1w","1M"] as const).map(tf2=>(
-                            <div key={tf2} className="rounded-xl border border-[#00E676]/20 bg-[#00E676]/10 p-2.5">
+                            <div key={tf2} className="rounded-xl border border-[#25DE28]/20 bg-[#25DE28]/10 p-2.5">
                               <div className="flex items-center justify-between mb-1.5">
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-[9px] font-bold bg-white/10 rounded px-1.5 py-0.5 text-white/60">{tf2}</span>
-                                  <span className="text-[11px] font-bold text-[#00E676]">LONG</span>
+                                  <span className="text-[11px] font-bold text-[#25DE28]">LONG</span>
                                 </div>
                                 <span className="text-[8px] text-white/25">1год тому</span>
                               </div>
@@ -3206,7 +3343,7 @@ export default function TradingPage() {
                                 <div className="flex justify-between"><span className="text-white/35">Точність</span><span className="font-semibold text-white">76.3%</span></div>
                               </div>
                               <div className="mt-2 h-[3px] w-full bg-white/10 rounded-full overflow-hidden">
-                                <div className="h-full rounded-full bg-[#00E676]" style={{width:"82%"}}/>
+                                <div className="h-full rounded-full bg-[#25DE28]" style={{width:"82%"}}/>
                               </div>
                             </div>
                           ))}
@@ -3269,10 +3406,10 @@ export default function TradingPage() {
                       (isShort && p.stop_loss <= price)
                     );
 
-                    const signalColor = isLong?"text-[#00E676]":isShort?"text-[#F40000]":"text-white/40";
+                    const signalColor = isLong?"text-[#25DE28]":isShort?"text-[#F40000]":"text-white/40";
                     const signalBg    = isStale
                       ? "bg-amber-500/5 border-amber-500/20"
-                      : isLong?"bg-[#00E676]/10 border-[#00E676]/20"
+                      : isLong?"bg-[#25DE28]/10 border-[#25DE28]/20"
                       : isShort?"bg-[#F40000]/10 border-[#F40000]/20"
                       : "bg-white/5 border-white/10";
 
@@ -3312,14 +3449,14 @@ export default function TradingPage() {
                             </div>
                           )}
                           {p.take_profit!=null&&!isNo&&(
-                            <div className="flex justify-between"><span className="text-white/35">TP</span><span className="font-semibold text-[#00E676]">{fUsd(p.take_profit)}</span></div>
+                            <div className="flex justify-between"><span className="text-white/35">TP</span><span className="font-semibold text-[#25DE28]">{fUsd(p.take_profit)}</span></div>
                           )}
                         </div>
 
                         {/* Confidence bar */}
                         {p.confidence!=null&&!isNo&&(
                           <div className="mt-2 h-[3px] w-full bg-white/10 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full ${isStale?"bg-amber-400":isLong?"bg-[#00E676]":"bg-[#F40000]"}`}
+                            <div className={`h-full rounded-full ${isStale?"bg-amber-400":isLong?"bg-[#25DE28]":"bg-[#F40000]"}`}
                               style={{width:`${clamp(p.confidence,0,100)}%`}}/>
                           </div>
                         )}
@@ -3376,7 +3513,7 @@ export default function TradingPage() {
                             setRightTab("Trade");
                             setTp((side==="LONG"?price*(1+pct/100):price*(1-pct/100)).toFixed(price<1?6:2));
                           }}
-                          className="rounded px-2 py-0.5 bg-[#00E676]/10 text-[#00E676]/70 hover:text-[#00E676] text-[9px] font-semibold transition-colors">
+                          className="rounded px-2 py-0.5 bg-[#25DE28]/10 text-[#25DE28]/70 hover:text-[#25DE28] text-[9px] font-semibold transition-colors">
                           +{pct}%
                         </button>
                       ))}
@@ -3387,7 +3524,7 @@ export default function TradingPage() {
                   <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-white/5">
                     <div className="rounded-lg border border-white/5 bg-[#08080A] p-2">
                       <div className="text-[9px] text-white/35 font-semibold mb-1 flex items-center gap-1"><Target size={9}/>Підтримка</div>
-                      <div className="text-[11px] text-[#00E676] font-medium">{fUsd(ind.support)}</div>
+                      <div className="text-[11px] text-[#25DE28] font-medium">{fUsd(ind.support)}</div>
                     </div>
                     <div className="rounded-lg border border-white/5 bg-[#08080A] p-2">
                       <div className="text-[9px] text-white/35 font-semibold mb-1 flex items-center gap-1"><Target size={9}/>Опір</div>
@@ -3588,7 +3725,7 @@ export default function TradingPage() {
 
                 {/* Feedback */}
                 {(alertErr||alertMsg)&&(
-                  <div className={`rounded-lg px-2.5 py-1.5 text-[10px] ${alertErr?"bg-red-500/10 border border-red-500/20 text-red-300":"bg-[#00E676]/10 border border-[#00E676]/20 text-[#00E676]"}`}>
+                  <div className={`rounded-lg px-2.5 py-1.5 text-[10px] ${alertErr?"bg-red-500/10 border border-red-500/20 text-red-300":"bg-[#25DE28]/10 border border-[#25DE28]/20 text-[#25DE28]"}`}>
                     {alertErr||alertMsg}
                   </div>
                 )}
@@ -3625,7 +3762,7 @@ export default function TradingPage() {
                       const isPrice = ALERT_CONDS_PRICE.has(al.condition);
                       const isUp = al.condition.includes("_up")||al.condition.includes("_gt")||al.condition==="golden_cross"||al.condition==="new_ath"||al.condition==="bb_upper_break";
                       const isActive = al.is_active !== false;
-                      const dotColor = !isActive?"bg-white/20":isUp?"bg-[#26a69a]":"bg-[#ef5350]";
+                      const dotColor = !isActive?"bg-white/20":isUp?"bg-[#25DE28]":"bg-[#F40000]";
                       const unit = getAlertConditionUnit(al.condition);
                       const isEditing = editingAlertId === al.id;
                       const cardCls = isEditing
@@ -3747,7 +3884,7 @@ export default function TradingPage() {
                               </div>
                               <div className="flex items-center gap-1.5 mt-0.5">
                                 <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${dotColor}`}/>
-                                <span className={`text-[9px] ${!isActive?"text-white/25":"text-[#26a69a]/70"}`}>
+                                <span className={`text-[9px] ${!isActive?"text-white/25":"text-[#25DE28]/70"}`}>
                                   {!isActive?"Призупинено":"Активний"}
                                 </span>
                                 {/* Trigger counter badge */}
@@ -3775,7 +3912,7 @@ export default function TradingPage() {
                                 disabled={togglingId===al.id}
                                 onClick={e=>{e.stopPropagation();void handleToggleAlert(al.id, al.is_active);}}
                                 title={isActive?"Призупинити":"Активувати"}
-                                className={`flex h-6 w-6 items-center justify-center rounded-lg transition-colors disabled:opacity-40 ${isActive?"text-[#26a69a]/60 hover:bg-[#26a69a]/10 hover:text-[#26a69a]":"text-white/25 hover:bg-white/10 hover:text-white"}`}>
+                                className={`flex h-6 w-6 items-center justify-center rounded-lg transition-colors disabled:opacity-40 ${isActive?"text-[#25DE28]/60 hover:bg-[#25DE28]/10 hover:text-[#25DE28]":"text-white/25 hover:bg-white/10 hover:text-white"}`}>
                                 {togglingId===al.id?<Loader2 size={10} className="animate-spin"/>:isActive?<Bell size={10}/>:<BellOff size={10}/>}
                               </button>
                               {/* Delete */}
@@ -3809,9 +3946,9 @@ export default function TradingPage() {
                 )}
                 {tgConnected === true && (
                   <a href={BOT_URL} target="_blank" rel="noopener noreferrer"
-                    className="w-full flex items-center gap-2 rounded-xl border border-[#26a69a]/20 bg-[#26a69a]/5 px-2.5 py-2 hover:bg-[#26a69a]/10 transition-colors">
+                    className="w-full flex items-center gap-2 rounded-xl border border-[#25DE28]/20 bg-[#25DE28]/5 px-2.5 py-2 hover:bg-[#25DE28]/10 transition-colors">
                     <span className="text-[14px] shrink-0">✅</span>
-                    <div className="text-[10px] font-semibold text-[#26a69a]">Telegram підключено</div>
+                    <div className="text-[10px] font-semibold text-[#25DE28]">Telegram підключено</div>
                     <span className="ml-auto text-[9px] text-white/25 shrink-0">Відкрити →</span>
                   </a>
                 )}
@@ -3843,6 +3980,7 @@ export default function TradingPage() {
         <SessionSummaryModal
           demo={replayDemo}
           snapshot={replaySnapshot}
+          planKey={account?.planKey ?? "free"}
           onContinue={() => setShowSummary(false)}
           onNewSession={() => {
             setShowSummary(false);
@@ -3878,7 +4016,7 @@ function Empty({text}:{text:string}) {
 }
 
 function SCard({icon,label,value,detail,tone="neutral"}:{icon:ReactNode;label:string;value:string;detail:string;tone?:"green"|"red"|"yellow"|"neutral"}) {
-  const cls=tone==="green"?"text-[#00E676]":tone==="red"?"text-[#F40000]":tone==="yellow"?"text-[#fbbf24]":"text-white";
+  const cls=tone==="green"?"text-[#25DE28]":tone==="red"?"text-[#F40000]":tone==="yellow"?"text-[#fbbf24]":"text-white";
   return (
     <div className="rounded-xl border border-white/5 bg-[#08080A] p-2.5">
       <div className="mb-1 flex items-center gap-1 text-[9px] text-white/35 font-semibold uppercase tracking-wider">{icon}{label}</div>
@@ -3893,7 +4031,7 @@ function IPill({label,value,active}:{label:string;value:string;active:boolean}) 
     <div className="rounded-lg border border-white/5 bg-[#08080A] p-2 flex flex-col gap-1">
       <div className="flex justify-between items-center">
         <span className="text-[8px] text-white/35 font-semibold">{label}</span>
-        <span className={`h-1.5 w-1.5 rounded-full ${active?"bg-[#00E676]":"bg-[#fbbf24]"}`}/>
+        <span className={`h-1.5 w-1.5 rounded-full ${active?"bg-[#25DE28]":"bg-[#fbbf24]"}`}/>
       </div>
       <div className="text-[10px] font-medium text-white truncate" title={value}>{value}</div>
     </div>
@@ -3908,9 +4046,9 @@ function OBSide({title,rows,tone}:{title:string;rows:OBRow[];tone:"green"|"red"}
       <div className="space-y-[1px]">
         {rows.slice(0,8).map(r=>(
           <div key={`${title}-${r.price}`} className="relative overflow-hidden px-1.5 py-[3px] rounded-sm">
-            <div className={`absolute inset-y-0 right-0 ${tone==="green"?"bg-[#00E676]/8":"bg-[#F40000]/8"}`} style={{width:`${clamp((r.total/max)*100,2,100)}%`}}/>
+            <div className={`absolute inset-y-0 right-0 ${tone==="green"?"bg-[#25DE28]/8":"bg-[#F40000]/8"}`} style={{width:`${clamp((r.total/max)*100,2,100)}%`}}/>
             <div className="relative flex justify-between gap-2 text-[10px] font-medium">
-              <span className={tone==="green"?"text-[#00E676]":"text-[#F40000]"}>{fUsd(r.price)}</span>
+              <span className={tone==="green"?"text-[#25DE28]":"text-[#F40000]"}>{fUsd(r.price)}</span>
               <span className="text-white/50">{fQty(r.qty)}</span>
             </div>
           </div>

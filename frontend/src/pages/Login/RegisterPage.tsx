@@ -486,8 +486,8 @@ mergeAccountCache({
   cardLast4: null,
 });
 
-setSuccess('Акаунт успішно створено. Оберіть план підписки...');
-setTimeout(() => navigate('/select-plan'), 1500);
+setSuccess('Акаунт успішно створено! Вас вітає безплатний план 🎉');
+setTimeout(() => navigate('/dashboard'), 1500);
 
     } catch { 
       setS2GenErr('Не вдалося підключитися до бази даних Supabase'); 

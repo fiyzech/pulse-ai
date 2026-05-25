@@ -146,6 +146,18 @@ const weakTechOnlyPatterns = [
   /\bvibe coding\b/,
 ];
 
+// Sources that are never crypto-related
+const BLOCKED_SOURCES = new Set([
+  "pypi.org", "pypi", "npmjs.com", "npm", "github.com", "github",
+  "stackoverflow.com", "stackoverflow", "hackernews", "hacker news",
+  "ycombinator.com", "ycombinator", "dev.to", "devto",
+  "registry.npmjs.org", "rubygems.org", "crates.io",
+  "packagist.org", "nuget.org", "maven",
+]);
+
+// Package release title pattern: "some-package-name 1.2.3"
+const PKG_RELEASE_RE = /^[\w][\w\-\.]{1,60}\s+\d+\.\d+(\.\d+)?([.\-]\S*)?$/;
+
 const saveTranslationCache = (cache: Record<string, string>) => {
   try {
     localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(cache));
@@ -305,6 +317,15 @@ const isRelevantCryptoArticle = (article: NewsApiArticle): boolean => {
   const source = article.source?.name?.toLowerCase() || "";
   const fullText = `${title} ${description} ${source}`;
 
+  // Hard-block known dev/package sources regardless of content
+  if (BLOCKED_SOURCES.has(source)) return false;
+  for (const blocked of BLOCKED_SOURCES) {
+    if (source.includes(blocked)) return false;
+  }
+
+  // Block package release announcements like "some-lib 1.2.3"
+  if (PKG_RELEASE_RE.test(article.title?.trim() ?? "")) return false;
+
   const hasStrongCryptoContext = strongCryptoPatterns.some((pattern) =>
     pattern.test(fullText)
   );
@@ -325,6 +346,10 @@ const isRelevantCryptoArticle = (article: NewsApiArticle): boolean => {
     title.includes("gold etfs") ||
     title.includes("naval") ||
     title.includes("war") ||
+    // Generic tech noise without clear crypto context
+    /\bv?\d+\.\d+\.\d+\b/.test(title) ||           // "release v2.0.1" type titles
+    /\brelease notes?\b/i.test(article.title ?? "") ||
+    /\bchangelog\b/i.test(article.title ?? "") ||
     (isWeakTechOnly && !hasStrongCryptoContext && !isCryptoSource);
 
   return Boolean(
