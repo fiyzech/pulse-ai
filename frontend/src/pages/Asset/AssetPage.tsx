@@ -820,14 +820,53 @@ const handleFavoriteToggle = async () => {
         if (cachedData && cachedTime && Date.now() - Number(cachedTime) < 120000) {
           coinData = JSON.parse(cachedData);
         } else {
-          const cgRes = await fetch(`/api/coingecko/coins/markets?vs_currency=usd&ids=${encodeURIComponent(cgId)}&price_change_percentage=1h,24h`);
-          if (cgRes.ok) {
-            const cgData = await cgRes.json();
-            if (cgData && cgData.length > 0) {
-              coinData = cgData[0];
-              sessionStorage.setItem(cacheKey, JSON.stringify(coinData));
-              sessionStorage.setItem(`${cacheKey}_time`, Date.now().toString());
+          const cgPath = `/coins/markets?vs_currency=usd&ids=${encodeURIComponent(cgId)}&price_change_percentage=1h,24h`;
+
+          // 1. CoinGecko direct (browser request, bypasses Vercel IP rate limits)
+          let cgFetched = false;
+          try {
+            const cgRes = await fetch(`https://api.coingecko.com/api/v3${cgPath}`);
+            if (cgRes.ok) {
+              const cgData = await cgRes.json();
+              if (cgData?.length > 0) { coinData = cgData[0]; cgFetched = true; }
             }
+          } catch { /* fall through */ }
+
+          // 2. CoinGecko via Vercel proxy
+          if (!cgFetched) {
+            try {
+              const cgRes = await fetch(`/api/coingecko${cgPath}`);
+              if (cgRes.ok) {
+                const cgData = await cgRes.json();
+                if (cgData?.length > 0) { coinData = cgData[0]; cgFetched = true; }
+              }
+            } catch { /* fall through */ }
+          }
+
+          // 3. CoinCap fallback — provides market_cap, supply, volume
+          if (!cgFetched) {
+            try {
+              const capRes = await fetch(`https://api.coincap.io/v2/assets/${encodeURIComponent(cgId)}`);
+              if (capRes.ok) {
+                const capJson = await capRes.json() as { data?: { priceUsd?: string; marketCapUsd?: string; supply?: string; maxSupply?: string | null; volumeUsd24Hr?: string } };
+                const d = capJson.data;
+                if (d) {
+                  coinData = {
+                    market_cap: parseFloat(d.marketCapUsd ?? '0') || 0,
+                    circulating_supply: parseFloat(d.supply ?? '0') || 0,
+                    max_supply: d.maxSupply ? parseFloat(d.maxSupply) : null,
+                    total_supply: d.maxSupply ? parseFloat(d.maxSupply) : null,
+                    total_volume: parseFloat(d.volumeUsd24Hr ?? '0') || 0,
+                    ath: null,
+                  };
+                }
+              }
+            } catch { /* all sources failed */ }
+          }
+
+          if (coinData) {
+            sessionStorage.setItem(cacheKey, JSON.stringify(coinData));
+            sessionStorage.setItem(`${cacheKey}_time`, Date.now().toString());
           }
         }
 

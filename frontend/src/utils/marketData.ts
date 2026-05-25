@@ -30,6 +30,46 @@ const COINGECKO_DIRECT = 'https://api.coingecko.com/api/v3';
 // Proxy path (vite dev server / vercel rewrites) — used as fallback only.
 const COINGECKO_PROXY = '/api/coingecko';
 
+// ── CoinCap types (used as final fallback when CoinGecko is unavailable) ────
+type CoinCapAsset = {
+  id: string;
+  rank: string;
+  symbol: string;
+  name: string;
+  supply: string;
+  maxSupply: string | null;
+  marketCapUsd: string;
+  volumeUsd24Hr: string;
+  priceUsd: string;
+  changePercent24Hr: string;
+};
+
+/**
+ * Fetches top assets from CoinCap.io — completely free, no auth, CORS-enabled.
+ * Used as a final fallback when CoinGecko is rate-limited or unavailable.
+ */
+const fetchFromCoinCap = async (limit: number): Promise<SharedMarketCoin[]> => {
+  const resp = await fetch(`https://api.coincap.io/v2/assets?limit=${Math.min(limit, 200)}`);
+  if (!resp.ok) throw new Error(`CoinCap error: ${resp.status}`);
+  const json = await resp.json() as { data: CoinCapAsset[] };
+  return (json.data || []).map((coin) => ({
+    id: coin.id,
+    symbol: coin.symbol.toUpperCase(),
+    name: coin.name,
+    current_price: parseFloat(coin.priceUsd) || null,
+    price_change_percentage_24h: parseFloat(coin.changePercent24Hr) || null,
+    price_change_percentage_1h_in_currency: null,
+    market_cap: parseFloat(coin.marketCapUsd) || null,
+    total_volume: parseFloat(coin.volumeUsd24Hr) || null,
+    // Use CoinCap's icon CDN — publicly accessible without auth
+    image: `https://assets.coincap.io/assets/icons/${coin.symbol.toLowerCase()}@2x.png`,
+    ath: null,
+    circulating_supply: parseFloat(coin.supply) || null,
+    total_supply: coin.maxSupply ? parseFloat(coin.maxSupply) : null,
+    max_supply: coin.maxSupply ? parseFloat(coin.maxSupply) : null,
+  }));
+};
+
 const parseJsonCache = <T,>(value: string | null): T | null => {
   if (!value) return null;
 
@@ -59,47 +99,50 @@ export const subscribeToMarketData = (listener: () => void) => {
 };
 
 /**
- * Fetches market data from CoinGecko, trying direct browser request first
- * (bypasses Vercel IP rate-limiting) and falling back to the proxy if needed.
+ * Fetches market data with a 3-tier fallback chain:
+ *   1. CoinGecko direct browser request (fastest, bypasses Vercel IP blocks)
+ *   2. CoinGecko via Vercel/Vite proxy (server-side request)
+ *   3. CoinCap.io (free, no auth, CORS — guarantees market_cap data)
+ *
+ * Returns stale cache if available when all sources fail.
  */
-const fetchCoinGeckoMarkets = async (perPage: number, cached: SharedMarketCoin[] | null): Promise<SharedMarketCoin[]> => {
-  const path = `/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${perPage}&page=1&sparkline=false&price_change_percentage=1h,24h`;
+const fetchMarketData = async (perPage: number, cached: SharedMarketCoin[] | null): Promise<SharedMarketCoin[]> => {
+  const cgPath = `/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${perPage}&page=1&sparkline=false&price_change_percentage=1h,24h`;
 
-  // ── Attempt 1: direct browser → CoinGecko (no server proxy) ──────────────
-  let directResp: Response | null = null;
+  // ── Attempt 1: direct browser → CoinGecko ────────────────────────────────
   try {
-    directResp = await fetch(`${COINGECKO_DIRECT}${path}`);
-  } catch {
-    // Network/CORS error on direct fetch — fall through to proxy
-  }
-
-  if (directResp) {
-    if (directResp.status === 429) {
+    const resp = await fetch(`${COINGECKO_DIRECT}${cgPath}`);
+    if (resp.status === 429) {
       startCoinGeckoCooldown();
-      if (cached) return cached;
-      throw new Error('CoinGecko rate limit');
+    } else if (resp.ok) {
+      return resp.json() as Promise<SharedMarketCoin[]>;
     }
-    if (directResp.ok) {
-      return directResp.json() as Promise<SharedMarketCoin[]>;
+  } catch {
+    // Network/CORS error — try next source
+  }
+
+  // ── Attempt 2: CoinGecko via Vercel proxy ────────────────────────────────
+  try {
+    const resp = await fetch(`${COINGECKO_PROXY}${cgPath}`);
+    if (resp.status === 429) {
+      startCoinGeckoCooldown();
+    } else if (resp.ok) {
+      return resp.json() as Promise<SharedMarketCoin[]>;
     }
-    // Status 403/5xx from direct — try proxy as fallback
+  } catch {
+    // Proxy also failed — try CoinCap
   }
 
-  // ── Attempt 2: Vercel / Vite proxy ────────────────────────────────────────
-  const proxyResp = await fetch(`${COINGECKO_PROXY}${path}`);
-
-  if (proxyResp.status === 429) {
-    startCoinGeckoCooldown();
-    if (cached) return cached;
-    throw new Error('CoinGecko rate limit');
+  // ── Attempt 3: CoinCap.io (always free, no auth, has market_cap) ─────────
+  try {
+    return await fetchFromCoinCap(perPage);
+  } catch {
+    // All sources failed
   }
 
-  if (!proxyResp.ok) {
-    if (cached) return cached;
-    throw new Error('CoinGecko market data request failed');
-  }
-
-  return proxyResp.json() as Promise<SharedMarketCoin[]>;
+  // ── Fallback: return stale cache or throw ─────────────────────────────────
+  if (cached) return cached;
+  throw new Error('All market data sources failed');
 };
 
 export const fetchSharedMarketSnapshot = async ({
@@ -120,7 +163,7 @@ export const fetchSharedMarketSnapshot = async ({
   if (isCoinGeckoCoolingDown() && cached) return cached;
   if (inFlightSnapshot) return inFlightSnapshot;
 
-  inFlightSnapshot = fetchCoinGeckoMarkets(perPage, cached)
+  inFlightSnapshot = fetchMarketData(perPage, cached)
     .then((data) => {
       sessionStorage.setItem(marketSnapshotKey, JSON.stringify(data));
       sessionStorage.setItem(marketSnapshotTimeKey, Date.now().toString());

@@ -9,6 +9,10 @@
       "destination": "https://api.binance.com/api/v3/:path*"
     },
     {
+      "source": "/api/newsapi/:path*",
+      "destination": "https://newsapi.org/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

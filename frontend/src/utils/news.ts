@@ -510,8 +510,11 @@ export const fetchCryptoNews = async (
 
   const safeRawCount = Math.min(Math.max(rawCount, finalCount), 100);
 
+  // Use Vercel server-side proxy (/api/newsapi → newsapi.org) so the request
+  // originates from Vercel's servers — NewsAPI free tier blocks browser requests
+  // from production domains with HTTP 426, but allows server-to-server calls.
   const res = await fetch(
-    `https://newsapi.org/v2/everything?q=${query}&language=en&sortBy=publishedAt&pageSize=${safeRawCount}&page=1&apiKey=${apiKey}`
+    `/api/newsapi/v2/everything?q=${query}&language=en&sortBy=publishedAt&pageSize=${safeRawCount}&page=1&apiKey=${apiKey}`
   );
 
   if (!res.ok) {
