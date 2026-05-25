@@ -341,16 +341,58 @@ def alert_unit(condition: str) -> str:
     return "$"
 
 async def fetch_price(symbol: str) -> float | None:
-    """Fetch current price from Binance for SYMBOL/USDT."""
-    url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol.upper()}USDT"
+    """Fetch current USDT price with multi-exchange fallback.
+
+    Tries Binance → OKX → Bybit in order. Returns the first successful
+    non-zero price. This ensures the bot works even when Render's IPs
+    are rate-limited or blocked by a specific exchange.
+    """
+    sym = normalize_symbol(symbol)  # strips trailing USDT if present
+
+    # ── 1. Binance ────────────────────────────────────────────────────────────
     try:
+        url = f"https://api.binance.com/api/v3/ticker/price?symbol={sym}USDT"
         async with aiohttp.ClientSession() as session:
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    return float(data.get("price", 0))
+                    price = float(data.get("price") or 0)
+                    if price > 0:
+                        return price
     except Exception:
         pass
+
+    # ── 2. OKX ───────────────────────────────────────────────────────────────
+    try:
+        url = f"https://www.okx.com/api/v5/market/ticker?instId={sym}-USDT"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    items = data.get("data") or []
+                    if items:
+                        price = float(items[0].get("last") or 0)
+                        if price > 0:
+                            return price
+    except Exception:
+        pass
+
+    # ── 3. Bybit ─────────────────────────────────────────────────────────────
+    try:
+        url = f"https://api.bybit.com/v5/market/tickers?category=spot&symbol={sym}USDT"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    items = (data.get("result") or {}).get("list") or []
+                    if items:
+                        price = float(items[0].get("lastPrice") or 0)
+                        if price > 0:
+                            return price
+    except Exception:
+        pass
+
+    logging.warning(f"fetch_price: all exchanges failed for {sym}")
     return None
 
 def fmt_price(price: float) -> str:
@@ -392,15 +434,70 @@ def signal_icon(signal: str | None) -> str:
     return "⚪"
 
 async def fetch_24h_ticker(symbol: str) -> dict:
-    pair = f"{normalize_symbol(symbol)}USDT"
-    url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={pair}"
+    """Fetch 24-hour ticker data with multi-exchange fallback (Binance → OKX → Bybit).
+    Returns a Binance-compatible dict with keys: lastPrice, priceChangePercent, highPrice, lowPrice, quoteVolume.
+    """
+    sym = normalize_symbol(symbol)
+
+    # ── 1. Binance ────────────────────────────────────────────────────────────
     try:
+        url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={sym}USDT"
         async with aiohttp.ClientSession() as session:
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
                 if resp.status == 200:
-                    return await resp.json()
-    except Exception as exc:
-        logging.warning(f"24h ticker error for {pair}: {exc}")
+                    data = await resp.json()
+                    if data.get("lastPrice"):
+                        return data
+    except Exception:
+        pass
+
+    # ── 2. OKX ───────────────────────────────────────────────────────────────
+    try:
+        url = f"https://www.okx.com/api/v5/market/ticker?instId={sym}-USDT"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    items = data.get("data") or []
+                    if items:
+                        t = items[0]
+                        last = float(t.get("last") or 0)
+                        open24 = float(t.get("open24h") or last)
+                        change_pct = ((last - open24) / open24 * 100) if open24 else 0
+                        return {
+                            "lastPrice": str(last),
+                            "priceChangePercent": str(round(change_pct, 2)),
+                            "highPrice": t.get("high24h", str(last)),
+                            "lowPrice":  t.get("low24h", str(last)),
+                            "quoteVolume": t.get("volCcy24h", "0"),
+                        }
+    except Exception:
+        pass
+
+    # ── 3. Bybit ─────────────────────────────────────────────────────────────
+    try:
+        url = f"https://api.bybit.com/v5/market/tickers?category=spot&symbol={sym}USDT"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    items = (data.get("result") or {}).get("list") or []
+                    if items:
+                        t = items[0]
+                        last = float(t.get("lastPrice") or 0)
+                        prev = float(t.get("prevPrice24h") or last)
+                        change_pct = ((last - prev) / prev * 100) if prev else 0
+                        return {
+                            "lastPrice": str(last),
+                            "priceChangePercent": str(round(change_pct, 2)),
+                            "highPrice": t.get("highPrice24h", str(last)),
+                            "lowPrice":  t.get("lowPrice24h", str(last)),
+                            "quoteVolume": t.get("turnover24h", "0"),
+                        }
+    except Exception:
+        pass
+
+    logging.warning(f"fetch_24h_ticker: all exchanges failed for {sym}")
     return {}
 
 async def fetch_market_snapshot(symbol: str) -> dict:
