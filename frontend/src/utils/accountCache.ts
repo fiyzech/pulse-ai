@@ -30,7 +30,7 @@ const isBillingCycle = (value: unknown): value is BillingCycle =>
 export const planLabelMap: Record<PlanKey, string> = {
   free: "Безкоштовно",
   pro: "Pro",
-  business: "Бізнес",
+  business: "Преміум",
 };
 
 export const getPlanLabel = (planKey?: string | null) =>

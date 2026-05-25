@@ -43,6 +43,10 @@ services:
     build: ./telegrambot
     container_name: CryptoPulse_bot
     restart: always
+    env_file:
+      - ./telegrambot/.env
+    ports:
+      - "8080:8080"  # HTTP endpoint for frontend → bot alert notifications
     volumes:
       - .:/app  # <-- Переконайтеся, що тут саме так (крапка, двокрапка, слейш app)
     # Це гарантує, що бот не "ляже", якщо база ще піднімається

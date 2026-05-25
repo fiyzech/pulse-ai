@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { openTelegramBot } from "../../utils/telegram";
+import { useAccount } from "../../context/accountContextValue";
+import { formatPercent } from "../../utils/format";
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import {
@@ -129,8 +132,34 @@ const getSection2Params = (period: string): { interval: string; limit: number } 
   }
 };
 
+const COMPLETE_PROFILE_KEY = "cpulse_complete_profile_dismissed";
+
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const { account, loading: accountLoading } = useAccount();
+
+  // Show "complete profile" nudge if name is empty/placeholder
+  const [showCompleteProfile, setShowCompleteProfile] = useState(false);
+
+  useEffect(() => {
+    if (accountLoading) return;
+    if (!account) return;
+    if (sessionStorage.getItem(COMPLETE_PROFILE_KEY)) return;
+
+    // Show when username is not set (all OAuth users + new email users)
+    const hasUsername = account.username && account.username.trim().length > 0;
+    if (!hasUsername) {
+      const t = setTimeout(() => setShowCompleteProfile(true), 1200);
+      return () => clearTimeout(t);
+    }
+  }, [account, accountLoading]);
+
+  const dismissCompleteProfile = () => {
+    sessionStorage.setItem(COMPLETE_PROFILE_KEY, "1");
+    setShowCompleteProfile(false);
+  };
+
+  const [showBotModal, setShowBotModal] = useState(false);
 
   // Стан для Секції 1
   const [isOpen, setIsOpen] = useState<boolean>(false);
@@ -509,8 +538,6 @@ export default function DashboardPage() {
     })}`;
   };
 
-  const formatPercent = (num: number) =>
-    `${num > 0 ? "+" : ""}${num.toFixed(2)}%`;
 
   // Оновлений хелпер для зменшення букви K з вирівнюванням по базовій лінії
   const renderValueWithSmallK = (val: string) => {
@@ -534,6 +561,7 @@ export default function DashboardPage() {
   };
 
   return (
+    <>
     <section className="w-full max-w-[1600px] mx-auto px-10 pt-7 pb-8">
       {/* СЕКЦІЯ 1 */}
       <div className="mb-6 relative">
@@ -898,13 +926,17 @@ export default function DashboardPage() {
 
               <div className="mt-auto flex flex-col gap-[16px] pt-[20px]">
                 <button
-                  onClick={() => navigate("/settings")}
-                  className="flex h-[44px] w-[213px] items-center justify-center rounded-[28px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-[14px] font-medium leading-[20px] text-white transition-transform hover:scale-105"
+                  onClick={openTelegramBot}
+                  className="flex h-[44px] w-[213px] items-center justify-center gap-2 rounded-[28px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-[14px] font-medium leading-[20px] text-white transition-transform hover:scale-105 cursor-pointer"
                 >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 13.763l-2.968-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.986.796z"/></svg>
                   Відкрити у Telegram
                 </button>
 
-                <button className="group relative flex h-[44px] w-[213px] items-center justify-center rounded-[28px] text-[14px] font-medium leading-[20px] text-white transition-transform hover:scale-105">
+                <button
+                  onClick={() => setShowBotModal(true)}
+                  className="group relative flex h-[44px] w-[213px] items-center justify-center rounded-[28px] text-[14px] font-medium leading-[20px] text-white transition-transform hover:scale-105 cursor-pointer"
+                >
                   <svg
                     className="absolute inset-0 h-full w-full pointer-events-none"
                     xmlns="http://www.w3.org/2000/svg"
@@ -933,7 +965,6 @@ export default function DashboardPage() {
                       </linearGradient>
                     </defs>
                   </svg>
-
                   <span className="relative z-10">Дізнатись більше</span>
                 </button>
               </div>
@@ -1391,5 +1422,114 @@ export default function DashboardPage() {
         </div>
       </div>
     </section>
+
+    {/* ── "Дізнатись більше" Modal ─────────────────── */}
+    {showBotModal && (
+      <div
+        className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        onClick={() => setShowBotModal(false)}
+      >
+        <div
+          className="w-full max-w-[500px] rounded-[28px] p-[1px] bg-[linear-gradient(135deg,rgba(82,46,139,0.6),rgba(195,139,255,0.3))] shadow-[0_24px_80px_rgba(0,0,0,0.6),0_0_40px_rgba(131,72,193,0.2)]"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="rounded-[27px] bg-[#06040f] px-8 py-8">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#2C1969] to-[#8348C1]">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 13.763l-2.968-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.986.796z"/></svg>
+                </div>
+                <div>
+                  <h2 className="text-[18px] font-semibold text-white leading-tight">CryptoPulse Bot</h2>
+                  <p className="text-[12px] text-[#A3A4B0]">@Crypto_Pulse_Official_Bot</p>
+                </div>
+              </div>
+              <button onClick={() => setShowBotModal(false)} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 text-[#A3A4B0] hover:text-white hover:bg-white/5 transition-colors cursor-pointer">
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M5 5L15 15M5 15L15 5"/></svg>
+              </button>
+            </div>
+
+            {/* Feature list */}
+            <div className="flex flex-col gap-3 mb-7">
+              {[
+                { icon: "🔔", title: "Миттєві алерти", desc: "Отримуй push-повідомлення в Telegram коли ціна досягає твого рівня" },
+                { icon: "📊", title: "Поточні позиції", desc: "Переглядай свої відкриті demo-позиції прямо в боті" },
+                { icon: "⭐", title: "Обрані активи", desc: "Швидкий доступ до твого watchlist без відкриття браузера" },
+                { icon: "💰", title: "Баланс рахунку", desc: "Перевіряй поточний баланс демо-рахунку в будь-який момент" },
+                { icon: "🚪", title: "Безпечний вхід", desc: "Авторизуйся через пошту та пароль — сесія зберігається" },
+              ].map(f => (
+                <div key={f.title} className="flex items-start gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.03] px-4 py-3">
+                  <span className="text-[18px] shrink-0 mt-0.5">{f.icon}</span>
+                  <div>
+                    <p className="text-[13px] font-medium text-white">{f.title}</p>
+                    <p className="text-[12px] text-[#A3A4B0] mt-0.5">{f.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* CTA */}
+            <button
+              onClick={openTelegramBot}
+              className="flex w-full h-[48px] items-center justify-center gap-2 rounded-[28px] bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-[14px] font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer shadow-[0_4px_20px_rgba(131,72,193,0.4)]"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 13.763l-2.968-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.986.796z"/></svg>
+              Відкрити CryptoPulse Bot
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    {/* Complete profile nudge */}
+    {showCompleteProfile && (
+      <div
+        className="fixed bottom-6 right-6 z-[9998] w-[340px] p-[1px] rounded-[20px] shadow-[0_8px_40px_rgba(131,72,193,0.35)] animate-fade-up"
+        style={{ background: "linear-gradient(135deg, rgba(131,72,193,0.7) 0%, rgba(179,179,179,0.2) 100%)" }}
+      >
+        <div className="rounded-[19px] bg-[#07030F] px-5 py-4 flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: "linear-gradient(135deg, #2C1969 0%, #8348C1 100%)" }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="8" r="4" stroke="white" strokeWidth="1.8"/>
+                  <path d="M4 20c0-4 3.582-7 8-7s8 3 8 7" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <div>
+                <p className="font-montserrat text-[13px] font-semibold text-white leading-tight">Завершіть налаштування</p>
+                <p className="font-montserrat text-[11px] text-white/40 mt-0.5">Додайте ім'я та інші дані профілю</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={dismissCompleteProfile}
+              className="text-white/25 hover:text-white/60 transition-colors text-lg leading-none shrink-0 cursor-pointer mt-0.5"
+            >
+              ×
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => { dismissCompleteProfile(); navigate("/profile"); }}
+              className="flex-1 h-[36px] rounded-full font-montserrat text-[12px] font-medium text-white cursor-pointer transition-all hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-[0.98]"
+              style={{ background: "linear-gradient(90deg, #2C1969 0%, #8348C1 100%)" }}
+            >
+              Заповнити профіль
+            </button>
+            <button
+              type="button"
+              onClick={dismissCompleteProfile}
+              className="px-4 h-[36px] rounded-full font-montserrat text-[12px] text-white/40 hover:text-white/70 border border-white/10 transition-colors cursor-pointer"
+            >
+              Пізніше
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

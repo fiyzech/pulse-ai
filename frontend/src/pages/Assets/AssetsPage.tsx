@@ -1,5 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { openTelegramBot } from "../../utils/telegram";
+import { formatPrice } from "../../utils/format";
+import { useAccount } from "../../context/accountContextValue";
+import { getPlanLimits } from "../../utils/planLimits";
+import UpgradeModal from "../../components/common/UpgradeModal";
 
 import bookmarkPlusIcon from "../../assets/icons/bookmark-plus.svg";
 import arrowUpOutlineIcon from "../../assets/icons/arrow-up-outline.svg";
@@ -68,14 +73,6 @@ const recommendedAssets = [
   { coinId: "avalanche-2", name: "Avalanche", symbol: "AVAX", imageUrl: "https://cryptologos.cc/logos/avalanche-avax-logo.png" },
 ];
 
-const formatPrice = (price: number | null | undefined) => {
-  if (price === null || price === undefined) return "$0.00";
-  if (price > 0 && price < 0.01) return `$${price}`;
-  return `$${price.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-};
 
 const formatChange = (change: number | null | undefined) => {
   const safeChange = change ?? 0;
@@ -134,11 +131,13 @@ const mapFavoritesToRows = (
 
 export default function FavoritesContent() {
   const navigate = useNavigate();
+  const { account } = useAccount();
   const [favoriteAssets, setFavoriteAssets] = useState<FavoriteAssetView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [pendingSymbol, setPendingSymbol] = useState<string | null>(null);
   const [hoveredTrash, setHoveredTrash] = useState<string | null>(null);
+  const [upgradeModal, setUpgradeModal] = useState(false);
 
   const loadFavorites = useCallback(async () => {
     setLoading(true);
@@ -276,6 +275,13 @@ export default function FavoritesContent() {
   };
 
   const handleAddRecommended = async (asset: (typeof recommendedAssets)[number]) => {
+    // Plan limit check
+    const limits = getPlanLimits(account?.planKey);
+    if (limits.watchlistMax !== null && favoriteAssets.length >= limits.watchlistMax) {
+      setUpgradeModal(true);
+      return;
+    }
+
     setPendingSymbol(asset.symbol);
     setError("");
 
@@ -306,8 +312,12 @@ export default function FavoritesContent() {
           зміни ринку та створювати алерти
         </p>
 
-        <button className="min-w-[208px] h-[44px] px-6 rounded-full flex items-center justify-center bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium transition-all duration-300 ease-out hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-[0.98] cursor-pointer">
-          Підключити Telegram
+        <button
+          onClick={openTelegramBot}
+          className="min-w-[208px] h-[44px] px-6 rounded-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#2C1969] via-[#8348C1] to-[#C38BFF] text-white text-[14px] leading-[20px] font-medium transition-all duration-300 ease-out hover:scale-105 hover:shadow-[0_0_15px_rgba(131,72,193,0.4)] active:scale-[0.98] cursor-pointer"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 13.763l-2.968-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.986.796z"/></svg>
+          Перейти в Telegram бот
         </button>
       </div>
 
@@ -318,31 +328,45 @@ export default function FavoritesContent() {
       )}
 
       <div className="grid grid-cols-4 gap-[24px] mb-[24px] w-full">
-        {stats.map((stat, index) => (
-          <div
-            key={index}
-            className="h-[110px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.19),0_8px_25px_rgba(0,0,0,0.5)]"
-          >
-            <div className="relative h-full rounded-[28px] bg-[#050506] p-5 text-center overflow-hidden flex flex-col items-center justify-center">
-              <p className="text-white text-[14px] font-normal">
-                {stat.title}
-              </p>
-
-              <div className="flex items-center justify-center gap-1 mt-2">
-                <h2
-                  className={
-                    stat.valueClass ||
-                    "text-[28px] leading-none font-medium text-white"
-                  }
-                >
-                  {stat.value}
-                </h2>
-
-                {stat.icon && <img src={stat.icon} alt="" className="w-5 h-5" />}
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-[110px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))]"
+            >
+              <div className="h-full rounded-[28px] bg-[#050506] p-5 flex flex-col items-center justify-center gap-3">
+                <div className="h-4 w-2/3 rounded-full animate-pulse bg-white/[0.06]" />
+                <div className="h-7 w-1/2 rounded-full animate-pulse bg-white/[0.06]" />
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        ) : (
+          stats.map((stat, index) => (
+            <div
+              key={index}
+              className="h-[110px] p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:shadow-[0_20px_80px_rgba(131,72,193,0.19),0_8px_25px_rgba(0,0,0,0.5)]"
+            >
+              <div className="relative h-full rounded-[28px] bg-[#050506] p-5 text-center overflow-hidden flex flex-col items-center justify-center">
+                <p className="text-white text-[14px] font-normal">
+                  {stat.title}
+                </p>
+
+                <div className="flex items-center justify-center gap-1 mt-2">
+                  <h2
+                    className={
+                      stat.valueClass ||
+                      "text-[28px] leading-none font-medium text-white"
+                    }
+                  >
+                    {stat.value}
+                  </h2>
+
+                  {stat.icon && <img src={stat.icon} alt="" className="w-5 h-5" />}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       <div className="grid grid-cols-4 gap-[24px] w-full">
@@ -521,6 +545,14 @@ export default function FavoritesContent() {
           </div>
         </div>
       </div>
+
+      <UpgradeModal
+        isOpen={upgradeModal}
+        onClose={() => setUpgradeModal(false)}
+        title="Ліміт Watchlist"
+        description={`Ваш план дозволяє додавати до ${getPlanLimits(account?.planKey).watchlistMax} активів у Watchlist. Оновіть план, щоб розширити список.`}
+        currentPlanKey={account?.planKey ?? "free"}
+      />
     </div>
   );
 }
