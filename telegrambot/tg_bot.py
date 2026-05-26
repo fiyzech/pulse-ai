@@ -1684,27 +1684,23 @@ async def main():
     await site.start()
     logging.info(f"Notification HTTP server started on port {port}")
 
-    # Drop any stale webhook / getUpdates session before starting polling.
-    # This prevents 409 Conflict when Render starts a new instance before the
-    # old one fully closes its long-poll connection.
-    try:
-        await bot.delete_webhook(drop_pending_updates=False)
-        logging.info("Cleared any stale webhook/session before polling")
-    except Exception as e:
-        logging.warning(f"delete_webhook warning (non-fatal): {e}")
-
-    try:
-        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
-    finally:
-        # If polling stops for any reason — exit the process so Render auto-restarts it.
-        logging.error("Polling stopped unexpectedly — exiting process to trigger Render restart")
-        import sys
-        sys.exit(1)
+    # Polling retry loop — never kills the process (HTTP server stays alive).
+    # If polling stops or crashes for any reason, wait 5 s and restart it.
+    while True:
+        try:
+            await bot.delete_webhook(drop_pending_updates=False)
+            logging.info("Starting polling...")
+            await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+            logging.warning("Polling stopped normally — restarting in 5s...")
+        except asyncio.CancelledError:
+            logging.info("Polling cancelled — shutting down gracefully")
+            break
+        except Exception as e:
+            logging.error(f"Polling crashed: {e!r} — restarting in 5s...")
+        await asyncio.sleep(5)
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
         pass
-    except SystemExit:
-        raise
