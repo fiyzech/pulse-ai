@@ -37,7 +37,6 @@ const inputBgQuiet = "linear-gradient(#050506, #050506) padding-box, linear-grad
 const inputBgError = "linear-gradient(#0A0A0A, #0A0A0A) padding-box, linear-gradient(90deg, rgba(248, 113, 113, 0.72) 0%, rgba(248, 113, 113, 0.72) 100%) border-box";
 const settingsCacheKey = "cryptopulse_settings_cache";
 
-
 const cancelGradientBorder =
   "linear-gradient(#050506, #050506) padding-box, linear-gradient(90deg, #2C1969 0%, #8348C1 50%, #C38BFF 100%) border-box";
 
@@ -240,8 +239,8 @@ function SwitchToggle({ checked, onChange }: SwitchToggleProps) {
 }
 
 /** Returns next billing date as a localised string (dd.mm.yyyy).
- *  Adds 1 month (monthly) or 1 year (yearly) to the plan activation date.
- *  Returns "—" when the activation date is unknown. */
+ * Adds 1 month (monthly) or 1 year (yearly) to the plan activation date.
+ * Returns "—" when the activation date is unknown. */
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
   try {
@@ -282,7 +281,6 @@ export default function SettingsPage() {
   const [isCancelHovered, setIsCancelHovered] = useState(false);
   const [hoveredCancelCard, setHoveredCancelCard] = useState(false);
   const [isCancelActive, setIsCancelActive] = useState(false);
-
 
   const [selectedPlan, setSelectedPlan] = useState<number>(cachedSettings.selectedPlan);
   const [savedCardLast4, setSavedCardLast4] = useState<string | null>(cachedSettings.savedCardLast4);
@@ -1142,6 +1140,7 @@ export default function SettingsPage() {
                 letterSpacing: 0,
                 whiteSpace: "nowrap",
                 verticalAlign: "middle",
+                textAlign: "left",
               }}
             >
               {h}
@@ -1162,11 +1161,11 @@ export default function SettingsPage() {
             </td>
             <td style={{ padding: "20px 24px", fontSize: 14, letterSpacing: 0, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{fmtDate(planActivatedAt)}</td>
             <td style={{ padding: "20px 24px", fontSize: 14, letterSpacing: 0, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{computeNextBillingDate(planActivatedAt, isYearly)}</td>
-            <td style={{ padding: "20px 24px", textAlign: "center" }}>
-              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-                <button
-                  type="button"
-                  title="Завантажити"
+            <td style={{ padding: "20px 24px" }}>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-start", transform: "translateX(-29px)" }}>
+              <button
+                type="button"
+                title="Завантажити"
                   style={{
                     display: "inline-flex", alignItems: "center", justifyContent: "center",
                     width: 40, height: 40, borderRadius: "50%", border: "none", cursor: "pointer",
