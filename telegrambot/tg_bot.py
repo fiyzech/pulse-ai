@@ -743,7 +743,6 @@ async def cmd_link(message: Message):
     The code is generated on the website profile page (valid 10 minutes)
     and stored in the users.bot_link_code column.
     """
-    import time as _time
     parts = message.text.strip().split()
     if len(parts) < 2:
         await message.answer(
@@ -762,13 +761,16 @@ async def cmd_link(message: Message):
     from telegrambot.database import get_supabase
     client = get_supabase()
     try:
-        # Look up the user by link code
-        res = await client.table("users") \
-            .select("id,email,first_name,active_plan,bot_link_exp") \
-            .eq("bot_link_code", code) \
-            .execute()
+        # Use SECURITY DEFINER RPC to bypass RLS on UPDATE
+        rpc_res = await client.rpc("link_telegram_account", {
+            "p_code": code,
+            "p_telegram_id": str(message.from_user.id),
+            "p_telegram_username": message.from_user.username or "",
+        }).execute()
 
-        if not res.data:
+        data = rpc_res.data or {}
+
+        if data.get("error") == "code_not_found":
             await message.answer(
                 "❌ <b>Код не знайдено.</b>\n\n"
                 "Переконайтесь що код введено правильно, або згенеруйте новий на сайті.",
@@ -776,11 +778,7 @@ async def cmd_link(message: Message):
             )
             return
 
-        udata = res.data[0]
-        exp_ms = udata.get("bot_link_exp") or 0
-
-        # Check expiry (bot_link_exp stored as ms timestamp)
-        if exp_ms and _time.time() * 1000 > exp_ms:
+        if data.get("error") == "code_expired":
             await message.answer(
                 "⏱ <b>Код прострочено (10 хвилин).</b>\n\n"
                 "Згенеруйте новий код на сторінці профілю сайту.",
@@ -788,21 +786,18 @@ async def cmd_link(message: Message):
             )
             return
 
-        user_id = udata["id"]
+        if not data.get("ok"):
+            logging.error(f"cmd_link: unexpected RPC response: {data!r}")
+            await message.answer("❌ Помилка підключення. Спробуйте ще раз.")
+            return
 
-        # Link telegram + clear the one-use code
-        await client.table("users").update({
-            "telegram_id":       str(message.from_user.id),
-            "telegram_username": message.from_user.username or "",
-            "bot_link_code":     None,
-            "bot_link_exp":      None,
-        }).eq("id", user_id).execute()
+        user_id = data["user_id"]
 
         # Store a "linked" session marker so require_auth passes without JWT
         _store_token(message.from_user.id, f"linked:{user_id}", "")
 
-        name = udata.get("first_name") or (udata.get("email", "").split("@")[0])
-        plan = (udata.get("active_plan") or "free").capitalize()
+        name = data.get("first_name") or (data.get("email", "").split("@")[0])
+        plan = (data.get("active_plan") or "free").capitalize()
 
         await message.answer(
             f"✅ <b>Акаунт успішно підключено!</b>\n\n"
