@@ -132,30 +132,36 @@ const getSection2Params = (period: string): { interval: string; limit: number } 
   }
 };
 
-const COMPLETE_PROFILE_KEY = "cpulse_complete_profile_dismissed";
+// Key is per-user so a deleted+recreated account always sees the nudge again
+const profileDismissedKey = (userId: string) => `cpulse_profile_setup_done_${userId}`;
 
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { account, loading: accountLoading } = useAccount();
 
-  // Show "complete profile" nudge if name is empty/placeholder
+  // Show "complete profile" nudge when key fields are missing
   const [showCompleteProfile, setShowCompleteProfile] = useState(false);
 
   useEffect(() => {
     if (accountLoading) return;
     if (!account) return;
-    if (sessionStorage.getItem(COMPLETE_PROFILE_KEY)) return;
 
-    // Show when username is not set (all OAuth users + new email users)
+    // Per-user localStorage key — survives tab close, resets after account deletion/recreation
+    if (localStorage.getItem(profileDismissedKey(account.userId))) return;
+
+    // Show if any of the key fields are empty
     const hasUsername = account.username && account.username.trim().length > 0;
-    if (!hasUsername) {
+    const hasPhone = account.phoneNumber && account.phoneNumber.trim().length > 0;
+    const hasRegion = account.region && account.region.trim().length > 0;
+
+    if (!hasUsername || !hasPhone || !hasRegion) {
       const t = setTimeout(() => setShowCompleteProfile(true), 1200);
       return () => clearTimeout(t);
     }
   }, [account, accountLoading]);
 
   const dismissCompleteProfile = () => {
-    sessionStorage.setItem(COMPLETE_PROFILE_KEY, "1");
+    if (account) localStorage.setItem(profileDismissedKey(account.userId), "1");
     setShowCompleteProfile(false);
   };
 
