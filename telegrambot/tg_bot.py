@@ -1684,8 +1684,9 @@ async def main():
     await site.start()
     logging.info(f"Notification HTTP server started on port {port}")
 
-    # Polling retry loop — never kills the process (HTTP server stays alive).
-    # If polling stops or crashes for any reason, wait 5 s and restart it.
+    # Polling retry loop — HTTP server always stays alive.
+    # SIGTERM → aiogram stops polling → loop restarts it.
+    # SIGKILL (Render hard-kill) → CancelledError → also restart, not exit.
     while True:
         try:
             await bot.delete_webhook(drop_pending_updates=False)
@@ -1693,8 +1694,8 @@ async def main():
             await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
             logging.warning("Polling stopped normally — restarting in 5s...")
         except asyncio.CancelledError:
-            logging.info("Polling cancelled — shutting down gracefully")
-            break
+            logging.warning("CancelledError received — restarting polling in 5s (HTTP server stays alive)...")
+            # Do NOT break here — keeps the HTTP server alive during Render redeploys
         except Exception as e:
             logging.error(f"Polling crashed: {e!r} — restarting in 5s...")
         await asyncio.sleep(5)
