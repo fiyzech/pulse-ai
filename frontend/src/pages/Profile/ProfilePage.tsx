@@ -839,7 +839,8 @@ useEffect(() => {
       const { error: rpcError } = await supabase.rpc("delete_current_user");
       if (rpcError) throw rpcError;
       window.localStorage.removeItem(profileCacheKey);
-      await supabase.auth.signOut();
+      // не викликаємо signOut — токен вже недійсний після видалення auth.users
+      await supabase.auth.signOut({ scope: "local" });
       navigate("/");
     } catch (err) {
       console.error("Delete account error:", err);
