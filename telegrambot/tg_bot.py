@@ -1684,7 +1684,16 @@ async def main():
     await site.start()
     logging.info(f"Notification HTTP server started on port {port}")
 
-    await dp.start_polling(bot)
+    # Drop any stale webhook / getUpdates session before starting polling.
+    # This prevents 409 Conflict when Render starts a new instance before the
+    # old one fully closes its long-poll connection.
+    try:
+        await bot.delete_webhook(drop_pending_updates=False)
+        logging.info("Cleared any stale webhook/session before polling")
+    except Exception as e:
+        logging.warning(f"delete_webhook warning (non-fatal): {e}")
+
+    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
 if __name__ == "__main__":
     try:
