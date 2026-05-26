@@ -1405,7 +1405,6 @@ function SessionSummaryModal({ demo, snapshot, planKey, onContinue, onNewSession
 
   useEffect(() => {
     if (!isPro || sessionTrades.length === 0) return;
-    setAiLoading(true);
     const avgPnl = (totalPnl / sessionTrades.length).toFixed(2);
     const best = bestTrade ? `+$${bestTrade.pnl.toFixed(2)} (${bestTrade.sym})` : "—";
     const worst = worstTrade ? `$${worstTrade.pnl.toFixed(2)} (${worstTrade.sym})` : "—";
@@ -1427,10 +1426,17 @@ function SessionSummaryModal({ demo, snapshot, planKey, onContinue, onNewSession
 
 Стиль: як досвідчений трейдер говорить з учнем — чесно, по справі, без води. До 120 слів.`;
 
-    fetchGroqReview(prompt)
-      .then(text => setAiReview(text))
-      .catch(() => setAiReview("Не вдалося завантажити AI-розбір."))
-      .finally(() => setAiLoading(false));
+    void (async () => {
+      setAiLoading(true);
+      try {
+        const text = await fetchGroqReview(prompt);
+        setAiReview(text);
+      } catch {
+        setAiReview("Не вдалося завантажити AI-розбір.");
+      } finally {
+        setAiLoading(false);
+      }
+    })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

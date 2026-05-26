@@ -318,7 +318,7 @@ export default function SettingsPage() {
 
       const { data, error } = await supabase
         .from("users")
-        .select("active_plan, subscription, billing_cycle, card_last4, updated_at")
+        .select("active_plan, subscription, billing_cycle, card_last4, plan_activated_at")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -341,18 +341,19 @@ export default function SettingsPage() {
         setSelectedPlan(nextSettings.selectedPlan);
         setIsYearly(nextSettings.isYearly);
         setSavedCardLast4(nextSettings.savedCardLast4);
-        // updated_at може бути null — fallback до localStorage/account cache.
-        const dbDate = (data.updated_at as string | null) ?? null;
+
+        const shouldHaveBillingDate = nextSettings.selectedPlan !== 0;
+        // Пріоритет: БД → localStorage → accountCache → зараз (якщо є платний план)
+        const dbDate = (data.plan_activated_at as string | null) ?? null;
         const localDate = localStorage.getItem(PLAN_ACT_KEY(user.id));
         const cachedDate = readAccountCache()?.planActivatedAt ?? readCachedSettings().planActivatedAt;
-        const shouldHaveBillingDate = nextSettings.selectedPlan !== 0;
         const resolvedPlanDate = dbDate ?? localDate ?? cachedDate ?? (shouldHaveBillingDate ? new Date().toISOString() : null);
 
         if (resolvedPlanDate && shouldHaveBillingDate) {
           localStorage.setItem(PLAN_ACT_KEY(user.id), resolvedPlanDate);
         }
 
-        setPlanActivatedAt(resolvedPlanDate);
+        setPlanActivatedAt(shouldHaveBillingDate ? resolvedPlanDate : null);
         writeCachedSettings({ ...nextSettings, planActivatedAt: shouldHaveBillingDate ? resolvedPlanDate : null });
       }
     };
@@ -385,12 +386,20 @@ export default function SettingsPage() {
     const planName = plansData[planIndex].key;
     const cycle = yearly ? "yearly" : "monthly";
 
+    // Зберігаємо дату активації: якщо платний план — now(), якщо free — null
+    let nextPlanActivatedAt: string | null = null;
+    if (planIndex !== 0) {
+      // Зберігаємо існуючу дату або ставимо нову
+      nextPlanActivatedAt = planActivatedAt ?? new Date().toISOString();
+    }
+
     const { error } = await supabase
       .from("users")
       .update({
         active_plan: planName,
         subscription: planName,
         billing_cycle: cycle,
+        plan_activated_at: nextPlanActivatedAt,
       })
       .eq("id", userId)
       .select("id")
@@ -402,11 +411,9 @@ export default function SettingsPage() {
       return false;
     }
 
-    // Зберігаємо дату активації плану (для відображення у платіжній секції)
-    let nextPlanActivatedAt: string | null = null;
+    // Синхронізуємо з localStorage
     if (planIndex !== 0) {
-      nextPlanActivatedAt = new Date().toISOString();
-      localStorage.setItem(PLAN_ACT_KEY(userId), nextPlanActivatedAt);
+      localStorage.setItem(PLAN_ACT_KEY(userId), nextPlanActivatedAt!);
     } else {
       localStorage.removeItem(PLAN_ACT_KEY(userId));
     }
