@@ -347,7 +347,7 @@ export default function SettingsPage() {
         const dbDate = (data.updated_at as string | null) ?? null;
         const localDate = localStorage.getItem(PLAN_ACT_KEY(user.id));
         const cachedDate = readAccountCache()?.planActivatedAt ?? readCachedSettings().planActivatedAt;
-        const shouldHaveBillingDate = nextSettings.selectedPlan !== 0 && Boolean(nextSettings.savedCardLast4);
+        const shouldHaveBillingDate = nextSettings.selectedPlan !== 0;
         const resolvedPlanDate = dbDate ?? localDate ?? cachedDate ?? (shouldHaveBillingDate ? new Date().toISOString() : null);
 
         if (resolvedPlanDate && shouldHaveBillingDate) {
@@ -782,7 +782,7 @@ export default function SettingsPage() {
                   <div>
                     <p style={{ fontSize: 14, fontWeight: 400, letterSpacing: 0, color: "#A3A4B0", marginBottom: 6 }}>Наступна оплата</p>
                     <p style={{ fontSize: 16, fontWeight: 400, letterSpacing: 0, marginBottom: 12 }}>
-                      {selectedPlan !== 0 && savedCardLast4
+                      {selectedPlan !== 0
                         ? computeNextBillingDate(planActivatedAt, isYearly)
                         : "Не заплановано"}
                     </p>
@@ -1151,9 +1151,47 @@ export default function SettingsPage() {
       </thead>
 
       <tbody style={{ background: "#050506" }}>
-        {selectedPlan !== 0 && savedCardLast4 ? (
+        {selectedPlan !== 0 ? (
           <tr style={{ background: "#050506" }}>
-            {/* тут залишаєш свої td без змін */}
+            <td style={{ padding: "20px 24px", fontSize: 14, letterSpacing: 0, color: "rgba(255,255,255,0.6)" }}>План &ldquo;{plansData[selectedPlan].name}&rdquo;</td>
+            <td style={{ padding: "20px 24px", fontSize: 14, letterSpacing: 0, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{isYearly ? plansData[selectedPlan].yearlyPrice : plansData[selectedPlan].monthlyPrice} EUR</td>
+            <td style={{ padding: "20px 24px" }}>
+              <span style={{ fontSize: 13, letterSpacing: 0, color: "rgba(255,255,255,0.55)" }}>
+                {savedCardLast4 ? `**** **** **** ${savedCardLast4}` : "Не вказано"}
+              </span>
+            </td>
+            <td style={{ padding: "20px 24px", fontSize: 14, letterSpacing: 0, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{fmtDate(planActivatedAt)}</td>
+            <td style={{ padding: "20px 24px", fontSize: 14, letterSpacing: 0, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{computeNextBillingDate(planActivatedAt, isYearly)}</td>
+            <td style={{ padding: "20px 24px", textAlign: "center" }}>
+              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                <button
+                  type="button"
+                  title="Завантажити"
+                  style={{
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    width: 40, height: 40, borderRadius: "50%", border: "none", cursor: "pointer",
+                    background: "linear-gradient(90deg, rgba(179,179,179,0.32), rgba(82,46,139,0.32))",
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A3A4B0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  title="Посилання"
+                  style={{
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    width: 40, height: 40, borderRadius: "50%", border: "none", cursor: "pointer",
+                    background: "linear-gradient(90deg, rgba(179,179,179,0.32), rgba(82,46,139,0.32))",
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A3A4B0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                  </svg>
+                </button>
+              </div>
+            </td>
           </tr>
         ) : (
           <tr style={{ background: "#050506" }}>
