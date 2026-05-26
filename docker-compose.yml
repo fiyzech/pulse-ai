@@ -39,22 +39,8 @@ services:
       environment:
         # Ця змінна змушує Докер краще слідкувати за змінами файлів (щоб Hot Reload працював безвідмовно)
         - WATCHPACK_POLLING=true
-  bot:
-    build: ./telegrambot
-    container_name: CryptoPulse_bot
-    restart: always
-    env_file:
-      - ./telegrambot/.env
-    ports:
-      - "8080:8080"  # HTTP endpoint for frontend → bot alert notifications
-    volumes:
-      - .:/app  # <-- Переконайтеся, що тут саме так (крапка, двокрапка, слейш app)
-    # Це гарантує, що бот не "ляже", якщо база ще піднімається
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3" 
+  # bot: REMOVED — runs exclusively on Render to avoid 409 conflicts.
+  # Never run the bot locally with the production token.
 # Це має бути притиснуто до самого лівого краю (без пробілів)
 volumes:
   pgdata:

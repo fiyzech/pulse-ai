@@ -9,7 +9,6 @@ import alertsIcon from "../../assets/icons/alerts-icon.svg";
 import profileIcon from "../../assets/icons/user.svg";
 import settingsIcon from "../../assets/icons/settings-icon.svg";
 import supportIcon from "../../assets/icons/support-icon.svg";
-import pulseAiIcon from "../../assets/images/activate-pulse-ai.svg";
 
 export default function Sidebar() {
   const location = useLocation();
@@ -61,7 +60,7 @@ export default function Sidebar() {
                 `group flex w-full items-center gap-3 rounded-[28px] px-4 py-3 text-left text-[15px] font-montserrat font-regular transition-all duration-300 border border-transparent ${
                   isCurrent
                     ? "text-white shadow-[0_4px_20px_rgba(96,67,164,0.25)]" 
-                    : "text-[#808080]/40 hover:bg-white/[0.04] hover:text-white/90" 
+                    : "text-[#6E6F7E] hover:bg-white/[0.04] hover:text-white/90" 
                 }`
                 );
               }}
@@ -73,7 +72,7 @@ export default function Sidebar() {
                       src={item.icon}
                       alt={item.label}
                       style={{ width: item.iconSize, height: item.iconSize }}
-                      className={`object-contain transition-all duration-300 ${isActive || (isAssetPage && item.path === "/markets") ? 'scale-[1.15] brightness-0 invert opacity-100' : 'opacity-50 group-hover:opacity-100 scale-100'}`}
+                      className={`object-contain transition-all duration-300 ${isActive || (isAssetPage && item.path === "/markets") ? 'scale-[1.15] brightness-0 invert opacity-100' : 'brightness-0 invert opacity-[0.45] group-hover:opacity-100 scale-100'}`}
                     />
                   </span>
                   <span className={`transition-all duration-300 ${isActive || (isAssetPage && item.path === "/markets") ? 'font-medium text-white' : ''}`}>{item.label}</span>
@@ -96,7 +95,7 @@ export default function Sidebar() {
                 `group flex w-full items-center gap-3 rounded-[28px] px-4 py-3 text-left text-[15px] font-medium transition-all duration-300 border border-transparent ${
                   isActive
                     ? "text-white shadow-[0_4px_20px_rgba(96,67,164,0.25)]"
-                    : "text-[#808080]/40 hover:bg-white/[0.04] hover:text-white/90"
+                    : "text-[#6E6F7E] hover:bg-white/[0.04] hover:text-white/90"
                 }`
               }
             >
@@ -107,7 +106,7 @@ export default function Sidebar() {
                       src={item.icon} 
                       alt={item.label} 
                       style={{ width: item.iconSize, height: item.iconSize }}
-                      className={`object-contain transition-all duration-300 ${isActive ? 'scale-[1.15] brightness-0 invert opacity-100' : 'opacity-50 group-hover:opacity-100 scale-100'}`} 
+                      className={`object-contain transition-all duration-300 ${isActive ? 'scale-[1.15] brightness-0 invert opacity-100' : 'brightness-0 invert opacity-[0.45] group-hover:opacity-100 scale-100'}`} 
                     />
                   </span>
                   <span className={`transition-all duration-300 ${isActive ? 'font-semibold text-white' : ''}`}>{item.label}</span>
@@ -117,13 +116,6 @@ export default function Sidebar() {
           ))}
         </div>
 
-        {/* PulseAI блок */}
-        <NavLink
-          to="/settings"
-          className="block w-full cursor-pointer transition-transform hover:scale-[1.02] active:scale-95"
-        >
-          <img src={pulseAiIcon} alt="Активуйте PulseAI" className="w-full h-auto object-contain" />
-        </NavLink>
       </div>
     </aside>
   );

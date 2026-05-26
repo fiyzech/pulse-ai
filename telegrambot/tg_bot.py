@@ -1693,10 +1693,18 @@ async def main():
     except Exception as e:
         logging.warning(f"delete_webhook warning (non-fatal): {e}")
 
-    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+    try:
+        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+    finally:
+        # If polling stops for any reason — exit the process so Render auto-restarts it.
+        logging.error("Polling stopped unexpectedly — exiting process to trigger Render restart")
+        import sys
+        sys.exit(1)
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
         pass
+    except SystemExit:
+        raise
