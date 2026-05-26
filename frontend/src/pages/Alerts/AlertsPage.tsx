@@ -5,6 +5,10 @@ import editIcon from "../../assets/icons/pencil-edit.svg";
 import trashIcon from "../../assets/icons/trash.svg";
 import alarm from "../../assets/icons/alarm.svg";
 import question from "../../assets/icons/question-mark.svg";
+import telegramIcon from "../../assets/icons/telegram.svg";
+import arrowRightIcon from "../../assets/icons/arrow_right.svg";
+import checkBigIcon from "../../assets/icons/check_big.svg";
+import crossBigIcon from "../../assets/icons/cross_big.svg";
 import { getAuthenticatedUserId } from "../../utils/favoriteAssets";
 import {
   getAlertConditionShortLabel,
@@ -16,7 +20,7 @@ import type { PriceAlertCondition, PriceAlertRecord } from "../../utils/priceAle
 import { BOT_URL, fetchTelegramStatus, openTelegramBot } from "../../utils/telegram";
 
 const tableGrid =
-  "grid grid-cols-[minmax(140px,1.05fr)_minmax(170px,1.45fr)_minmax(108px,0.8fr)_108px_92px_108px_76px] gap-x-3";
+   "grid grid-cols-[1.1fr_1.15fr_0.95fr_0.9fr_0.75fr_120px]";
 
 const conditionOptions: Array<{ value: PriceAlertCondition; label: string }> = [
   { value: "price_gt",           label: "↑ Ціна перетне вгору" },
@@ -273,7 +277,7 @@ export default function AlertsPage() {
       </div>
 
       {(error || message) && (
-        <div className={`mb-5 rounded-[18px] border px-5 py-3 text-[13px] ${error ? "border-red-400/30 bg-red-500/10 text-red-200" : "border-[#22C55E]/30 bg-[#22C55E]/10 text-[#86EFAC]"}`}>
+        <div className="mb-5 rounded-[18px] border border-[#25DE28]/30 bg-[#25DE28]/10 px-5 py-3 text-[13px] text-[#25DE28] shadow-[0_0_24px_rgba(37,222,40,0.12)]">
           {error || message}
         </div>
       )}
@@ -295,16 +299,15 @@ export default function AlertsPage() {
         ))}
       </div>
 
-      <div className="w-full overflow-hidden rounded-[28px] border border-[#8348C1]/20 bg-[#050506] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
-        <div className="w-full">
-            <div className={`relative ${tableGrid} h-[58px] items-center px-6 text-[13px] font-semibold text-[#A3A4B0] bg-[linear-gradient(90deg,rgba(96,67,164,0.18)_0%,rgba(1,3,21,0.18)_100%)]`}>
-              <div className="absolute bottom-0 left-6 right-6 h-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.20),rgba(82,46,139,0.22))]" />
+      <div className="w-full p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
+        <div className="rounded-[28px] bg-[#050506] overflow-hidden">
+            <div className={`relative ${tableGrid} items-center px-[24px] h-[57px] text-[#A3A4B0] text-[14px] font-normal bg-[linear-gradient(90deg,rgba(96,67,164,0.2)_0%,rgba(1,3,21,0.2)_100%)]`}>
+              <div className="absolute bottom-0 left-0 w-full h-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))]" />
               <span className="leading-none">Актив</span>
               <span className="leading-none">Умова</span>
               <span className="leading-none">Поточна ціна</span>
               <span className="leading-none">Статус</span>
               <span className="leading-none">Спрацювань</span>
-              <span className="leading-none">Telegram</span>
               <span className="justify-self-center leading-none">Дії</span>
             </div>
 
@@ -321,9 +324,8 @@ export default function AlertsPage() {
                 return (
                   <React.Fragment key={alert.id}>
                     <div
-                      className={`group/alert-row ${tableGrid} h-[84px] cursor-pointer items-center px-6 transition-all duration-300 ease-out hover:bg-[#8348C1]/[0.035]`}
-                      onClick={() => navigate(`/trading/${symbol}`)}
-                      title="Відкрити в терміналі"
+                      className={`group/alert-row ${tableGrid} h-[84px] cursor-pointer items-center px-6 transition-all duration-300 ease-out hover:bg-white/[0.035]`}
+                      onClick={() => navigate(`/trading/${symbol}`)}                      
                     >
                       <div className="flex min-w-0 items-center gap-4">
                         <div className={`flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full ${meta?.color || "bg-[#8348C1]"}`}>
@@ -333,18 +335,17 @@ export default function AlertsPage() {
                             <span className="text-[11px] font-bold text-white">{symbol.slice(0, 2)}</span>
                           )}
                         </div>
-                        <div className="min-w-0 space-y-1">
-                          <p className="truncate text-[15px] font-medium leading-none text-white transition-colors group-hover/alert-row:text-[#C38BFF]">{symbol}/USDT</p>
-                          <p className="text-[11px] font-normal leading-none text-white/25 transition-colors group-hover/alert-row:text-[#8348C1]">↗ Відкрити</p>
+                        <div className="min-w-0">
+                          <p className="truncate text-[15px] font-medium leading-none text-white">{symbol}/USDT</p>
                         </div>
                       </div>
 
                       {isEditing ? (
-                        <div className="min-w-0" onClick={(event) => event.stopPropagation()}>
+                        <div className="min-w-0 p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]" onClick={(event) => event.stopPropagation()}>
                           <select
                             value={editCondition}
                             onChange={(event) => setEditCondition(event.target.value as PriceAlertCondition)}
-                            className="h-[38px] w-full min-w-0 rounded-full border border-[#8348C1]/40 bg-[#050506] px-3 text-[12px] text-white outline-none"
+                            className="h-[38px] w-full min-w-0 rounded-[28px] bg-[#050506] px-[16px] text-[12px] text-white outline-none"
                           >
                             {conditionOptions.map((option) => (
                               <option key={option.value} value={option.value} className="bg-[#050506]">
@@ -360,13 +361,13 @@ export default function AlertsPage() {
                       )}
 
                       {isEditing ? (
-                        <div className="min-w-0" onClick={(event) => event.stopPropagation()}>
+                        <div className="min-w-0 p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]" onClick={(event) => event.stopPropagation()}>
                           <input
                             value={editPrice}
                             inputMode="decimal"
                             min="0"
                             onChange={(event) => setEditPrice(sanitizePositiveDecimal(event.target.value))}
-                            className="h-[38px] w-full min-w-0 rounded-full border border-[#8348C1]/40 bg-[#050506] px-4 text-[13px] text-white outline-none"
+                            className="h-[38px] w-full min-w-0 rounded-full bg-[#050506] px-[16px] text-[14px] text-white outline-none"
                           />
                         </div>
                       ) : (
@@ -388,19 +389,6 @@ export default function AlertsPage() {
                         }
                       </div>
 
-                      {/* Telegram status */}
-                      {telegramConnected ? (
-                        <span className="inline-flex h-7 items-center text-[13px] font-medium leading-none text-[#25DE28]/90">✅ Активно</span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={openTelegramBot}
-                          className="inline-flex h-7 items-center text-left text-[13px] leading-none text-[#8348C1] underline transition-colors hover:text-[#C38BFF]"
-                        >
-                          📱 Підключити
-                        </button>
-                      )}
-
                       <div className="flex items-center justify-end gap-2">
                         {isEditing ? (
                           <>
@@ -411,9 +399,11 @@ export default function AlertsPage() {
                                 event.stopPropagation();
                                 saveEdit(alert);
                               }}
-                              className="h-9 w-[84px] rounded-full border border-[#8348C1]/45 text-[12px] text-white transition-all hover:bg-[#8348C1]/10 disabled:opacity-60"
+                              className="group relative inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_12px_rgba(37,222,40,0.22)] active:scale-95 disabled:opacity-60"
                             >
-                              Зберегти
+                              <div className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover:bg-[#071407]">
+                                <img src={checkBigIcon} alt="" className="h-4 w-4 transition-all duration-300 group-hover:scale-105 group-hover:brightness-125" />
+                              </div>
                             </button>
                             <button
                               type="button"
@@ -421,9 +411,11 @@ export default function AlertsPage() {
                                 event.stopPropagation();
                                 cancelEdit();
                               }}
-                              className="h-9 w-[64px] rounded-full border border-white/10 text-[12px] text-[#A3A4B0] transition-all hover:text-white"
+                              className="group relative inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-105 hover:bg-[linear-gradient(90deg,rgba(244,0,0,0.28),rgba(244,0,0,0.18))] hover:shadow-[0_0_12px_rgba(244,0,0,0.18)] active:scale-95"
                             >
-                              Скас.
+                              <div className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover:bg-[#140707]">
+                                <img src={crossBigIcon} alt="" className="h-4 w-4 transition-all duration-300 group-hover:scale-105 group-hover:brightness-125" />
+                              </div>
                             </button>
                           </>
                         ) : (
@@ -434,9 +426,11 @@ export default function AlertsPage() {
                                 event.stopPropagation();
                                 startEdit(alert);
                               }}
-                              className="group relative inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-[#8348C1]/25 bg-[#050506] transition-all duration-300 hover:scale-105 hover:border-[#8348C1]/50 hover:bg-[#0B0B0D] hover:shadow-[0_0_12px_rgba(131,72,193,0.24)] active:scale-95"
+                              className="ml-[12px] flex h-[44px] items-center justify-center gap-[8px] rounded-[28px] bg-[linear-gradient(90deg,rgb(44,25,105)_0%,rgb(131,72,193)_50%,rgb(195,139,255)_100%)] px-[24px] text-[14px] font-medium text-white transition-all duration-300 hover:scale-105 active:scale-95"
                             >
-                              <img src={editIcon} alt="" className="h-4 w-4 transition-all duration-300 group-hover:scale-105 group-hover:brightness-125" />
+                              <div className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover:bg-[#0B0B0D]">
+                                <img src={editIcon} alt="" className="h-4 w-4 transition-all duration-300 group-hover:scale-105 group-hover:brightness-125" />
+                              </div>
                             </button>
 
                             <button
@@ -446,9 +440,11 @@ export default function AlertsPage() {
                                 event.stopPropagation();
                                 deleteAlert(alert);
                               }}
-                              className="group relative inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-[#8348C1]/25 bg-[#050506] transition-all duration-300 hover:scale-105 hover:border-red-400/50 hover:bg-[#140707] hover:shadow-[0_0_14px_rgba(255,68,68,0.26)] active:scale-95 disabled:opacity-60"
+                              className="group relative inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-105 hover:bg-[linear-gradient(90deg,rgba(244,0,0,0.28),rgba(244,0,0,0.18))] hover:shadow-[0_0_12px_rgba(244,0,0,0.18)] active:scale-95 disabled:opacity-60"
                             >
-                              <img src={trashIcon} alt="" className="h-4 w-4 transition-all duration-300 group-hover:scale-105 group-hover:brightness-125" />
+                              <div className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover:bg-[#140707]">
+                                <img src={trashIcon} alt="" className="h-4 w-4 transition-all duration-300 group-hover:scale-105 group-hover:brightness-125" />
+                              </div>
                             </button>
                           </>
                         )}
@@ -467,21 +463,28 @@ export default function AlertsPage() {
         </div>
       </div>
 
-      <div className="mt-5 flex flex-col items-start gap-3 px-6">
+      <div className="mt-[24px] flex flex-col items-start gap-3">
         {telegramConnected === false && (
-          <div className="flex items-center gap-3 rounded-2xl border border-[#8348C1]/30 bg-[#8348C1]/5 px-5 py-3">
-            <span className="text-xl">📱</span>
-            <div>
-              <p className="text-[13px] font-semibold text-white">Підключіть Telegram для сповіщень</p>
-              <p className="text-[11px] text-[#A3A4B0]">Отримуйте миттєві сповіщення про спрацювання алертів у боті</p>
+          <div className="w-fit p-[1px] rounded-[28px] bg-[linear-gradient(90deg,rgba(82,46,139,0.32),rgba(179,179,179,0.32))] shadow-[0_20px_70px_rgba(131,72,193,0.10),0_8px_25px_rgba(0,0,0,0.35)]">
+            <div className="flex items-center gap-3 rounded-[28px] bg-[#050506] px-5 py-3">
+              <div className="flex h-[28px] w-[28px] shrink-0 items-center justify-center">
+                <img src={telegramIcon} alt="" className="h-[18px] w-[18px] object-contain" />
+              </div>
+
+              <div>
+                <p className="text-[13px] font-semibold text-white">Підключіть Telegram для сповіщень</p>
+                <p className="text-[11px] text-[#A3A4B0]">Отримуйте миттєві сповіщення про спрацювання алертів у боті</p>
+              </div>
+             
+              <button
+                type="button"
+                onClick={openTelegramBot}
+                className="ml-[12px] flex h-[44px] items-center justify-center gap-[8px] rounded-[28px] bg-[linear-gradient(90deg,rgb(44,25,105)_0%,rgb(131,72,193)_50%,rgb(195,139,255)_100%)] px-[24px] text-[14px] font-medium text-white transition-all duration-300 hover:scale-105 active:scale-95"
+              >
+                <span>Відкрити бот</span>
+                <img src={arrowRightIcon} alt="" className="h-[16px] w-[16px] object-contain" />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={openTelegramBot}
-              className="ml-2 shrink-0 rounded-xl bg-[#8348C1] px-4 py-2 text-[12px] font-bold text-white hover:bg-[#9B5FD4] transition-colors"
-            >
-              Відкрити бот →
-            </button>
           </div>
         )}
         {telegramConnected === true && (
