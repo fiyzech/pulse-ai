@@ -3,8 +3,6 @@ import type { ChangeEvent } from "react";
 import { supabase } from "../../supabaseClient";
 import { mergeAccountCache, readAccountCache } from "../../utils/accountCache";
 import visaLogo from '../../assets/icons/visa.svg';
-import uploadicon from '../../assets/icons/share upload alt..svg';
-import uploadicon2 from '../../assets/icons/Vector.svg';
 
 interface Plan {
   name: string;
@@ -184,12 +182,6 @@ const VisaBadge = ({ width, height }: { width: number; height: number }) => (
   </div>
 );
 
-const EditIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M11.1719 4.17188L17 10M14.0859 7.08594L7.58594 13.5859M7.58594 13.5859L4.67187 10.6719M7.58594 13.5859L10.5 16.5M10 17L17.5858 9.41421C18.3668 8.63316 18.3668 7.36684 17.5858 6.58579L14.5861 3.58609C13.805 2.80504 12.5387 2.80504 11.7577 3.58609L4.17187 11.1719L5.08594 16.0859L10 17Z" stroke="#A3A4B0" strokeWidth="1.5" strokeLinejoin="round" />
-  </svg>
-);
-
 const FieldError = ({ message }: { message?: string }) => {
   if (!message) return null;
 
@@ -304,11 +296,8 @@ export default function SettingsPage() {
   const [cardName, setCardName] = useState("");
   const [cardErrors, setCardErrors] = useState<CardErrors>({});
 
-  const [hoveredEditBtn, setHoveredEditBtn] = useState(false);
   const [hoveredAddCard, setHoveredAddCard] = useState(false);
   const [hoveredSave, setHoveredSave] = useState(false);
-  const [hoveredIconBtn, setHoveredIconBtn] = useState<string | null>(null);
-  const [isEditActive, setIsEditActive] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
