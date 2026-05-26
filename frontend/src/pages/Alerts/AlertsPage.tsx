@@ -9,6 +9,7 @@ import telegramIcon from "../../assets/icons/telegram.svg";
 import arrowRightIcon from "../../assets/icons/arrow_right.svg";
 import checkBigIcon from "../../assets/icons/check_big.svg";
 import crossBigIcon from "../../assets/icons/cross_big.svg";
+import checkIcon from "../../assets/icons/check.svg";
 import { getAuthenticatedUserId } from "../../utils/favoriteAssets";
 import {
   getAlertConditionShortLabel,
@@ -426,7 +427,7 @@ export default function AlertsPage() {
                                 event.stopPropagation();
                                 startEdit(alert);
                               }}
-                              className="ml-[12px] flex h-[44px] items-center justify-center gap-[8px] rounded-[28px] bg-[linear-gradient(90deg,rgb(44,25,105)_0%,rgb(131,72,193)_50%,rgb(195,139,255)_100%)] px-[24px] text-[14px] font-medium text-white transition-all duration-300 hover:scale-105 active:scale-95"
+                              className="group relative inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full p-[1px] bg-[linear-gradient(90deg,rgba(179,179,179,0.32),rgba(82,46,139,0.32))] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_12px_rgba(131,72,193,0.28)] active:scale-95"
                             >
                               <div className="flex h-full w-full items-center justify-center rounded-full bg-[#050506] transition-all duration-300 group-hover:bg-[#0B0B0D]">
                                 <img src={editIcon} alt="" className="h-4 w-4 transition-all duration-300 group-hover:scale-105 group-hover:brightness-125" />
@@ -488,11 +489,15 @@ export default function AlertsPage() {
           </div>
         )}
         {telegramConnected === true && (
-          <p className="text-[13px] leading-5 text-[#A3A4B0]">
-            ✅ Telegram підключено · Сповіщення надходять до{" "}
-            <a href={BOT_URL} target="_blank" rel="noopener noreferrer" className="text-[#8348C1] hover:text-[#C38BFF] underline">
-              @Crypto_Pulse_Official_Bot
-            </a>
+          <p className="flex items-center gap-[8px] text-[13px] leading-5 text-[#A3A4B0]">
+            <img src={checkIcon} alt="" className="h-[16px] w-[16px] object-contain" />
+
+            <span className="flex items-center gap-[4px]">
+              Telegram підключено · Сповіщення надходять до{" "}
+              <a href={BOT_URL} target="_blank" rel="noopener noreferrer" className="text-[#8348C1] hover:text-[#C38BFF] underline">
+                @Crypto_Pulse_Official_Bot
+              </a>
+            </span>
           </p>
         )}
       </div>
