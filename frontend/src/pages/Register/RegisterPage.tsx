@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { mergeAccountCache } from '../../utils/accountCache';
+import { isValidPhoneNumber, phoneValidationMessage } from '../../utils/phone';
 
 import thirdGradPic from '../../assets/images/third-grad-pic.svg?url';
 import seventhGridPic from '../../assets/images/seventh-grid-pic.svg?url';
@@ -135,8 +136,26 @@ const formatBirthDateForDatabase = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const formatPhoneNumber = (value: string) => {
-  const digits = value.replace(/\D/g, '').slice(0, 10);
+// Max local-number digits per country (без коду країни).
+// UA: 9 цифр (50 597 20 651 → 9), default: 10.
+const maxLocalDigits = (dialCode?: string): number => {
+  if (dialCode === '+380') return 9;
+  return 10;
+};
+
+const formatPhoneNumber = (value: string, dialCode?: string) => {
+  const max = maxLocalDigits(dialCode);
+  const digits = value.replace(/\D/g, '').slice(0, max);
+
+  // Український формат: XX XXX XX XX (2-3-2-2 = 9)
+  if (dialCode === '+380') {
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 5) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+    if (digits.length <= 7) return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5)}`;
+    return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 7)} ${digits.slice(7, 9)}`;
+  }
+
+  // Default: XXX XXX XX XX (3-3-2-2 = 10)
   if (digits.length <= 3) return digits;
   if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
   if (digits.length <= 8) return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
@@ -450,8 +469,7 @@ const RegisterPage = () => {
     if (!lastName.trim()) e.lastName = 'Введіть прізвище';
     else if (!namePattern.test(lastName.trim())) e.lastName = 'Лише букви';
 
-    const rawPhone = phoneNumber.replace(/\D/g, '');
-    if (rawPhone.length < 7) e.phone = 'Введіть коректний номер телефону';
+    if (!isValidPhoneNumber(phoneNumber)) e.phone = phoneValidationMessage;
 
     if (birthDate.trim()) {
       const parsedBirthDate = parseBirthDateInput(birthDate);
@@ -921,11 +939,12 @@ const RegisterPage = () => {
                       <input
                         type="tel"
                         value={formatPhoneNumber(
-                          phoneNumber.replace(selectedPhoneCountry?.dialCode ?? '+380', '')
+                          phoneNumber.replace(selectedPhoneCountry?.dialCode ?? '+380', ''),
+                          selectedPhoneCountry?.dialCode ?? '+380'
                         )}
                         onChange={e => {
                           const dial = selectedPhoneCountry?.dialCode ?? '+380';
-                          const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                          const digits = e.target.value.replace(/\D/g, '').slice(0, maxLocalDigits(dial));
                           setPhoneNumber(`${dial}${digits}`);
                           if (s2Errors.phone) setS2Errors(p => ({ ...p, phone: undefined }));
                         }}

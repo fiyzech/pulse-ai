@@ -3,6 +3,7 @@ import type { ChangeEvent, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import { getPlanLabel, mergeAccountCache, readAccountCache } from "../../utils/accountCache";
+import { isValidPhoneNumber, phoneValidationMessage } from "../../utils/phone";
 import userAvatar from "../../assets/images/default_avatar.svg";
 import editIcon from "../../assets/icons/pencil-edit.svg";
 import shareUploadIcon from "../../assets/icons/share-upload.svg";
@@ -485,9 +486,22 @@ export default function ProfilePage() {
   const deviceName = detectDeviceName();
   const [deviceLocation, setDeviceLocation] = useState("в мережі");
 
-  const formatPhoneNumber = (value: string) => {
-    const digits = value.replace(/\D/g, "").slice(0, 10);
+  // Max local-number digits per country (без коду країни). UA: 9, default: 10.
+  const maxLocalDigits = (dialCode?: string): number => (dialCode === "+380" ? 9 : 10);
 
+  const formatPhoneNumber = (value: string, dialCode?: string) => {
+    const max = maxLocalDigits(dialCode);
+    const digits = value.replace(/\D/g, "").slice(0, max);
+
+    // Український формат: XX XXX XX XX (2-3-2-2 = 9)
+    if (dialCode === "+380") {
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 5) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+      if (digits.length <= 7) return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5)}`;
+      return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 7)} ${digits.slice(7, 9)}`;
+    }
+
+    // Default: XXX XXX XX XX (3-3-2-2 = 10)
     if (digits.length <= 3) return digits;
     if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
     if (digits.length <= 8) return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
@@ -730,6 +744,12 @@ useEffect(() => {
 
     if (username && !/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
       setError("Username: 3-20 символів, латиниця, цифри або _");
+      setSaving(false);
+      return;
+    }
+
+    if (editForm.phone.trim() && !isValidPhoneNumber(editForm.phone)) {
+      setError(phoneValidationMessage);
       setSaving(false);
       return;
     }
@@ -1248,11 +1268,12 @@ useEffect(() => {
       <input
         type="tel"
         value={formatPhoneNumber(
-          editForm.phone.replace(selectedPhoneCountry?.dialCode || "+380", "")
+          editForm.phone.replace(selectedPhoneCountry?.dialCode || "+380", ""),
+          selectedPhoneCountry?.dialCode || "+380"
         )}
         onChange={(e) => {
           const dial = selectedPhoneCountry?.dialCode || "+380";
-          const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+          const digits = e.target.value.replace(/\D/g, "").slice(0, maxLocalDigits(dial));
           setEditForm((p) => ({ ...p, phone: `${dial}${digits}` }));
         }}
         placeholder="Введіть номер"
